@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:project01/Screen/widgets/found_item_action_page.dart';
 import '../widgets/custom_top_bar.dart';
-import '../widgets/post_action_buttons.dart';
+import '../widgets/find_item_action_buttons.dart';
+import '../widgets/find_item_action_buttons.dart';
 
 class PostPage extends StatelessWidget {
   const PostPage({super.key});
@@ -53,10 +55,20 @@ class PostPage extends StatelessWidget {
             right: 0,
             child: PostActionButtons(
               onLostPress: () {
-                // TODO: Navigate to lost item form
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LostItemPostPage(),
+                  ),
+                );
               },
               onFoundPress: () {
-                // TODO: Navigate to found item form
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const FoundItemPage(),
+                  ),
+                );
               },
             ),
           ),

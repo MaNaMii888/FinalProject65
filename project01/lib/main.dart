@@ -49,7 +49,8 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const MyHomePage(),
-        // เพิ่ม routes อื่นๆ ตามต้องการ
+        '/found': (context) => const FoundPage(),
+        '/found-item': (context) => const FoundItemPage(),
       },
     );
   }
