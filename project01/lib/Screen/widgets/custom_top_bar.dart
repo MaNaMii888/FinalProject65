@@ -12,35 +12,79 @@ class CustomTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: 40,
-      left: 20,
-      right: 20,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        height: 60,
-        decoration: BoxDecoration(
-          color: Colors.grey[300],
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(icon: const Icon(Icons.menu), onPressed: onMenuPressed),
-            IconButton(
-              icon: const Icon(Icons.notifications_none),
-              onPressed: onNotificationPressed,
-            ),
-          ],
+    return Container(
+      margin: const EdgeInsets.only(top: 60, left: 16, right: 16, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 56,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Builder(
+            builder:
+                (context) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () {
+                    Scaffold.of(context).openDrawer();
+                  },
+                  tooltip: 'เมนู',
+                ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {
+              // TODO: เพิ่มฟังก์ชันเปิดหน้าแจ้งเตือนที่นี่
+              print("Notification pressed");
+            },
+            tooltip: 'การแจ้งเตือน',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              CustomTopBar(
+                onMenuPressed: () {
+                  // จัดการการกดปุ่มเมนู
+                },
+                onNotificationPressed: () {
+                  // จัดการการกดปุ่มแจ้งเตือน
+                },
+              ),
+              Expanded(
+                child: Container(
+                  // เนื้อหาของหน้า
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+void main() {
+  runApp(MyApp());
 }

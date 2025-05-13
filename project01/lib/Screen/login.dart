@@ -4,14 +4,14 @@ import 'package:project01/Screen/register.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -45,7 +45,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return null;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -57,16 +58,17 @@ class _LoginScreenState extends State<LoginScreen> {
       // Show error dialog
       await showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('เกิดข้อผิดพลาด'),
-          content: Text('ไม่สามารถเข้าสู่ระบบได้: ${e.toString()}'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ปิด'),
+        builder:
+            (context) => AlertDialog(
+              title: const Text('เกิดข้อผิดพลาด'),
+              content: Text('ไม่สามารถเข้าสู่ระบบได้: ${e.toString()}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('ปิด'),
+                ),
+              ],
             ),
-          ],
-        ),
       );
       return null;
     }

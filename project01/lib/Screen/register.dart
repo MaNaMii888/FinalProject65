@@ -3,9 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:project01/Screen/home.dart';
-import 'package:project01/model/profile.dart' show Profile;
+import 'package:project01/models/profile.dart' show Profile;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:project01/Screen/login.dart';
+import 'package:project01/models/profile.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -74,10 +75,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           labelText: 'Gmail',
                           border: UnderlineInputBorder(),
                         ),
-                        validator: MultiValidator([
-                          RequiredValidator(errorText: "กรุณากรอกอีเมล"),
-                          EmailValidator(errorText: "กรุณากรอกอีเมลให้ถูกต้อง"),
-                        ]),
+                        validator:
+                            MultiValidator([
+                              RequiredValidator(errorText: "กรุณากรอกอีเมล"),
+                              EmailValidator(
+                                errorText: "กรุณากรอกอีเมลให้ถูกต้อง",
+                              ),
+                            ]).call,
                         onSaved: (String? email) {
                           profile.email = email ?? '';
                         },
@@ -90,9 +94,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           labelText: 'Password',
                           border: UnderlineInputBorder(),
                         ),
-                        validator: RequiredValidator(
-                          errorText: "กรุณากรอกรหัสผ่าน",
-                        ),
+                        validator:
+                            RequiredValidator(
+                              errorText: "กรุณากรอกรหัสผ่าน",
+                            ).call,
                         onSaved: (String? password) {
                           profile.password = password ?? '';
                         },
@@ -342,7 +347,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const LoginScreen(),
+                                  builder: (context) => const LoginPage(),
                                 ),
                               );
                             },

@@ -38,7 +38,7 @@ class _NavigationExampleState extends State<NavigationExample> {
             currentPageIndex = index;
           });
         },
-        indicatorColor: Colors.amber,
+        indicatorColor: const Color.fromARGB(255, 165, 148, 249),
         selectedIndex: currentPageIndex,
         destinations: const <Widget>[
           NavigationDestination(
@@ -49,7 +49,7 @@ class _NavigationExampleState extends State<NavigationExample> {
           NavigationDestination(
             selectedIcon: Icon(Icons.add_outlined),
             icon: Icon(Icons.add),
-            label: 'Add',
+            label: 'Post',
           ),
           NavigationDestination(
             selectedIcon: Icon(Icons.person_outlined),
