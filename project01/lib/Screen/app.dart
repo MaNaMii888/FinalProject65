@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'page/map_page.dart';
+import 'page/map/map_page.dart';
 import 'page/post_page.dart';
 import 'page/profile_page.dart';
 

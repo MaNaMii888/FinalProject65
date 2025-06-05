@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../widgets/custom_top_bar.dart';
+import 'package:project01/Screen/widgets/custom_top_bar.dart';
+import 'package:project01/Screen/page/map/map._view.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -8,11 +9,9 @@ class MapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Container(
-          color: Colors.grey[200],
-          width: double.infinity,
-          height: double.infinity,
-        ),
+        // แสดงแผนที่
+        const MapView(),
+        // ทับด้วย TopBar
         CustomTopBar(
           onMenuPressed: () {
             // TODO: เพิ่มการทำงานเมื่อกดปุ่ม menu
