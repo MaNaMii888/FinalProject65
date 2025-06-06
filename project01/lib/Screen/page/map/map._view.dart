@@ -14,8 +14,9 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   final loc.Location _location = loc.Location();
   LatLng _currentLocation = const LatLng(13.7330, 100.4895);
-  final String _mapType = 'streets';
+  final String _mapType = 'university'; // เปลี่ยนเป็น university
   String _address = 'กำลังค้นหาตำแหน่ง...';
+  bool _showUniversityMap = true; // สำหรับสลับแผนที่
 
   @override
   void initState() {
@@ -67,9 +68,14 @@ class _MapViewState extends State<MapView> {
   }
 
   String getTileLayerUrl() {
-    return _mapType == 'streets'
-        ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-        : 'https://tile.opentopomap.org/{z}/{x}/{y}.png';
+    switch (_mapType) {
+      case 'university':
+        return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'; // จะเปลี่ยนเป็น custom tile server
+      case 'streets':
+        return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      default:
+        return 'https://tile.opentopomap.org/{z}/{x}/{y}.png';
+    }
   }
 
   @override
@@ -83,10 +89,26 @@ class _MapViewState extends State<MapView> {
               initialZoom: 16,
             ),
             children: [
+              // ถ้าเปิดใช้แผนที่มหาวิทยาลัย จะแสดงรูปแผนที่เป็นพื้นหลัง
+              if (_showUniversityMap)
+                Container(
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(
+                        'assets/images/map.png',
+                      ), // ใส่รูปแผนที่ในโฟลเดอร์ assets
+                      fit: BoxFit.cover,
+                      opacity: 0.8, // ความโปร่งใส
+                    ),
+                  ),
+                ),
+
+              // Tile Layer ปกติ (จะแสดงทับรูปแผนที่หรือแยกกัน)
               TileLayer(
                 urlTemplate: getTileLayerUrl(),
                 userAgentPackageName: 'com.example.app',
               ),
+
               MarkerLayer(
                 markers: [
                   Marker(
@@ -108,7 +130,7 @@ class _MapViewState extends State<MapView> {
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.85),
                             borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
+                            boxShadow: const [
                               BoxShadow(
                                 color: Colors.black12,
                                 blurRadius: 4,
@@ -128,6 +150,26 @@ class _MapViewState extends State<MapView> {
               ),
             ],
           ),
+
+          // ปุ่มสลับแผนที่
+          Positioned(
+            right: 16,
+            top: 100,
+            child: FloatingActionButton(
+              mini: true,
+              backgroundColor: Colors.white.withOpacity(0.9),
+              onPressed: () {
+                setState(() {
+                  _showUniversityMap = !_showUniversityMap;
+                });
+              },
+              child: Icon(
+                _showUniversityMap ? Icons.map : Icons.school,
+                color: Colors.blue,
+              ),
+            ),
+          ),
+
           Positioned(
             left: 16,
             right: 16,
