@@ -57,6 +57,7 @@ dependencies:
   geocoding: ^3.0.0
   image: ^4.5.4
   flutter_local_notifications: ^19.2.1
+  flutter_lucide: ^1.6.2
 
 
   
