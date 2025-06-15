@@ -1,13 +1,66 @@
 // campus_navigation.dart
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart'; // Make sure this path is correct
-// campus_navigation.dart
 
 // CustomPainter สำหรับวาดผังอาคาร A
 class FloorPlanAPainter extends CustomPainter {
+  // Add constants for configuration
+  static const double ORIGINAL_SVG_HEIGHT = 500.0;
+  static const double FONT_SIZE = 12.0;
+  static const double STROKE_WIDTH = 2.0;
+  static const double HIGHLIGHT_STROKE_WIDTH = 3.0;
+
   final String? findRequest; // สำหรับไฮไลท์ห้องที่ค้นหา
 
   FloorPlanAPainter({this.findRequest});
+
+  /// Draw a room on the canvas with specified parameters
+  void _drawRoom(
+    Canvas canvas,
+    Rect originalRect, // รับ Rect ที่เป็นค่าพิกัดเดิมจาก SVG
+    String roomId,
+    String roomName,
+    Paint fill,
+    Paint border,
+    double scaleFactor, // เพิ่ม scaleFactor
+    Paint highlightPaint, // เพิ่ม Paint สำหรับ Highlight
+    Paint highlightBorderPaint, // เพิ่ม Paint สำหรับ Highlight Border
+    String? highlightRequest, // ไม่ shadow ชื่อ findRequest
+  ) {
+    bool isHighlighted =
+        highlightRequest != null &&
+        (roomName.toLowerCase().contains(highlightRequest.toLowerCase()) ||
+            roomId.toLowerCase() == highlightRequest.toLowerCase());
+
+    // Apply scaling to the rectangle coordinates
+    final Rect scaledRect = Rect.fromLTWH(
+      originalRect.left * scaleFactor,
+      originalRect.top * scaleFactor,
+      originalRect.width * scaleFactor,
+      originalRect.height * scaleFactor,
+    );
+
+    canvas.drawRect(scaledRect, isHighlighted ? highlightPaint : fill);
+    canvas.drawRect(scaledRect, isHighlighted ? highlightBorderPaint : border);
+
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(
+        text: roomName,
+        style: TextStyle(
+          color: Colors.grey[800],
+          fontSize: FONT_SIZE * scaleFactor, // Scale font size as well
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout(minWidth: scaledRect.width, maxWidth: scaledRect.width);
+    textPainter.paint(
+      canvas,
+      Offset(scaledRect.left, scaledRect.center.dy - textPainter.height / 2),
+    );
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -18,7 +71,7 @@ class FloorPlanAPainter extends CustomPainter {
     final Paint roomBorderPaint =
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
+          ..strokeWidth = STROKE_WIDTH
           ..color = const Color(0xff1976d2); // Border color
 
     final Paint foodPaint =
@@ -28,29 +81,8 @@ class FloorPlanAPainter extends CustomPainter {
     final Paint foodBorderPaint =
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
+          ..strokeWidth = STROKE_WIDTH
           ..color = const Color(0xfff57c00);
-
-    final Paint libraryOfficePaint =
-        Paint()
-          ..style = PaintingStyle.fill
-          ..color = const Color(0xffe8f5e8);
-    final Paint libraryOfficeBorderPaint =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = const Color(0xff388e3c);
-
-    final Paint officeSpecificPaint =
-        Paint()
-          ..style = PaintingStyle.fill
-          ..color = const Color(0xfffce4ec);
-    final Paint officeSpecificBorderPaint =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = const Color(0xffc2185b);
-
     final Paint highlightPaint =
         Paint()
           ..style = PaintingStyle.fill
@@ -58,148 +90,168 @@ class FloorPlanAPainter extends CustomPainter {
     final Paint highlightBorderPaint =
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
+          ..strokeWidth = HIGHLIGHT_STROKE_WIDTH
           ..color = Colors.yellow[400]!;
 
-    void drawRoom(
-      String roomId,
-      String roomName,
-      Rect rect,
-      Paint fill,
-      Paint border,
-    ) {
-      bool isHighlighted =
-          findRequest != null &&
-          (roomName.toLowerCase().contains(findRequest!.toLowerCase()) ||
-              roomId.toLowerCase() == findRequest!.toLowerCase());
+    // กำหนด scaleFactor: ใช้ความสูงของ Canvas (size.height) เทียบกับความสูงต้นฉบับของ SVG (600)
+    final double scaleFactor = size.height / ORIGINAL_SVG_HEIGHT;
 
-      canvas.drawRect(rect, isHighlighted ? highlightPaint : fill);
-      canvas.drawRect(rect, isHighlighted ? highlightBorderPaint : border);
-
-      final TextPainter textPainter = TextPainter(
-        text: TextSpan(
-          text: roomName,
-          style: TextStyle(
-            color: Colors.grey[800],
-            fontSize: 12, // Adjusted for Flutter text scale
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout(minWidth: rect.width, maxWidth: rect.width);
-      textPainter.paint(
-        canvas,
-        Offset(rect.left, rect.center.dy - textPainter.height / 2),
-      );
-    }
-
-    // Building A Rooms
-    drawRoom(
+    // Building A Rooms - ใช้ _drawRoom พร้อม scaleFactor
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(150, 20, 100, 40),
       '7',
       '7',
-      const Rect.fromLTWH(50, 20, 100, 40),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(160, 80, 80, 60),
       '6',
       '6',
-      const Rect.fromLTWH(80, 80, 50, 40),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
-      '8',
-      '8',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(30, 80, 40, 60),
+      '8',
+      '8',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(340, 80, 40, 60),
       '5',
       '5',
-      const Rect.fromLTWH(140, 80, 40, 60),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
-      '9',
-      '9',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(20, 160, 60, 80),
+      '9',
+      '9',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(160, 160, 80, 60),
       '2',
       '2',
-      const Rect.fromLTWH(90, 160, 60, 60),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(340, 150, 40, 80),
       '4',
       '4',
-      const Rect.fromLTWH(160, 140, 50, 80),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(160, 240, 80, 60),
       '1',
       '1',
-      const Rect.fromLTWH(90, 240, 40, 80),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(340, 240, 40, 80),
       '3',
       '3',
-      const Rect.fromLTWH(140, 240, 60, 100),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
-      '10',
-      '10',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(20, 260, 50, 80),
+      '10',
+      '10',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(160, 305, 80, 60),
       'food',
       'โรงอาหาร',
-      const Rect.fromLTWH(90, 340, 60, 30),
       foodPaint,
       foodBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(340, 360, 40, 120),
       '12',
       '12',
-      const Rect.fromLTWH(220, 360, 40, 120),
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(10, 360, 60, 120),
       '11',
       '11',
-      const Rect.fromLTWH(20, 360, 120, 60),
       roomPaint,
       roomBorderPaint,
-    );
-    drawRoom(
-      'library',
-      'ห้องสมุด',
-      const Rect.fromLTWH(280, 480, 60, 40),
-      libraryOfficePaint,
-      libraryOfficeBorderPaint,
-    );
-    drawRoom(
-      'office',
-      'สำนักงาน',
-      const Rect.fromLTWH(350, 480, 40, 40),
-      officeSpecificPaint,
-      officeSpecificBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
+      findRequest,
     );
   }
 
@@ -216,8 +268,55 @@ class FloorPlanBPainter extends CustomPainter {
 
   FloorPlanBPainter({this.findRequest});
 
+  /// Draw a room on the canvas with specified parameters
+  void _drawRoom(
+    Canvas canvas,
+    Rect originalRect,
+    String roomId,
+    String roomName,
+    Paint fill,
+    Paint border,
+    double scaleFactor,
+    Paint highlightPaint,
+    Paint highlightBorderPaint,
+  ) {
+    bool isHighlighted =
+        findRequest != null &&
+        (roomName.toLowerCase().contains(findRequest!.toLowerCase()) ||
+            roomId.toLowerCase() == findRequest!.toLowerCase());
+
+    final Rect scaledRect = Rect.fromLTWH(
+      originalRect.left * scaleFactor,
+      originalRect.top * scaleFactor,
+      originalRect.width * scaleFactor,
+      originalRect.height * scaleFactor,
+    );
+
+    canvas.drawRect(scaledRect, isHighlighted ? highlightPaint : fill);
+    canvas.drawRect(scaledRect, isHighlighted ? highlightBorderPaint : border);
+
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(
+        text: roomName,
+        style: TextStyle(
+          color: Colors.grey[800],
+          fontSize: 12 * scaleFactor, // Scale font size as well
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout(minWidth: scaledRect.width, maxWidth: scaledRect.width);
+    textPainter.paint(
+      canvas,
+      Offset(scaledRect.left, scaledRect.center.dy - textPainter.height / 2),
+    );
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
+    // Paints
     final Paint roomPaint =
         Paint()
           ..style = PaintingStyle.fill
@@ -227,7 +326,6 @@ class FloorPlanBPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
           ..color = const Color(0xff1976d2);
-
     final Paint lobbyPaint =
         Paint()
           ..style = PaintingStyle.fill
@@ -248,152 +346,186 @@ class FloorPlanBPainter extends CustomPainter {
           ..strokeWidth = 3
           ..color = Colors.yellow[400]!;
 
-    void drawRoom(
-      String roomId,
-      String roomName,
-      Rect rect,
-      Paint fill,
-      Paint border,
-    ) {
-      bool isHighlighted =
-          findRequest != null &&
-          (roomName.toLowerCase().contains(findRequest!.toLowerCase()) ||
-              roomId.toLowerCase() == findRequest!.toLowerCase());
+    // กำหนด scaleFactor: ใช้ความสูงของ Canvas (size.height) เทียบกับความสูงต้นฉบับของ SVG (350)
+    final double scaleFactor =
+        size.height / 350.0; // Original SVG viewBox height for Building B
 
-      canvas.drawRect(rect, isHighlighted ? highlightPaint : fill);
-      canvas.drawRect(rect, isHighlighted ? highlightBorderPaint : border);
-
-      final TextPainter textPainter = TextPainter(
-        text: TextSpan(
-          text: roomName,
-          style: TextStyle(
-            color: Colors.grey[800],
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout(minWidth: rect.width, maxWidth: rect.width);
-      textPainter.paint(
-        canvas,
-        Offset(rect.left, rect.center.dy - textPainter.height / 2),
-      );
-    }
-
-    // Building B Rooms
-    drawRoom(
-      '28',
-      '28',
+    // Building B Rooms - ใช้ _drawRoom พร้อม scaleFactor
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(20, 20, 50, 30),
+      '28',
+      '28',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '19',
-      '19',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(20, 60, 40, 50),
+      '19',
+      '19',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '20',
-      '20',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(70, 60, 60, 30),
+      '20',
+      '20',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '22',
-      '22',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(140, 40, 40, 70),
+      '22',
+      '22',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '24',
-      '24',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(190, 20, 60, 50),
+      '24',
+      '24',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '26',
-      '26',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(270, 40, 40, 40),
+      '26',
+      '26',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '27',
-      '27',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(190, 80, 80, 40),
+      '27',
+      '27',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '17',
-      '17',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(20, 130, 60, 40),
+      '17',
+      '17',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '18',
-      '18',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(90, 130, 80, 60),
+      '18',
+      '18',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '31',
-      '31',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(290, 120, 40, 50),
+      '31',
+      '31',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '29',
-      '29',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(220, 140, 60, 40),
+      '29',
+      '29',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '15',
-      '15',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(20, 190, 40, 40),
+      '15',
+      '15',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '16',
-      '16',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(70, 200, 40, 30),
+      '16',
+      '16',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '30',
-      '30',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(220, 190, 60, 50),
+      '30',
+      '30',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
+    _drawRoom(
+      canvas,
+      const Rect.fromLTWH(120, 250, 100, 60),
       'lobby',
       'สนาม',
-      const Rect.fromLTWH(120, 250, 100, 60),
       lobbyPaint,
       lobbyBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
-    drawRoom(
-      '33',
-      '33',
+    _drawRoom(
+      canvas,
       const Rect.fromLTWH(120, 320, 60, 20),
+      '33',
+      '33',
       roomPaint,
       roomBorderPaint,
+      scaleFactor,
+      highlightPaint,
+      highlightBorderPaint,
     );
   }
 
@@ -404,9 +536,9 @@ class FloorPlanBPainter extends CustomPainter {
   }
 }
 
+// ... keep existing code (CampusNavigation and other widget classes remain the same)
+
 class CampusNavigation extends StatefulWidget {
-  // สำหรับ mobile app, คุณสามารถส่ง findRequest ผ่าน constructor ได้
-  // เช่น Navigator.push(context, MaterialPageRoute(builder: (context) => CampusNavigation(findRequest: 'ห้อง 15')));
   final String? initialFindRequest;
 
   const CampusNavigation({super.key, this.initialFindRequest});
@@ -416,15 +548,14 @@ class CampusNavigation extends StatefulWidget {
 }
 
 class _CampusNavigationState extends State<CampusNavigation> {
-  String currentView = 'map'; // 'map' or 'building'
-  String? selectedBuilding; // 'A', 'B', or null
+  String currentView = 'map'; // Default view
+  String? selectedBuilding;
   String findRequest = '';
   bool showPopup = false;
 
   @override
   void initState() {
     super.initState();
-    // ใช้ initialFindRequest จาก constructor สำหรับ mobile app
     if (widget.initialFindRequest != null &&
         widget.initialFindRequest!.isNotEmpty) {
       findRequest = widget.initialFindRequest!;
@@ -432,87 +563,81 @@ class _CampusNavigationState extends State<CampusNavigation> {
     }
   }
 
-  // แยก Logic สำหรับการประมวลผล findRequest
   void _processFindRequest(String request) {
-    setState(() {
-      findRequest = request;
-    });
+    if (request.isEmpty) {
+      return;
+    }
 
-    // Auto-detect which building contains the requested room
-    buildingData.forEach((buildingKey, building) {
-      final room = building.rooms.firstWhere(
-        (r) =>
-            r.name.toLowerCase().contains(request.toLowerCase()) ||
-            r.id.toString().toLowerCase() == request.toLowerCase(),
-        orElse:
-            () => Room(
-              id: '',
-              name: '',
-              type: '',
-            ), // Return a dummy room if not found
-      );
-      if (room.id != '') {
-        // Check if a real room was found
-        setState(() {
-          selectedBuilding = buildingKey;
-          currentView = 'building';
-        });
-        return; // Exit forEach once found
-      }
-    });
+    try {
+      setState(() {
+        findRequest = request;
+      });
+
+      buildingData.forEach((buildingKey, building) {
+        final room = building.rooms.firstWhere(
+          (r) =>
+              r.name.toLowerCase().contains(request.toLowerCase()) ||
+              r.id.toString().toLowerCase() == request.toLowerCase(),
+          orElse: () => Room(id: '', name: '', type: ''),
+        );
+        if (room.id != '') {
+          setState(() {
+            selectedBuilding = buildingKey;
+            currentView = 'building';
+          });
+          return;
+        }
+      });
+    } catch (e) {
+      print('Error processing find request: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Equivalent to bg-gray-50
+      backgroundColor: Colors.grey[50],
       body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0), // Equivalent to p-4
+            padding: const EdgeInsets.all(16.0),
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  const SizedBox(height: 60), // Space for the floating button
+                  const SizedBox(height: 100),
                   Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: 768,
-                      ), // max-w-4xl mx-auto
+                      constraints: const BoxConstraints(maxWidth: 768),
                       child: Column(
                         children: [
-                          // Header Section
                           Container(
-                            margin: const EdgeInsets.only(bottom: 24), // mb-6
+                            margin: const EdgeInsets.only(bottom: 24),
                             child: Column(
                               children: [
                                 Text(
                                   'ระบบนำทางมหาวิทยาลัย',
                                   style: TextStyle(
-                                    fontSize: 28, // text-3xl
-                                    fontWeight: FontWeight.bold, // font-bold
-                                    color: Colors.grey[800], // text-gray-800
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                const SizedBox(height: 8), // mb-2
+                                const SizedBox(height: 8),
                                 Text(
                                   currentView == 'map'
                                       ? 'แผนที่ภาพรวม'
                                       : 'ผังอาคารแยกตามชั้น',
-                                  style: TextStyle(
-                                    color: Colors.grey[600], // text-gray-600
-                                  ),
+                                  style: TextStyle(color: Colors.grey[600]),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
                             ),
                           ),
 
-                          // Main Content based on currentView
                           if (currentView == 'map')
                             _MapView()
-                          else // currentView === 'building'
+                          else
                             Column(
                               children: [
                                 _BuildingSelector(
@@ -523,20 +648,18 @@ class _CampusNavigationState extends State<CampusNavigation> {
                                     });
                                   },
                                 ),
-                                const SizedBox(height: 16), // space-y-4
+                                const SizedBox(height: 16),
 
                                 if (selectedBuilding == 'A')
                                   _FloorPlanA(findRequest: findRequest)
                                 else if (selectedBuilding == 'B')
                                   _FloorPlanB(findRequest: findRequest)
-                                else // !selectedBuilding
+                                else
                                   Container(
-                                    padding: const EdgeInsets.all(32), // p-8
+                                    padding: const EdgeInsets.all(32),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(
-                                        8,
-                                      ), // rounded-lg
+                                      borderRadius: BorderRadius.circular(8),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.grey.withOpacity(0.2),
@@ -552,8 +675,8 @@ class _CampusNavigationState extends State<CampusNavigation> {
                                           Icons.apartment,
                                           size: 64,
                                           color: Colors.grey[400],
-                                        ), // Building icon
-                                        const SizedBox(height: 16), // mb-4
+                                        ),
+                                        const SizedBox(height: 16),
                                         Text(
                                           'กรุณาเลือกอาคารที่ต้องการดู',
                                           style: TextStyle(
@@ -563,8 +686,6 @@ class _CampusNavigationState extends State<CampusNavigation> {
                                       ],
                                     ),
                                   ),
-
-                                // Room List (only for building view)
                               ],
                             ),
                         ],
@@ -575,10 +696,9 @@ class _CampusNavigationState extends State<CampusNavigation> {
               ),
             ),
           ),
-          // View Selector (fixed position)
           Positioned(
-            top: 16, // top-4
-            right: 16, // right-4
+            top: 50,
+            right: 16,
             child: _ViewSelector(
               currentView: currentView,
               showPopup: showPopup,
@@ -601,7 +721,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
   }
 }
 
-// --- Sub-Widgets (Same as before) ---
+// ... keep existing code (all other widget classes remain exactly the same)
 
 class _ViewSelector extends StatelessWidget {
   final String currentView;
@@ -623,22 +743,20 @@ class _ViewSelector extends StatelessWidget {
       children: [
         FloatingActionButton(
           onPressed: onTogglePopup,
-          backgroundColor: Colors.blue[600], // bg-blue-600
-          hoverColor: Colors.blue[700], // hover:bg-blue-700
-          foregroundColor: Colors.white, // text-white
-          elevation: 6, // shadow-lg
-          child: const Icon(Icons.navigation), // Navigation icon
+          backgroundColor: Colors.blue[600],
+          hoverColor: Colors.blue[700],
+          foregroundColor: Colors.white,
+          elevation: 6,
+          child: const Icon(Icons.navigation),
         ),
         if (showPopup)
           Container(
-            margin: const EdgeInsets.only(
-              top: 16,
-            ), // top-16 right-0 (offset from button)
-            width: 192, // min-w-48 (48 * 4 = 192)
-            padding: const EdgeInsets.all(16), // p-4
+            margin: const EdgeInsets.only(top: 16),
+            width: 192,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8), // rounded-lg
+              borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.3),
@@ -647,7 +765,7 @@ class _ViewSelector extends StatelessWidget {
                   offset: const Offset(0, 5),
                 ),
               ],
-              border: Border.all(color: Colors.grey[200]!), // border
+              border: Border.all(color: Colors.grey[200]!),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -658,8 +776,8 @@ class _ViewSelector extends StatelessWidget {
                     Text(
                       'เลือกมุมมอง',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600, // font-semibold
-                        color: Colors.grey[800], // text-gray-800
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
                       ),
                     ),
                     IconButton(
@@ -667,25 +785,25 @@ class _ViewSelector extends StatelessWidget {
                         Icons.close,
                         size: 18,
                         color: Colors.grey[400],
-                      ), // X icon
+                      ),
                       onPressed: onTogglePopup,
                       splashRadius: 20,
                     ),
                   ],
                 ),
-                const SizedBox(height: 12), // mb-3
+                const SizedBox(height: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildPopupOption(
-                      icon: Icons.map, // Map icon
+                      icon: Icons.map,
                       text: 'แผนที่มหาวิทยาลัย',
                       isSelected: currentView == 'map',
                       onTap: () => onSelectView('map'),
                     ),
-                    const SizedBox(height: 8), // space-y-2
+                    const SizedBox(height: 8),
                     _buildPopupOption(
-                      icon: Icons.apartment, // Building icon
+                      icon: Icons.apartment,
                       text: 'ภายในอาคาร',
                       isSelected: currentView == 'building',
                       onTap: () => onSelectView('building'),
@@ -709,21 +827,15 @@ class _ViewSelector extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        width: double.infinity, // w-full
-        padding: const EdgeInsets.all(12), // p-3
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8), // rounded-lg
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color:
-                isSelected
-                    ? Colors.blue[300]!
-                    : Colors.transparent, // border-2 border-blue-300
+            color: isSelected ? Colors.blue[300]! : Colors.transparent,
             width: isSelected ? 2 : 0,
           ),
-          color:
-              isSelected
-                  ? Colors.blue[100]
-                  : Colors.grey[50], // bg-blue-100 or bg-gray-50
+          color: isSelected ? Colors.blue[100] : Colors.grey[50],
           boxShadow:
               isSelected
                   ? [
@@ -740,16 +852,13 @@ class _ViewSelector extends StatelessWidget {
               icon,
               size: 20,
               color: isSelected ? Colors.blue[700] : Colors.grey[700],
-            ), // Icon color
-            const SizedBox(width: 12), // gap-3
+            ),
+            const SizedBox(width: 12),
             Text(
               text,
               style: TextStyle(
-                color:
-                    isSelected
-                        ? Colors.blue[700]
-                        : Colors.grey[700], // text color
-                fontWeight: FontWeight.w500, // font-medium
+                color: isSelected ? Colors.blue[700] : Colors.grey[700],
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -771,10 +880,10 @@ class _BuildingSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16), // p-4
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8), // rounded-lg
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.2),
@@ -790,45 +899,42 @@ class _BuildingSelector extends StatelessWidget {
           Text(
             'เลือกอาคาร',
             style: TextStyle(
-              fontSize: 18, // text-lg
-              fontWeight: FontWeight.w600, // font-semibold
-              color: Colors.grey[800], // text-gray-800
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
             ),
           ),
-          const SizedBox(height: 12), // mb-3
+          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.start, // flex gap-2
+            mainAxisAlignment: MainAxisAlignment.start,
             children:
                 buildingData.keys.map((buildingKey) {
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8.0), // gap-2
+                    padding: const EdgeInsets.only(right: 8.0),
                     child: ElevatedButton(
                       onPressed: () => onSelectBuilding(buildingKey),
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             selectedBuilding == buildingKey
-                                ? Colors.blue[600] // bg-blue-600
-                                : Colors.grey[100], // bg-gray-100
+                                ? Colors.blue[600]
+                                : Colors.grey[100],
                         foregroundColor:
                             selectedBuilding == buildingKey
-                                ? Colors
-                                    .white // text-white
-                                : Colors.grey[700], // text-gray-700
+                                ? Colors.white
+                                : Colors.grey[700],
                         shadowColor:
                             selectedBuilding == buildingKey
-                                ? Colors.blue[300] // shadow-md
+                                ? Colors.blue[300]
                                 : Colors.transparent,
                         elevation: selectedBuilding == buildingKey ? 4 : 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8), // rounded-lg
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
-                        ), // px-4 py-2
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                        ), // font-medium
+                        ),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       child: Text(buildingData[buildingKey]!.name),
                     ),
@@ -848,10 +954,10 @@ class _FloorPlanA extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(32), // p-8
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8), // rounded-lg
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.2),
@@ -866,21 +972,19 @@ class _FloorPlanA extends StatelessWidget {
           Text(
             'อาคาร A - ผังอาคาร',
             style: TextStyle(
-              fontSize: 20, // text-xl
-              fontWeight: FontWeight.bold, // font-bold
-              color: Colors.grey[800], // text-gray-800
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16), // mb-4
+          const SizedBox(height: 16),
           Container(
-            width: double.infinity, // w-full
-            height: 384, // h-96 (96 * 4 = 384)
+            width: double.infinity,
+            height: 384,
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.grey[300]!,
-              ), // border border-gray-300
-              borderRadius: BorderRadius.circular(8), // rounded
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: CustomPaint(
               painter: FloorPlanAPainter(findRequest: findRequest),
@@ -888,18 +992,18 @@ class _FloorPlanA extends StatelessWidget {
           ),
           if (findRequest != null && findRequest!.isNotEmpty)
             Container(
-              margin: const EdgeInsets.only(top: 16), // mt-4
-              padding: const EdgeInsets.all(12), // p-3
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.yellow[100], // bg-yellow-100
-                borderRadius: BorderRadius.circular(8), // rounded-lg
+                color: Colors.yellow[100],
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '🔍 กำลังค้นหา: ${findRequest!}',
+                '🔍 กำลังค้นหา: $findRequest',
                 style: TextStyle(
-                  fontSize: 14, // text-sm
-                  color: Colors.yellow[800], // text-yellow-800
-                  fontWeight: FontWeight.w600, // font-semibold for the span
+                  fontSize: 14,
+                  color: Colors.yellow[800],
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -943,7 +1047,7 @@ class _FloorPlanB extends StatelessWidget {
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
-            height: 320, // h-80 (80 * 4 = 320)
+            height: 320,
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey[300]!),
               borderRadius: BorderRadius.circular(8),
@@ -961,7 +1065,7 @@ class _FloorPlanB extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '🔍 กำลังค้นหา: ${findRequest!}',
+                '🔍 กำลังค้นหา: $findRequest',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.yellow[800],
@@ -979,10 +1083,10 @@ class _MapView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(32), // p-8
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8), // rounded-lg
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.2),
@@ -1003,32 +1107,25 @@ class _MapView extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16), // mb-4
+          const SizedBox(height: 16),
           Container(
-            height: 384, // h-96
+            height: 384,
             decoration: BoxDecoration(
-              color: Colors.green[100], // bg-green-100
-              borderRadius: BorderRadius.circular(8), // rounded-lg
-              border: Border.all(
-                color: Colors.green[300]!,
-                width: 2,
-              ), // border-2 border-green-300
+              color: Colors.green[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green[300]!, width: 2),
             ),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.map,
-                    size: 64,
-                    color: Colors.green[600],
-                  ), // Map icon
-                  const SizedBox(height: 16), // mb-4
+                  Icon(Icons.map, size: 64, color: Colors.green[600]),
+                  const SizedBox(height: 16),
                   Text(
                     'แผนที่ภาพรวมมหาวิทยาลัย',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
-                  const SizedBox(height: 8), // mt-2
+                  const SizedBox(height: 8),
                   Text(
                     'คลิกที่ปุ่ม Navigation เพื่อเลือกดูภายในอาคาร',
                     style: TextStyle(fontSize: 14, color: Colors.grey[500]),
