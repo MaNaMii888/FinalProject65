@@ -153,59 +153,140 @@ class _PostPageState extends State<PostPage>
   }
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        if (screenWidth < 600) {
+          // Mobile - แสดงเป็นแนวตั้ง
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                // Search field
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.3),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'ค้นหา...',
-                  prefixIcon: Icon(Icons.search, color: Colors.grey),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 12.0,
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'ค้นหา...',
+                      prefixIcon: Icon(Icons.search, color: Colors.grey),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      // TODO: Handle search query
+                    },
                   ),
                 ),
-                onChanged: (value) {
-                  // TODO: Handle search query
-                },
-              ),
+                const SizedBox(height: 8),
+                // Filter button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.filter_list),
+                      onSelected: (value) {
+                        // TODO: Handle filter selection
+                      },
+                      itemBuilder:
+                          (context) => const [
+                            PopupMenuItem(value: null, child: Text('ทั้งหมด')),
+                            PopupMenuItem(
+                              value: '1',
+                              child: Text('ของใช้ส่วนตัว'),
+                            ),
+                            PopupMenuItem(
+                              value: '2',
+                              child: Text('เอกสาร/บัตร'),
+                            ),
+                            PopupMenuItem(
+                              value: '3',
+                              child: Text('อุปกรณ์การเรียน'),
+                            ),
+                            PopupMenuItem(
+                              value: '4',
+                              child: Text('ของมีค่าอื่นๆ'),
+                            ),
+                          ],
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          const SizedBox(
-            width: 8.0,
-          ), // เพิ่มระยะห่างระหว่าง TextField และ PopupButton
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              // TODO: Handle filter selection
-            },
-            itemBuilder:
-                (context) => const [
-                  PopupMenuItem(value: null, child: Text('ทั้งหมด')),
-                  PopupMenuItem(value: '1', child: Text('ของใช้ส่วนตัว')),
-                  PopupMenuItem(value: '2', child: Text('เอกสาร/บัตร')),
-                  PopupMenuItem(value: '3', child: Text('อุปกรณ์การเรียน')),
-                  PopupMenuItem(value: '4', child: Text('ของมีค่าอื่นๆ')),
-                ],
-          ),
-        ],
-      ),
+          );
+        } else {
+          // Tablet/Desktop - แสดงเป็นแนวนอน
+          return Padding(
+            padding: EdgeInsets.all(screenWidth < 900 ? 12.0 : 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.3),
+                          spreadRadius: 2,
+                          blurRadius: 5,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'ค้นหา...',
+                        prefixIcon: Icon(Icons.search, color: Colors.grey),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 12.0,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        // TODO: Handle search query
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12.0),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.filter_list),
+                  onSelected: (value) {
+                    // TODO: Handle filter selection
+                  },
+                  itemBuilder:
+                      (context) => const [
+                        PopupMenuItem(value: null, child: Text('ทั้งหมด')),
+                        PopupMenuItem(value: '1', child: Text('ของใช้ส่วนตัว')),
+                        PopupMenuItem(value: '2', child: Text('เอกสาร/บัตร')),
+                        PopupMenuItem(
+                          value: '3',
+                          child: Text('อุปกรณ์การเรียน'),
+                        ),
+                        PopupMenuItem(value: '4', child: Text('ของมีค่าอื่นๆ')),
+                      ],
+                ),
+              ],
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -228,149 +309,348 @@ class _PostPageState extends State<PostPage>
           return matchesType && matchesSearch && matchesCategory;
         }).toList();
 
-    return RefreshIndicator(
-      onRefresh: _loadPosts,
-      child: Container(
-        color:
-            Theme.of(context).colorScheme.surface, // 👈 เปลี่ยนสีพื้นหลังตรงนี้
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (ScrollNotification scrollInfo) {
-            if (scrollInfo.metrics.pixels ==
-                scrollInfo.metrics.maxScrollExtent) {
-              _loadMorePosts();
-            }
-            return true;
-          },
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: filteredPosts.length,
-            itemBuilder:
-                (context, index) => _buildPostItem(filteredPosts[index]),
-          ),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        if (screenWidth < 600) {
+          // Mobile - ใช้ ListView
+          return RefreshIndicator(
+            onRefresh: _loadPosts,
+            child: Container(
+              color: Theme.of(context).colorScheme.surface,
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification scrollInfo) {
+                  if (scrollInfo.metrics.pixels ==
+                      scrollInfo.metrics.maxScrollExtent) {
+                    _loadMorePosts();
+                  }
+                  return true;
+                },
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount: filteredPosts.length,
+                  itemBuilder:
+                      (context, index) =>
+                          _buildPostItem(filteredPosts[index], isMobile: true),
+                ),
+              ),
+            ),
+          );
+        } else {
+          // Tablet/Desktop - ใช้ GridView
+          int crossAxisCount = screenWidth < 900 ? 2 : 3;
+          double childAspectRatio = screenWidth < 900 ? 0.8 : 0.7;
+
+          return RefreshIndicator(
+            onRefresh: _loadPosts,
+            child: Container(
+              color: Theme.of(context).colorScheme.surface,
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification scrollInfo) {
+                  if (scrollInfo.metrics.pixels ==
+                      scrollInfo.metrics.maxScrollExtent) {
+                    _loadMorePosts();
+                  }
+                  return true;
+                },
+                child: GridView.builder(
+                  padding: EdgeInsets.all(screenWidth < 900 ? 16 : 24),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: childAspectRatio,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: filteredPosts.length,
+                  itemBuilder:
+                      (context, index) =>
+                          _buildPostItem(filteredPosts[index], isMobile: false),
+                ),
+              ),
+            ),
+          );
+        }
+      },
     );
   }
 
-  Widget _buildPostItem(Post post) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: InkWell(
-        onTap: () => _showPostDetail(post),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+  Widget _buildPostItem(Post post, {required bool isMobile}) {
+    if (isMobile) {
+      // Mobile layout - แนวนอน
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: InkWell(
+          onTap: () => _showPostDetail(post),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor:
+                          post.isLostItem ? Colors.red[100] : Colors.green[100],
+                      child: Icon(
+                        post.isLostItem
+                            ? Icons.help_outline
+                            : Icons.check_circle_outline,
+                        color: post.isLostItem ? Colors.red : Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.userName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${post.isLostItem ? "แจ้งของหาย" : "แจ้งเจอของ"} • ${_getTimeAgo(post.createdAt)}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (post.status == 'closed')
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'ปิดการค้นหา',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.building} • ${post.location}',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ],
+                ),
+                if (post.imageUrl.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: post.imageUrl,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder:
+                          (context, url) =>
+                              const Center(child: CircularProgressIndicator()),
+                      errorWidget:
+                          (context, url, error) => const Icon(Icons.error),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  post.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  post.description,
+                  style: TextStyle(color: Colors.grey[600]),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Tablet/Desktop layout - แนวตั้ง (Card style)
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: InkWell(
+          onTap: () => _showPostDetail(post),
+          borderRadius: BorderRadius.circular(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor:
-                        post.isLostItem ? Colors.red[100] : Colors.green[100],
-                    child: Icon(
-                      post.isLostItem
-                          ? Icons.help_outline
-                          : Icons.check_circle_outline,
-                      color: post.isLostItem ? Colors.red : Colors.green,
+              // Image section
+              if (post.imageUrl.isNotEmpty)
+                Expanded(
+                  flex: 3,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: CachedNetworkImage(
+                      imageUrl: post.imageUrl,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder:
+                          (context, url) =>
+                              const Center(child: CircularProgressIndicator()),
+                      errorWidget:
+                          (context, url, error) => const Icon(Icons.error),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.userName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '${post.isLostItem ? "แจ้งของหาย" : "แจ้งเจอของ"} • ${_getTimeAgo(post.createdAt)}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (post.status == 'closed')
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'ปิดการค้นหา',
-                        style: TextStyle(fontSize: 12),
+                )
+              else
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${post.building} • ${post.location}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                ],
-              ),
-              if (post.imageUrl.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: post.imageUrl,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder:
-                        (context, url) =>
-                            const Center(child: CircularProgressIndicator()),
-                    errorWidget:
-                        (context, url, error) => const Icon(Icons.error),
+                    child: Center(
+                      child: Icon(
+                        post.isLostItem
+                            ? Icons.help_outline
+                            : Icons.check_circle_outline,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                    ),
                   ),
                 ),
-              ],
-              const SizedBox(height: 10),
-              Text(
-                post.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(post.description),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _handleContact(post),
-                    icon: const Icon(Icons.message_outlined),
-                    label: const Text('ติดต่อ'),
+
+              // Content section
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header with status
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor:
+                                post.isLostItem
+                                    ? Colors.red[100]
+                                    : Colors.green[100],
+                            child: Icon(
+                              post.isLostItem
+                                  ? Icons.help_outline
+                                  : Icons.check_circle_outline,
+                              size: 16,
+                              color:
+                                  post.isLostItem ? Colors.red : Colors.green,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              post.userName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (post.status == 'closed')
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'ปิด',
+                                style: TextStyle(fontSize: 10),
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Title
+                      Text(
+                        post.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // Location
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '${post.building} • ${post.location}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // Time
+                      Text(
+                        _getTimeAgo(post.createdAt),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      ),
+                    ],
                   ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/edit-profile',
-                        arguments: post.userName,
-                      ).then((_) => _loadPosts()); // รีโหลดข้อมูลเมื่อกลับมา
-                    },
-                    icon: const Icon(Icons.share_outlined),
-                    label: const Text('แชร์'),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   void _showPostDetail(Post post) {

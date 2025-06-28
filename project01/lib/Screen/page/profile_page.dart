@@ -167,53 +167,91 @@ class _ProfilePageState extends State<ProfilePage> {
           }, SetOptions(merge: true));
 
           // แสดงข้อมูลเริ่มต้น
+          return _buildResponsiveProfileCard(
+            user: user,
+            userData: {},
+            isDefaultData: true,
+          );
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+
+        return _buildResponsiveProfileCard(
+          user: user,
+          userData: userData,
+          isDefaultData: false,
+        );
+      },
+    );
+  }
+
+  Widget _buildResponsiveProfileCard({
+    required User user,
+    required Map<String, dynamic> userData,
+    required bool isDefaultData,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        if (screenWidth < 600) {
+          // Mobile layout
           return SingleChildScrollView(
             child: Card(
               margin: const EdgeInsets.all(16),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    _buildProfileImage(user, {}),
+                    _buildProfileImage(user, userData),
                     const SizedBox(height: 16),
-                    _buildUserInfo(user, {}),
-                    const SizedBox(height: 24),
-                    _buildStats({}),
-                    const SizedBox(height: 24),
+                    _buildUserInfo(user, userData),
+                    const SizedBox(height: 20),
+                    _buildStats(userData),
+                    const SizedBox(height: 20),
                     _buildEditButton(context),
                   ],
                 ),
               ),
             ),
           );
-        }
-
-        final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-
-        return SingleChildScrollView(
-          child: Card(
-            elevation: 4,
-            margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildProfileImage(user, userData),
-                  const SizedBox(height: 16),
-                  _buildUserInfo(user, userData),
-                  const SizedBox(height: 24),
-                  _buildStats(userData),
-                  const SizedBox(height: 24),
-                  _buildEditButton(context),
-                ],
+        } else {
+          // Tablet/Desktop layout
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: screenWidth < 900 ? 600 : 800,
+                maxHeight: screenWidth < 900 ? 700 : 800,
+              ),
+              child: Card(
+                elevation: 6,
+                margin: EdgeInsets.all(screenWidth < 900 ? 24 : 32),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(screenWidth < 900 ? 32 : 40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildProfileImage(user, userData),
+                      const SizedBox(height: 24),
+                      _buildUserInfo(user, userData),
+                      const SizedBox(height: 32),
+                      _buildStats(userData),
+                      const SizedBox(height: 32),
+                      _buildEditButton(context),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        );
+          );
+        }
       },
     );
   }

@@ -27,55 +27,46 @@ class BuildingSelector extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'เลือกอาคาร',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children:
-                buildingData.keys.map((buildingKey) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ElevatedButton(
-                      onPressed: () => onSelectBuilding(buildingKey),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            selectedBuilding == buildingKey
-                                ? Colors.blue[600]
-                                : Colors.grey[100],
-                        foregroundColor:
-                            selectedBuilding == buildingKey
-                                ? Colors.white
-                                : Colors.grey[700],
-                        shadowColor:
-                            selectedBuilding == buildingKey
-                                ? Colors.blue[300]
-                                : Colors.transparent,
-                        elevation: selectedBuilding == buildingKey ? 4 : 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w500),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children:
+            buildingData.keys.map((buildingKey) {
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: ElevatedButton(
+                    onPressed: () => onSelectBuilding(buildingKey),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          selectedBuilding == buildingKey
+                              ? Colors.blue[600]
+                              : Colors.grey[100],
+                      foregroundColor:
+                          selectedBuilding == buildingKey
+                              ? Colors.white
+                              : Colors.grey[700],
+                      shadowColor:
+                          selectedBuilding == buildingKey
+                              ? Colors.blue[300]
+                              : Colors.transparent,
+                      elevation: selectedBuilding == buildingKey ? 4 : 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(buildingData[buildingKey]!.name),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                      ),
                     ),
-                  );
-                }).toList(),
-          ),
-        ],
+                    child: Text(buildingData[buildingKey]!.name),
+                  ),
+                ),
+              );
+            }).toList(),
       ),
     );
   }

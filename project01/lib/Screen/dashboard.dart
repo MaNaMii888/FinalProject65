@@ -51,32 +51,145 @@ class _DashboardPageState extends State<DashboardPage> {
       },
       child: Scaffold(
         body: _pages[_selectedIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          selectedItemColor: Theme.of(context).primaryColor,
-          unselectedItemColor: Colors.grey,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map),
-              label: 'แผนที่',
+        bottomNavigationBar: _buildResponsiveNavigation(),
+      ),
+    );
+  }
+
+  Widget _buildResponsiveNavigation() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        if (screenWidth < 600) {
+          // Mobile - ใช้ BottomNavigationBar ปกติ
+          return BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            selectedItemColor: Theme.of(context).primaryColor,
+            unselectedItemColor: Colors.grey,
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.map_outlined),
+                activeIcon: Icon(Icons.map),
+                label: 'แผนที่',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.add_circle_outline),
+                activeIcon: Icon(Icons.add_circle),
+                label: 'แจ้งของ',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                activeIcon: Icon(Icons.person),
+                label: 'โปรไฟล์',
+              ),
+            ],
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+          );
+        } else {
+          // Tablet/Desktop - ใช้ NavigationRail หรือ Sidebar
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline),
-              activeIcon: Icon(Icons.add_circle),
-              label: 'แจ้งของ',
+            child: SafeArea(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildNavigationButton(
+                      icon: Icons.map_outlined,
+                      activeIcon: Icons.map,
+                      label: 'แผนที่',
+                      isSelected: _selectedIndex == 0,
+                      onTap: () => setState(() => _selectedIndex = 0),
+                    ),
+                    _buildNavigationButton(
+                      icon: Icons.add_circle_outline,
+                      activeIcon: Icons.add_circle,
+                      label: 'แจ้งของ',
+                      isSelected: _selectedIndex == 1,
+                      onTap: () => setState(() => _selectedIndex = 1),
+                    ),
+                    _buildNavigationButton(
+                      icon: Icons.person_outline,
+                      activeIcon: Icons.person,
+                      label: 'โปรไฟล์',
+                      isSelected: _selectedIndex == 2,
+                      onTap: () => setState(() => _selectedIndex = 2),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'โปรไฟล์',
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildNavigationButton({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          decoration: BoxDecoration(
+            color:
+                isSelected
+                    ? Theme.of(context).primaryColor
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color:
+                  isSelected
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey[300]!,
+              width: 2,
             ),
-          ],
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isSelected ? activeIcon : icon,
+                color: isSelected ? Colors.white : Colors.grey[600],
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey[600],
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
