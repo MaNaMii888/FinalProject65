@@ -197,7 +197,7 @@ class ThemeProvider extends ChangeNotifier {
         fontFamily: 'Prompt',
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 2,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

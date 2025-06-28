@@ -36,7 +36,7 @@ class _PostPageState extends State<PostPage>
     setState(() => isLoading = true);
     try {
       final snapshot = await FirebaseFirestore.instance
-          .collection('posts')
+          .collection('lost_found_items')
           .orderBy('createdAt', descending: true)
           .limit(pageSize)
           .get()
@@ -67,7 +67,7 @@ class _PostPageState extends State<PostPage>
     setState(() => isLoading = true);
     try {
       var query = FirebaseFirestore.instance
-          .collection('posts')
+          .collection('lost_found_items')
           .orderBy('createdAt', descending: true)
           .limit(pageSize);
 
@@ -109,6 +109,7 @@ class _PostPageState extends State<PostPage>
     );
   }
 
+  String _normalize(String input) => input.replaceAll(' ', '').toLowerCase();
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -182,7 +183,9 @@ class _PostPageState extends State<PostPage>
                   ),
                 ),
                 onChanged: (value) {
-                  // TODO: Handle search query
+                  setState(() {
+                    searchQuery = value;
+                  });
                 },
               ),
             ),
@@ -193,11 +196,13 @@ class _PostPageState extends State<PostPage>
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
             onSelected: (value) {
-              // TODO: Handle filter selection
+              setState(() {
+                selectedCategory = value;
+              });
             },
             itemBuilder:
                 (context) => const [
-                  PopupMenuItem(value: null, child: Text('ทั้งหมด')),
+                  PopupMenuItem(value: 'all', child: Text('ทั้งหมด')),
                   PopupMenuItem(value: '1', child: Text('ของใช้ส่วนตัว')),
                   PopupMenuItem(value: '2', child: Text('เอกสาร/บัตร')),
                   PopupMenuItem(value: '3', child: Text('อุปกรณ์การเรียน')),
@@ -214,25 +219,27 @@ class _PostPageState extends State<PostPage>
       return const Center(child: CircularProgressIndicator());
     }
     // กรองโพสต์ตามเงื่อนไขการค้นหาและหมวดหมู่
+    final normalizedQuery = _normalize(searchQuery);
     final filteredPosts =
         posts.where((post) {
           final matchesType = post.isLostItem == isLostItems;
           final matchesSearch =
-              searchQuery.isEmpty ||
-              post.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-              post.description.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
+              normalizedQuery.isEmpty ||
+              _normalize(post.title).contains(normalizedQuery) ||
+              _normalize(post.description).contains(normalizedQuery) ||
+              _normalize(post.building).contains(normalizedQuery) ||
+              _normalize(post.location).contains(normalizedQuery);
           final matchesCategory =
-              selectedCategory == null || post.category == selectedCategory;
+              selectedCategory == null ||
+              selectedCategory == 'all' ||
+              post.category == selectedCategory;
           return matchesType && matchesSearch && matchesCategory;
         }).toList();
 
     return RefreshIndicator(
       onRefresh: _loadPosts,
       child: Container(
-        color:
-            Theme.of(context).colorScheme.surface, // 👈 เปลี่ยนสีพื้นหลังตรงนี้
+        color: Theme.of(context).colorScheme.surface,
         child: NotificationListener<ScrollNotification>(
           onNotification: (ScrollNotification scrollInfo) {
             if (scrollInfo.metrics.pixels ==
