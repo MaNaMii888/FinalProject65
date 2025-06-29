@@ -35,19 +35,23 @@ class Post {
   // เพิ่ม factory constructor สำหรับแปลง JSON
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
-      userName: json['userName'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      imageUrl: json['imageUrl'] as String? ?? '',
-      location: json['location'] as String,
-      building: json['building'] as String,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      isLostItem: json['isLostItem'] as bool,
-      status: json['status'] as String? ?? 'open',
-      category: json['category'] as String,
-      contact: json['contact'] as String,
+      id: json['id'] ?? '',
+      userId: json['userId'] ?? '',
+      userName: json['userName'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? json['detail'] ?? '',
+      contact: json['contact'] ?? '',
+      imageUrl: json['imageUrl'] ?? '',
+      building: json['building'] ?? '',
+      location: json['location'] ?? json['room'] ?? '',
+      category: json['category']?.toString() ?? '',
+      isLostItem: json['isLostItem'] ?? true,
+      status: json['status'] ?? '',
+      createdAt:
+          (json['createdAt'] is Timestamp)
+              ? (json['createdAt'] as Timestamp).toDate()
+              : DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+                  DateTime.now(),
     );
   }
 

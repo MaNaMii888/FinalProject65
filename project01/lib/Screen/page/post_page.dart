@@ -36,7 +36,7 @@ class _PostPageState extends State<PostPage>
     setState(() => isLoading = true);
     try {
       final snapshot = await FirebaseFirestore.instance
-          .collection('posts')
+          .collection('lost_found_items')
           .orderBy('createdAt', descending: true)
           .limit(pageSize)
           .get()
@@ -67,7 +67,7 @@ class _PostPageState extends State<PostPage>
     setState(() => isLoading = true);
     try {
       var query = FirebaseFirestore.instance
-          .collection('posts')
+          .collection('lost_found_items')
           .orderBy('createdAt', descending: true)
           .limit(pageSize);
 
@@ -109,6 +109,7 @@ class _PostPageState extends State<PostPage>
     );
   }
 
+  String _normalize(String input) => input.replaceAll(' ', '').toLowerCase();
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -153,140 +154,59 @@ class _PostPageState extends State<PostPage>
   }
 
   Widget _buildSearchBar() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = MediaQuery.of(context).size.width;
-
-        if (screenWidth < 600) {
-          // Mobile - แสดงเป็นแนวตั้ง
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                // Search field
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(25.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.3),
-                        spreadRadius: 2,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(25.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: const Offset(0, 3),
                   ),
-                  child: TextField(
-                    decoration: const InputDecoration(
-                      hintText: 'ค้นหา...',
-                      prefixIcon: Icon(Icons.search, color: Colors.grey),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 12.0,
-                      ),
-                    ),
-                    onChanged: (value) {
-                      // TODO: Handle search query
-                    },
+                ],
+              ),
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'ค้นหา...',
+                  prefixIcon: Icon(Icons.search, color: Colors.grey),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 12.0,
                   ),
                 ),
-                const SizedBox(height: 8),
-                // Filter button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.filter_list),
-                      onSelected: (value) {
-                        // TODO: Handle filter selection
-                      },
-                      itemBuilder:
-                          (context) => const [
-                            PopupMenuItem(value: null, child: Text('ทั้งหมด')),
-                            PopupMenuItem(
-                              value: '1',
-                              child: Text('ของใช้ส่วนตัว'),
-                            ),
-                            PopupMenuItem(
-                              value: '2',
-                              child: Text('เอกสาร/บัตร'),
-                            ),
-                            PopupMenuItem(
-                              value: '3',
-                              child: Text('อุปกรณ์การเรียน'),
-                            ),
-                            PopupMenuItem(
-                              value: '4',
-                              child: Text('ของมีค่าอื่นๆ'),
-                            ),
-                          ],
-                    ),
-                  ],
-                ),
-              ],
+                onChanged: (value) {
+                  // TODO: Handle search query
+                },
+              ),
             ),
-          );
-        } else {
-          // Tablet/Desktop - แสดงเป็นแนวนอน
-          return Padding(
-            padding: EdgeInsets.all(screenWidth < 900 ? 12.0 : 16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.3),
-                          spreadRadius: 2,
-                          blurRadius: 5,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'ค้นหา...',
-                        prefixIcon: Icon(Icons.search, color: Colors.grey),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 12.0,
-                        ),
-                      ),
-                      onChanged: (value) {
-                        // TODO: Handle search query
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12.0),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.filter_list),
-                  onSelected: (value) {
-                    // TODO: Handle filter selection
-                  },
-                  itemBuilder:
-                      (context) => const [
-                        PopupMenuItem(value: null, child: Text('ทั้งหมด')),
-                        PopupMenuItem(value: '1', child: Text('ของใช้ส่วนตัว')),
-                        PopupMenuItem(value: '2', child: Text('เอกสาร/บัตร')),
-                        PopupMenuItem(
-                          value: '3',
-                          child: Text('อุปกรณ์การเรียน'),
-                        ),
-                        PopupMenuItem(value: '4', child: Text('ของมีค่าอื่นๆ')),
-                      ],
-                ),
-              ],
-            ),
-          );
-        }
-      },
+          ),
+          const SizedBox(
+            width: 8.0,
+          ), // เพิ่มระยะห่างระหว่าง TextField และ PopupButton
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list),
+            onSelected: (value) {
+              // TODO: Handle filter selection
+            },
+            itemBuilder:
+                (context) => const [
+                  PopupMenuItem(value: null, child: Text('ทั้งหมด')),
+                  PopupMenuItem(value: '1', child: Text('ของใช้ส่วนตัว')),
+                  PopupMenuItem(value: '2', child: Text('เอกสาร/บัตร')),
+                  PopupMenuItem(value: '3', child: Text('อุปกรณ์การเรียน')),
+                  PopupMenuItem(value: '4', child: Text('ของมีค่าอื่นๆ')),
+                ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -295,86 +215,44 @@ class _PostPageState extends State<PostPage>
       return const Center(child: CircularProgressIndicator());
     }
     // กรองโพสต์ตามเงื่อนไขการค้นหาและหมวดหมู่
+    final normalizedQuery = _normalize(searchQuery);
     final filteredPosts =
         posts.where((post) {
           final matchesType = post.isLostItem == isLostItems;
           final matchesSearch =
-              searchQuery.isEmpty ||
-              post.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-              post.description.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
+              normalizedQuery.isEmpty ||
+              _normalize(post.title).contains(normalizedQuery) ||
+              _normalize(post.description).contains(normalizedQuery) ||
+              _normalize(post.building).contains(normalizedQuery) ||
+              _normalize(post.location).contains(normalizedQuery);
           final matchesCategory =
-              selectedCategory == null || post.category == selectedCategory;
+              selectedCategory == null ||
+              selectedCategory == 'all' ||
+              post.category == selectedCategory;
           return matchesType && matchesSearch && matchesCategory;
         }).toList();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = MediaQuery.of(context).size.width;
-
-        if (screenWidth < 600) {
-          // Mobile - ใช้ ListView
-          return RefreshIndicator(
-            onRefresh: _loadPosts,
-            child: Container(
-              color: Theme.of(context).colorScheme.surface,
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (ScrollNotification scrollInfo) {
-                  if (scrollInfo.metrics.pixels ==
-                      scrollInfo.metrics.maxScrollExtent) {
-                    _loadMorePosts();
-                  }
-                  return true;
-                },
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  itemCount: filteredPosts.length,
-                  itemBuilder:
-                      (context, index) =>
-                          _buildPostItem(filteredPosts[index], isMobile: true),
-                ),
-              ),
-            ),
-          );
-        } else {
-          // Tablet/Desktop - ใช้ GridView
-          int crossAxisCount = screenWidth < 900 ? 2 : 3;
-          double childAspectRatio = screenWidth < 900 ? 0.8 : 0.7;
-
-          return RefreshIndicator(
-            onRefresh: _loadPosts,
-            child: Container(
-              color: Theme.of(context).colorScheme.surface,
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (ScrollNotification scrollInfo) {
-                  if (scrollInfo.metrics.pixels ==
-                      scrollInfo.metrics.maxScrollExtent) {
-                    _loadMorePosts();
-                  }
-                  return true;
-                },
-                child: GridView.builder(
-                  padding: EdgeInsets.all(screenWidth < 900 ? 16 : 24),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    childAspectRatio: childAspectRatio,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: filteredPosts.length,
-                  itemBuilder:
-                      (context, index) =>
-                          _buildPostItem(filteredPosts[index], isMobile: false),
-                ),
-              ),
-            ),
-          );
-        }
-      },
+    return RefreshIndicator(
+      onRefresh: _loadPosts,
+      child: Container(
+        color:
+            Theme.of(context).colorScheme.surface, // 👈 เปลี่ยนสีพื้นหลังตรงนี้
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification scrollInfo) {
+            if (scrollInfo.metrics.pixels ==
+                scrollInfo.metrics.maxScrollExtent) {
+              _loadMorePosts();
+            }
+            return true;
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: filteredPosts.length,
+            itemBuilder:
+                (context, index) => _buildPostItem(filteredPosts[index]),
+          ),
+        ),
+      ),
     );
   }
 
