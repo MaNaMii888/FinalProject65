@@ -115,8 +115,10 @@ class _PostPageState extends State<PostPage>
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ประกาศของหาย/เจอของ'),
-        foregroundColor: theme.colorScheme.onPrimary,
+        title: Text(
+          'ประกาศของหาย/เจอของ',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [Tab(text: 'ของหาย'), Tab(text: 'เจอของ')],
