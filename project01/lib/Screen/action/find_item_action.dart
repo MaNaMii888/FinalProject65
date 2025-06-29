@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
+import 'package:project01/services/post_count_service.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -256,6 +257,12 @@ class _LostItemFormState extends State<LostItemForm> {
       };
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+
+      // อัพเดทจำนวนโพสต์ของผู้ใช้
+      await PostCountService.updatePostCount(
+        AuthService.currentUser!.uid,
+        true, // isLostItem = true สำหรับ lost item
+      );
 
       setState(() => uploadProgress = 1.0);
 
@@ -787,6 +794,12 @@ class _FindItemFormState extends State<FindItemForm> {
       };
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+
+      // อัพเดทจำนวนโพสต์ของผู้ใช้
+      await PostCountService.updatePostCount(
+        AuthService.currentUser!.uid,
+        false, // isLostItem = false สำหรับ found item
+      );
 
       setState(() => uploadProgress = 1.0);
 

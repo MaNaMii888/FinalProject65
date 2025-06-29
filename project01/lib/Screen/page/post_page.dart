@@ -249,7 +249,10 @@ class _PostPageState extends State<PostPage>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: filteredPosts.length,
             itemBuilder:
-                (context, index) => _buildPostItem(filteredPosts[index]),
+                (context, index) => _buildPostItem(
+                  filteredPosts[index],
+                  isMobile: MediaQuery.of(context).size.width < 600,
+                ),
           ),
         ),
       ),

@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:project01/Screen/page/map/painters/floor_plan_a_painter.dart';
+import 'package:project01/Screen/page/map/widgets/interactive_floor_plan.dart';
+import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 
 class FloorPlanA extends StatelessWidget {
   final String? findRequest;
-  const FloorPlanA({super.key, this.findRequest});
+  final Map<String, RoomData>? roomDataMap;
+
+  const FloorPlanA({super.key, this.findRequest, this.roomDataMap});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Theme.of(context).shadowColor.withOpacity(0.08),
             spreadRadius: 2,
             blurRadius: 5,
             offset: const Offset(0, 3),
@@ -28,7 +31,7 @@ class FloorPlanA extends StatelessWidget {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              color: Theme.of(context).colorScheme.onSurface,
             ),
             textAlign: TextAlign.center,
           ),
@@ -37,11 +40,13 @@ class FloorPlanA extends StatelessWidget {
             width: double.infinity,
             height: 384,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: Theme.of(context).dividerColor),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: CustomPaint(
-              painter: FloorPlanAPainter(findRequest: findRequest),
+            child: InteractiveFloorPlan(
+              buildingId: 'A',
+              findRequest: findRequest,
+              roomDataMap: roomDataMap,
             ),
           ),
           if (findRequest != null && findRequest!.isNotEmpty)
@@ -49,14 +54,16 @@ class FloorPlanA extends StatelessWidget {
               margin: const EdgeInsets.only(top: 16),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.yellow[100],
+                color: Theme.of(
+                  context,
+                ).colorScheme.secondary.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '🔍 กำลังค้นหา: $findRequest',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.yellow[800],
+                  color: Theme.of(context).colorScheme.secondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),

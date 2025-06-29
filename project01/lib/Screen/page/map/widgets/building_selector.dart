@@ -16,11 +16,11 @@ class BuildingSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Theme.of(context).shadowColor.withOpacity(0.08),
             spreadRadius: 2,
             blurRadius: 5,
             offset: const Offset(0, 3),
@@ -39,15 +39,17 @@ class BuildingSelector extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           selectedBuilding == buildingKey
-                              ? Colors.blue[600]
-                              : Colors.grey[100],
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.surface,
                       foregroundColor:
                           selectedBuilding == buildingKey
-                              ? Colors.white
-                              : Colors.grey[700],
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.onSurface,
                       shadowColor:
                           selectedBuilding == buildingKey
-                              ? Colors.blue[300]
+                              ? Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.2)
                               : Colors.transparent,
                       elevation: selectedBuilding == buildingKey ? 4 : 0,
                       shape: RoundedRectangleBorder(

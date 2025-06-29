@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'page/map/map_page.dart';
 import 'page/post_page.dart';
-import 'page/profile_page.dart';
+import 'page/profile/profile_page.dart';
 
 /// Flutter code sample for [NavigationBar].
 

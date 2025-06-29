@@ -8,11 +8,11 @@ class MapView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Theme.of(context).shadowColor.withOpacity(0.08),
             spreadRadius: 2,
             blurRadius: 5,
             offset: const Offset(0, 3),
@@ -25,14 +25,23 @@ class MapView extends StatelessWidget {
           Container(
             height: 384,
             decoration: BoxDecoration(
-              color: Colors.green[100],
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green[300]!, width: 2),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                width: 2,
+              ),
             ),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [Icon(Icons.map, size: 64, color: Colors.green[600])],
+                children: [
+                  Icon(
+                    Icons.map,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ],
               ),
             ),
           ),

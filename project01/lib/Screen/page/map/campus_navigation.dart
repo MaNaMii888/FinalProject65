@@ -21,6 +21,10 @@ class _CampusNavigationState extends State<CampusNavigation> {
   String findRequest = '';
   final PageController _pageController = PageController();
 
+  // เพิ่มตัวแปรสำหรับเก็บข้อมูลห้อง
+  Map<String, RoomData>? roomDataMap;
+  bool isLoadingRoomData = false;
+
   @override
   void initState() {
     super.initState();
@@ -29,12 +33,84 @@ class _CampusNavigationState extends State<CampusNavigation> {
       findRequest = widget.initialFindRequest!;
       _processFindRequest(findRequest);
     }
+    // โหลดข้อมูลห้องเมื่อเริ่มต้น
+    _loadRoomData();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  // เพิ่มฟังก์ชันสำหรับโหลดข้อมูลห้อง
+  Future<void> _loadRoomData() async {
+    if (isLoadingRoomData) return;
+
+    setState(() {
+      isLoadingRoomData = true;
+    });
+
+    try {
+      final buildingDataWithPosts =
+          await BuildingDataService.getBuildingDataWithPosts();
+
+      // สร้าง Map ของ RoomData สำหรับอาคารที่เลือก
+      final Map<String, RoomData> newRoomDataMap = {};
+
+      if (selectedBuilding != null &&
+          buildingDataWithPosts.containsKey(selectedBuilding)) {
+        final building = buildingDataWithPosts[selectedBuilding]!;
+        for (final room in building.rooms) {
+          if (room.roomData != null) {
+            newRoomDataMap[room.id.toString()] = room.roomData!;
+          }
+        }
+      }
+
+      setState(() {
+        roomDataMap = newRoomDataMap;
+        isLoadingRoomData = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading room data: $e');
+      setState(() {
+        isLoadingRoomData = false;
+      });
+    }
+  }
+
+  // เพิ่มฟังก์ชันสำหรับโหลดข้อมูลห้องสำหรับอาคารเฉพาะ
+  Future<void> _loadRoomDataForBuilding(String buildingId) async {
+    setState(() {
+      isLoadingRoomData = true;
+    });
+
+    try {
+      final building = buildingData[buildingId];
+      if (building != null) {
+        final Map<String, RoomData> newRoomDataMap = {};
+
+        for (final room in building.rooms) {
+          final roomData = await BuildingDataService.getRoomData(
+            buildingId,
+            room.id.toString(),
+            room.name,
+          );
+          newRoomDataMap[room.id.toString()] = roomData;
+        }
+
+        setState(() {
+          roomDataMap = newRoomDataMap;
+          isLoadingRoomData = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading room data for building $buildingId: $e');
+      setState(() {
+        isLoadingRoomData = false;
+      });
+    }
   }
 
   void _processFindRequest(String request) {
@@ -59,11 +135,13 @@ class _CampusNavigationState extends State<CampusNavigation> {
             selectedBuilding = buildingKey;
             currentView = 'building';
           });
+          // โหลดข้อมูลห้องสำหรับอาคารที่เลือก
+          _loadRoomDataForBuilding(buildingKey);
           return;
         }
       });
     } catch (e) {
-      print('Error processing find request: $e');
+      debugPrint('Error processing find request: $e');
     }
   }
 
@@ -71,6 +149,9 @@ class _CampusNavigationState extends State<CampusNavigation> {
     setState(() {
       selectedBuilding = buildingKey;
     });
+
+    // โหลดข้อมูลห้องสำหรับอาคารที่เลือก
+    _loadRoomDataForBuilding(buildingKey);
 
     // เลื่อนไปยังหน้าที่เหมาะสม
     if (buildingKey == 'A') {
@@ -98,6 +179,24 @@ class _CampusNavigationState extends State<CampusNavigation> {
         backgroundColor: Colors.white,
         elevation: 1,
         foregroundColor: Colors.grey[800],
+        actions: [
+          // เพิ่มปุ่ม refresh สำหรับโหลดข้อมูลใหม่
+          if (currentView == 'building')
+            IconButton(
+              icon: Icon(
+                isLoadingRoomData ? Icons.refresh : Icons.refresh,
+                color: isLoadingRoomData ? Colors.grey : Colors.blue,
+              ),
+              onPressed:
+                  isLoadingRoomData
+                      ? null
+                      : () {
+                        if (selectedBuilding != null) {
+                          _loadRoomDataForBuilding(selectedBuilding!);
+                        }
+                      },
+            ),
+        ],
       ),
       body: currentView == 'map' ? _buildMapView() : _buildBuildingView(),
       // ปรับปรุง BottomNavigationBar ให้มีฟังก์ชันการทำงานที่สมบูรณ์
@@ -140,6 +239,10 @@ class _CampusNavigationState extends State<CampusNavigation> {
                         selectedBuilding = 'A'; // Default to building A
                       }
                     });
+                    // โหลดข้อมูลห้องเมื่อเปลี่ยนไปดูอาคาร
+                    if (selectedBuilding != null) {
+                      _loadRoomDataForBuilding(selectedBuilding!);
+                    }
                   },
                 ),
               ],
@@ -228,6 +331,8 @@ class _CampusNavigationState extends State<CampusNavigation> {
                     setState(() {
                       selectedBuilding = index == 0 ? 'A' : 'B';
                     });
+                    // โหลดข้อมูลห้องเมื่อเปลี่ยนหน้า
+                    _loadRoomDataForBuilding(selectedBuilding!);
                   },
                   children: [
                     // หน้า 1: อาคาร A
@@ -240,7 +345,10 @@ class _CampusNavigationState extends State<CampusNavigation> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: FloorPlanA(findRequest: findRequest),
+                          child: FloorPlanA(
+                            findRequest: findRequest,
+                            roomDataMap: roomDataMap,
+                          ),
                         ),
                       ),
                     ),
@@ -254,7 +362,10 @@ class _CampusNavigationState extends State<CampusNavigation> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: FloorPlanB(findRequest: findRequest),
+                          child: FloorPlanB(
+                            findRequest: findRequest,
+                            roomDataMap: roomDataMap,
+                          ),
                         ),
                       ),
                     ),
@@ -284,6 +395,8 @@ class _CampusNavigationState extends State<CampusNavigation> {
                     setState(() {
                       selectedBuilding = index == 0 ? 'A' : 'B';
                     });
+                    // โหลดข้อมูลห้องเมื่อเปลี่ยนหน้า
+                    _loadRoomDataForBuilding(selectedBuilding!);
                   },
                   children: [
                     // หน้า 1: อาคาร A
@@ -298,7 +411,10 @@ class _CampusNavigationState extends State<CampusNavigation> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
-                          child: FloorPlanA(findRequest: findRequest),
+                          child: FloorPlanA(
+                            findRequest: findRequest,
+                            roomDataMap: roomDataMap,
+                          ),
                         ),
                       ),
                     ),
@@ -314,7 +430,10 @@ class _CampusNavigationState extends State<CampusNavigation> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
-                          child: FloorPlanB(findRequest: findRequest),
+                          child: FloorPlanB(
+                            findRequest: findRequest,
+                            roomDataMap: roomDataMap,
+                          ),
                         ),
                       ),
                     ),

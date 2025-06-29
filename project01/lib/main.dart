@@ -4,9 +4,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/Screen/dashboard.dart'; // หน้าหลักหลังล็อกอิน
 import 'package:project01/Screen/login.dart'; // เพิ่ม import
-import 'package:project01/Screen/page/profile_page.dart';
+import 'package:project01/Screen/page/profile/profile_page.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:project01/providers/theme_provider.dart';
 
 import 'firebase_options.dart';
 import 'dart:async';
@@ -46,7 +47,7 @@ Future<void> main() async {
 
       runApp(
         ChangeNotifierProvider(
-          create: (_) => ThemeProvider.withMode(themeMode),
+          create: (_) => ThemeProvider(),
           child: const MyApp(),
         ),
       );
@@ -85,8 +86,8 @@ class MyApp extends StatelessWidget {
             '/dashboard': (context) => const DashboardPage(),
             '/profile': (context) => const ProfilePage(),
           },
-          theme: themeProvider.theme,
-          darkTheme: themeProvider.darkTheme,
+          theme: ThemeData.light(),
+          darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
           builder: (context, child) {
             return ScrollConfiguration(
@@ -130,87 +131,6 @@ MaterialColor createMaterialColor(Color color) {
     );
   }
   return MaterialColor(color.value, swatch);
-}
-
-class ThemeProvider extends ChangeNotifier {
-  ThemeMode _themeMode;
-  ThemeProvider.withMode(this._themeMode);
-
-  ThemeMode get themeMode => _themeMode;
-
-  ThemeData get theme => _themeMode == ThemeMode.light ? lightTheme : darkTheme;
-  ThemeData get darkTheme => ThemeData(
-    brightness: Brightness.dark,
-    useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF433D8B),
-      brightness: Brightness.dark,
-      primary: const Color(0xFF433D8B),
-      secondary: const Color(0xFFC8ACD6),
-      surface: const Color(0xFF2E236C),
-      background: const Color(0xFF17153B),
-      onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onSurface: Colors.white,
-      onBackground: Colors.white,
-    ),
-    scaffoldBackgroundColor: const Color(0xFF17153B),
-    appBarTheme: const AppBarTheme(
-      centerTitle: true,
-      elevation: 0,
-      color: Color(0xFF2E236C),
-      titleTextStyle: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        fontFamily: 'Prompt',
-        color: Colors.white,
-      ),
-    ),
-  );
-
-  static final lightTheme = ThemeData(
-    primarySwatch: createMaterialColor(const Color(0xFFA594F9)),
-    fontFamily: 'Prompt',
-    useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFFA594F9), // สีม่วงหลัก
-      brightness: Brightness.light,
-      primary: const Color(0xFFA594F9), // ม่วงเข้ม
-      secondary: const Color(0xFFCDC1FF), // ม่วงอ่อน
-      surface: const Color(0xFFF5EFFF), // พื้นหลังอ่อน
-      background: const Color(0xFFE5D9F2), // พื้นหลังเข้ม
-      onPrimary: Colors.white,
-      onSecondary: Colors.black87,
-      onSurface: Colors.black87,
-      onBackground: Colors.black87,
-    ),
-    scaffoldBackgroundColor: const Color(0xFFF5EFFF),
-    appBarTheme: const AppBarTheme(
-      centerTitle: true,
-      elevation: 0,
-      color: Colors.transparent,
-      iconTheme: IconThemeData(color: Colors.black87),
-      titleTextStyle: TextStyle(
-        color: Colors.black87,
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        fontFamily: 'Prompt',
-      ),
-    ),
-    cardTheme: CardThemeData(
-      elevation: 2,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-  );
-
-  void setThemeMode(ThemeMode mode) async {
-    if (_themeMode == mode) return;
-    _themeMode = mode;
-    notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("theme_mode", mode.toString());
-  }
 }
 
 class ThemeSwitcher extends StatelessWidget {

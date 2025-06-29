@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
+import 'package:project01/services/post_count_service.dart';
 
 class FindItemForm extends StatefulWidget {
   const FindItemForm({super.key});
@@ -391,9 +392,17 @@ class _FindItemFormState extends State<FindItemForm> {
           'contact': contactController.text,
         };
 
-        await FirebaseFirestore.instance.collection('posts').add(post);
+        await FirebaseFirestore.instance
+            .collection('lost_found_items')
+            .add(post);
 
-        if (!mounted) return;
+        // อัพเดทจำนวนโพสต์ของผู้ใช้
+        if (FirebaseAuth.instance.currentUser?.uid != null) {
+          await PostCountService.updatePostCount(
+            FirebaseAuth.instance.currentUser!.uid,
+            false, // isLostItem = false สำหรับ found item
+          );
+        }
 
         ScaffoldMessenger.of(
           context,

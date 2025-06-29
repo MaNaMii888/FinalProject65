@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/map/map_page.dart';
 import 'package:project01/Screen/page/post_page.dart';
-import 'package:project01/Screen/page/profile_page.dart';
+import 'package:project01/Screen/page/profile/profile_page.dart';
 // Ensure this file contains the ActionPage class
 
 class DashboardPage extends StatefulWidget {

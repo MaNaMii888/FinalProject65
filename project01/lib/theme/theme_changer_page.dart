@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project01/main.dart';
+import 'package:project01/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 class ThemeChangerPage extends StatelessWidget {
