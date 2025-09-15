@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class UserModel {
   final String uid;
@@ -68,31 +69,95 @@ class UserModel {
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  // Use the package singleton for GoogleSignIn (v7+ API)
+  // Note: the package encourages calling initialize(...) once at app startup if needed.
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+      // Web uses a different flow: use FirebaseAuth signInWithPopup
+      if (kIsWeb) {
+        final googleProvider = GoogleAuthProvider();
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+        // Optionally add scopes or custom params here:
+        // googleProvider.addScope('email');
+
+        final userCredential = await _auth.signInWithPopup(googleProvider);
+
+        if (userCredential.user != null) {
+          await saveUserData(userCredential.user!);
+        }
+
+        return userCredential;
+      }
+
+      // Mobile / desktop flow using google_sign_in package (v7+)
+      // Try a lightweight restore first (may return null). If that fails, fall back
+      // to an interactive authenticate() call.
+      GoogleSignInAccount? account;
+      try {
+        final Future<GoogleSignInAccount?>? lightweightFuture =
+            _googleSignIn.attemptLightweightAuthentication();
+        if (lightweightFuture != null) {
+          account = await lightweightFuture;
+        }
+      } catch (_) {
+        account = null;
+      }
+
+      if (account == null) {
+        // Interactive sign-in (may throw on configuration issues or if unsupported)
+        try {
+          account = await _googleSignIn.authenticate();
+        } catch (e) {
+          // If user cancels or UI unavailable, return null
+          print('Google authenticate threw: $e');
+          return null;
+        }
+      }
+
+      // account is non-null here
+
+      final googleAuth = account.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        print('Google sign-in succeeded but idToken is null');
+        return null;
+      }
+
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
 
       final userCredential = await _auth.signInWithCredential(credential);
 
-      // เก็บข้อมูลผู้ใช้ใน Firestore
+      // Save user in Firestore (create or update)
       if (userCredential.user != null) {
         await saveUserData(userCredential.user!);
       }
 
       return userCredential;
     } catch (e) {
-      print('Error signing in with Google: $e');
+      // Give better diagnostics for common failures
+      if (e is FirebaseAuthException) {
+        print(
+          'FirebaseAuthException during Google sign-in: ${e.code} ${e.message}',
+        );
+      } else {
+        print('Error signing in with Google: $e');
+      }
       return null;
+    }
+  }
+
+  /// Signs out from both FirebaseAuth and the GoogleSignIn plugin (where applicable).
+  Future<void> signOut() async {
+    try {
+      // Disconnect the google_sign_in plugin on non-web platforms to clear cached accounts
+      if (!kIsWeb) {
+        await _googleSignIn.signOut();
+      }
+      await _auth.signOut();
+    } catch (e) {
+      print('Error signing out: $e');
     }
   }
 

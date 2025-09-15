@@ -41,7 +41,7 @@ class BuildingLegend extends StatelessWidget {
           _buildLegendItem(
             color: const Color(0xffe3f2fd),
             borderColor: const Color(0xff1976d2),
-            label: 'ห้องปกติ',
+            label: 'อาคารปกติ',
             description: 'ไม่มีรายการของหาย/เจอของ',
           ),
           const SizedBox(height: 8),
@@ -72,8 +72,8 @@ class BuildingLegend extends StatelessWidget {
           _buildLegendItem(
             color: Colors.yellow[100]!,
             borderColor: Colors.yellow[400]!,
-            label: 'ห้องที่ค้นหา',
-            description: 'ห้องที่ตรงกับการค้นหา',
+            label: 'อาคารที่ค้นหา',
+            description: 'อาคารที่ตรงกับการค้นหา',
           ),
           const SizedBox(height: 12),
           Container(
@@ -89,7 +89,7 @@ class BuildingLegend extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'คลิกที่ห้องเพื่อดูรายการของหาย/เจอของ',
+                    'คลิกที่อาคารเพื่อดูรายการของหาย/เจอของ',
                     style: TextStyle(fontSize: 12, color: Colors.blue[700]),
                   ),
                 ),

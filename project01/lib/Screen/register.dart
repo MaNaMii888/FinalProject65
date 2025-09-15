@@ -21,20 +21,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final Future<FirebaseApp> firebase = Firebase.initializeApp();
   Profile profile = Profile(email: '', password: '');
-  final GoogleSignIn googleSignIn = GoogleSignIn();
+  final GoogleSignIn googleSignIn = GoogleSignIn.instance;
 
   Future<UserCredential?> signUpWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return null;
+      GoogleSignInAccount? account;
+      try {
+        final Future<GoogleSignInAccount?>? lf =
+            googleSignIn.attemptLightweightAuthentication();
+        if (lf != null) account = await lf;
+      } catch (_) {
+        account = null;
+      }
+      if (account == null) {
+        try {
+          account = await googleSignIn.authenticate();
+        } catch (e) {
+          print('Google authenticate threw: $e');
+          return null;
+        }
+      }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+      final googleAuth = account.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) return null;
 
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
       return await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
       print('Error signing up with Google: $e');

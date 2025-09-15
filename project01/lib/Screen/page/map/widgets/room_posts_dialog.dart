@@ -106,7 +106,7 @@ class RoomPostsDialog extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'ในห้อง $roomName',
+            'ในอาคาร $roomName',
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),

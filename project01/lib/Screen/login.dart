@@ -15,7 +15,7 @@ class _LoginScreenState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final GoogleSignIn googleSignIn = GoogleSignIn();
+  final GoogleSignIn googleSignIn = GoogleSignIn.instance;
 
   Future<UserCredential?> signInWithGoogle() async {
     try {
@@ -39,20 +39,40 @@ class _LoginScreenState extends State<LoginPage> {
         },
       );
 
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        Navigator.of(context).pop(); // ปิด loading dialog
+      // Try lightweight auth first (may be null) then fall back to interactive
+      GoogleSignInAccount? account;
+      try {
+        final Future<GoogleSignInAccount?>? lf =
+            googleSignIn.attemptLightweightAuthentication();
+        if (lf != null) {
+          account = await lf;
+        }
+      } catch (_) {
+        account = null;
+      }
+
+      if (account == null) {
+        try {
+          account = await googleSignIn.authenticate();
+        } catch (e) {
+          Navigator.of(context).pop(); // ปิด loading dialog
+          return null;
+        }
+      }
+
+      final googleAuth = account.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        Navigator.of(context).pop();
         return null;
       }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
       );
-
-      return await FirebaseAuth.instance.signInWithCredential(credential);
+      Navigator.of(context).pop();
+      return userCredential;
     } catch (e) {
       Navigator.of(context).pop(); // ปิด loading dialog
       // Show error dialog

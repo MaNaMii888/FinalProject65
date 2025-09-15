@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/services/post_count_service.dart';
+import 'package:project01/services/smart_matching_service.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -257,6 +258,9 @@ class _LostItemFormState extends State<LostItemForm> {
       };
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+
+      // เรียก Smart Matching Service สำหรับโพสต์หาของ
+      await SmartMatchingService.processNewPost(post);
 
       // อัพเดทจำนวนโพสต์ของผู้ใช้
       await PostCountService.updatePostCount(
@@ -794,6 +798,9 @@ class _FindItemFormState extends State<FindItemForm> {
       };
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+
+      // เรียก Smart Matching Service สำหรับโพสต์เจอของ
+      await SmartMatchingService.processNewPost(post);
 
       // อัพเดทจำนวนโพสต์ของผู้ใช้
       await PostCountService.updatePostCount(

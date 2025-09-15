@@ -67,80 +67,80 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
   }
 
   Map<String, String>? _getRoomAtPositionBuildingA(Offset position) {
-    // กำหนดตำแหน่งห้องสำหรับอาคาร A
+    // กำหนดตำแหน่งห้องสำหรับอาคาร A - ปรับให้ขยายเต็มพื้นที่
     final roomPositions = {
-      '7': Rect.fromLTWH(150, 20, 100, 40),
-      '6': Rect.fromLTWH(160, 80, 80, 60),
-      '8': Rect.fromLTWH(30, 80, 40, 60),
-      '5': Rect.fromLTWH(340, 80, 40, 60),
-      '9': Rect.fromLTWH(20, 160, 60, 80),
-      '2': Rect.fromLTWH(160, 160, 80, 60),
-      '4': Rect.fromLTWH(340, 150, 40, 80),
-      '1': Rect.fromLTWH(160, 240, 80, 60),
-      '3': Rect.fromLTWH(340, 240, 40, 80),
-      '10': Rect.fromLTWH(20, 260, 50, 80),
-      'food': Rect.fromLTWH(160, 305, 80, 60),
-      '12': Rect.fromLTWH(340, 360, 40, 120),
-      '11': Rect.fromLTWH(10, 360, 60, 120),
+      '7': Rect.fromLTWH(120, 15, 100, 50), // ขยายและปรับตำแหน่ง
+      '6': Rect.fromLTWH(140, 75, 100, 70), // ขยายและปรับตำแหน่ง
+      '8': Rect.fromLTWH(20, 75, 50, 70), // ขยายและปรับตำแหน่ง
+      '5': Rect.fromLTWH(320, 75, 50, 70), // ขยายและปรับตำแหน่ง
+      '9': Rect.fromLTWH(15, 155, 70, 90), // ขยายและปรับตำแหน่ง
+      '2': Rect.fromLTWH(140, 155, 100, 70), // ขยายและปรับตำแหน่ง
+      '4': Rect.fromLTWH(320, 145, 50, 90), // ขยายและปรับตำแหน่ง
+      '1': Rect.fromLTWH(140, 235, 100, 70), // ขยายและปรับตำแหน่ง
+      '3': Rect.fromLTWH(320, 235, 50, 70), // ขยายและปรับตำแหน่ง
+      '10': Rect.fromLTWH(10, 255, 60, 90), // ขยายและปรับตำแหน่ง
+      'food': Rect.fromLTWH(140, 300, 100, 70), // ขยายและปรับตำแหน่ง
+      '12': Rect.fromLTWH(320, 350, 50, 130), // ขยายและปรับตำแหน่ง
+      '11': Rect.fromLTWH(5, 350, 70, 130), // ขยายและปรับตำแหน่ง
     };
 
     final roomNames = {
-      '7': 'ห้อง 7',
-      '6': 'ห้อง 6',
-      '8': 'ห้อง 8',
-      '5': 'ห้อง 5',
-      '9': 'ห้อง 9',
-      '2': 'ห้อง 2',
-      '4': 'ห้อง 4',
-      '1': 'ห้อง 1',
-      '3': 'ห้อง 3',
-      '10': 'ห้อง 10',
+      '7': 'อาคาร 7',
+      '6': 'อาคาร 6',
+      '8': 'อาคาร 8',
+      '5': 'อาคาร 5',
+      '9': 'อาคาร 9',
+      '2': 'อาคาร 2',
+      '4': 'อาคาร 4',
+      '1': 'อาคาร 1',
+      '3': 'อาคาร 3',
+      '10': 'อาคาร 10',
       'food': 'โรงอาหาร',
-      '12': 'ห้อง 12',
-      '11': 'ห้อง 11',
+      '12': 'อาคาร 12',
+      '11': 'อาคาร 11',
     };
 
     return _checkRoomPosition(position, roomPositions, roomNames);
   }
 
   Map<String, String>? _getRoomAtPositionBuildingB(Offset position) {
-    // กำหนดตำแหน่งห้องสำหรับอาคาร B
+    // กำหนดตำแหน่งห้องสำหรับอาคาร B - ปรับให้ขยายเต็มพื้นที่
     final roomPositions = {
-      '28': Rect.fromLTWH(20, 20, 50, 30),
-      '19': Rect.fromLTWH(20, 60, 40, 50),
-      '20': Rect.fromLTWH(70, 60, 60, 30),
-      '22': Rect.fromLTWH(140, 40, 40, 70),
-      '24': Rect.fromLTWH(190, 20, 60, 50),
-      '26': Rect.fromLTWH(270, 40, 40, 40),
-      '27': Rect.fromLTWH(190, 80, 80, 40),
-      '17': Rect.fromLTWH(20, 130, 60, 40),
-      '18': Rect.fromLTWH(90, 130, 80, 60),
-      '31': Rect.fromLTWH(290, 120, 40, 50),
-      '29': Rect.fromLTWH(220, 140, 60, 40),
-      '15': Rect.fromLTWH(20, 190, 40, 40),
-      '16': Rect.fromLTWH(70, 200, 40, 30),
-      '30': Rect.fromLTWH(220, 190, 60, 50),
-      'lobby': Rect.fromLTWH(120, 250, 100, 60),
-      '33': Rect.fromLTWH(120, 320, 60, 20),
+      '28': Rect.fromLTWH(15, 15, 60, 35), // ขยายและปรับตำแหน่ง
+      '19': Rect.fromLTWH(15, 55, 50, 55), // ขยายและปรับตำแหน่ง
+      '20': Rect.fromLTWH(70, 55, 70, 35), // ขยายและปรับตำแหน่ง
+      '22': Rect.fromLTWH(150, 35, 50, 75), // ขยายและปรับตำแหน่ง
+      '24': Rect.fromLTWH(210, 15, 70, 55), // ขยายและปรับตำแหน่ง
+      '26': Rect.fromLTWH(290, 35, 50, 45), // ขยายและปรับตำแหน่ง
+      '27': Rect.fromLTWH(200, 75, 90, 45), // ขยายและปรับตำแหน่ง
+      '17': Rect.fromLTWH(15, 125, 70, 45), // ขยายและปรับตำแหน่ง
+      '18': Rect.fromLTWH(95, 125, 90, 65), // ขยายและปรับตำแหน่ง
+      '31': Rect.fromLTWH(300, 115, 50, 55), // ขยายและปรับตำแหน่ง
+      '29': Rect.fromLTWH(230, 135, 70, 45), // ขยายและปรับตำแหน่ง
+      '15': Rect.fromLTWH(15, 185, 50, 45), // ขยายและปรับตำแหน่ง
+      '16': Rect.fromLTWH(70, 195, 50, 35), // ขยายและปรับตำแหน่ง
+      '30': Rect.fromLTWH(230, 185, 70, 55), // ขยายและปรับตำแหน่ง
+      'lobby': Rect.fromLTWH(125, 245, 110, 65), // ขยายและปรับตำแหน่ง
+      '33': Rect.fromLTWH(125, 315, 70, 25), // ขยายและปรับตำแหน่ง
     };
 
     final roomNames = {
-      '28': 'ห้อง 28',
-      '19': 'ห้อง 19',
-      '20': 'ห้อง 20',
-      '22': 'ห้อง 22',
-      '24': 'ห้อง 24',
-      '26': 'ห้อง 26',
-      '27': 'ห้อง 27',
-      '17': 'ห้อง 17',
-      '18': 'ห้อง 18',
-      '31': 'ห้อง 31',
-      '29': 'ห้อง 29',
-      '15': 'ห้อง 15',
-      '16': 'ห้อง 16',
-      '30': 'ห้อง 30',
-      'lobby': 'ล็อบบี้',
-      '33': 'ห้อง 33',
+      '28': 'อาคาร 28',
+      '19': 'อาคาร 19',
+      '20': 'อาคาร 20',
+      '22': 'อาคาร 22',
+      '24': 'อาคาร 24',
+      '26': 'อาคาร 26',
+      '27': 'อาคาร 27',
+      '17': 'อาคาร 17',
+      '18': 'อาคาร 18',
+      '31': 'อาคาร 31',
+      '29': 'อาคาร 29',
+      '15': 'อาคาร 15',
+      '16': 'อาคาร 16',
+      '30': 'อาคาร 30',
+      'lobby': 'สนาม',
+      '33': 'อาคาร 33',
     };
 
     return _checkRoomPosition(position, roomPositions, roomNames);
@@ -151,21 +151,26 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
     Map<String, Rect> roomPositions,
     Map<String, String> roomNames,
   ) {
-    // คำนวณ scale factor
+    // คำนวณ scale factor - ปรับให้อาคารขยายเต็มพื้นที่
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
-    final scaleFactor = size.height / 500.0; // ใช้ความสูงต้นฉบับของ SVG
+
+    // ปรับ scale factor ให้อาคารขยายเต็มพื้นที่และลดขอบขาว
+    final scaleFactorX =
+        size.width / 400.0; // ปรับจาก 500 เป็น 400 เพื่อขยายอาคาร
+    final scaleFactorY =
+        size.height / 500.0; // ปรับจาก 500 เป็น 500 เพื่อรักษาอัตราส่วน
 
     for (final entry in roomPositions.entries) {
       final roomId = entry.key;
       final originalRect = entry.value;
 
-      // คำนวณตำแหน่งที่ scale แล้ว
+      // คำนวณตำแหน่งที่ scale แล้ว - ปรับให้ขยายเต็มพื้นที่
       final scaledRect = Rect.fromLTWH(
-        originalRect.left * scaleFactor,
-        originalRect.top * scaleFactor,
-        originalRect.width * scaleFactor,
-        originalRect.height * scaleFactor,
+        originalRect.left * scaleFactorX,
+        originalRect.top * scaleFactorY,
+        originalRect.width * scaleFactorX,
+        originalRect.height * scaleFactorY,
       );
 
       if (scaledRect.contains(position)) {
@@ -190,4 +195,3 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
     );
   }
 }
- 

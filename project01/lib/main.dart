@@ -6,29 +6,30 @@ import 'package:project01/Screen/dashboard.dart'; // หน้าหลักห
 import 'package:project01/Screen/login.dart'; // เพิ่ม import
 import 'package:project01/Screen/page/profile/profile_page.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:project01/providers/theme_provider.dart';
-
-import 'firebase_options.dart';
+import 'package:project01/firebase_options.dart';
 import 'dart:async';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await runZonedGuarded(
     () async {
-      WidgetsFlutterBinding.ensureInitialized();
+      // ThemeProvider will load saved theme from SharedPreferences internally.
 
-      // Load theme mode
-      final prefs = await SharedPreferences.getInstance();
-      final savedMode = prefs.getString("theme_mode");
-      final themeMode = ThemeMode.values.firstWhere(
-        (mode) => mode.toString() == savedMode,
-        orElse: () => ThemeMode.light,
-      );
-
-      // Initialize Firebase
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      // Initialize Firebase with diagnostics.
+      bool firebaseInitialized = false;
+      Object? initError;
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        firebaseInitialized = true;
+      } catch (e, st) {
+        firebaseInitialized = false;
+        initError = e;
+        debugPrint('Firebase.initializeApp error: $e');
+        debugPrintStack(stackTrace: st);
+      }
 
       // Set system UI
       SystemChrome.setSystemUIOverlayStyle(
@@ -48,7 +49,10 @@ Future<void> main() async {
       runApp(
         ChangeNotifierProvider(
           create: (_) => ThemeProvider(),
-          child: const MyApp(),
+          child: MyApp(
+            firebaseInitialized: firebaseInitialized,
+            initError: initError,
+          ),
         ),
       );
     },
@@ -60,7 +64,10 @@ Future<void> main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool firebaseInitialized;
+  final Object? initError;
+
+  const MyApp({super.key, this.firebaseInitialized = false, this.initError});
 
   @override
   Widget build(BuildContext context) {
@@ -69,16 +76,25 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Your App Name',
           debugShowCheckedModeBanner: false,
-          home: StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const CircularProgressIndicator();
+          home: Builder(
+            builder: (context) {
+              if (!firebaseInitialized) {
+                // Show actionable error screen if Firebase failed to initialize
+                return ErrorInitScreen(error: initError);
               }
-              if (snapshot.hasData) {
-                return const DashboardPage(); // หน้าหลักสำหรับผู้ใช้ที่ล็อกอินแล้ว
-              }
-              return const LoginPage(); // หน้าล็อกอินสำหรับผู้ใช้ที่ยังไม่ได้ล็อกอิน
+
+              return StreamBuilder<User?>(
+                stream: FirebaseAuth.instance.authStateChanges(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasData) {
+                    return const DashboardPage(); // หน้าหลักสำหรับผู้ใช้ที่ล็อกอินแล้ว
+                  }
+                  return const LoginPage(); // หน้าล็อกอินสำหรับผู้ใช้ที่ยังไม่ได้ล็อกอิน
+                },
+              );
             },
           ),
           routes: {
@@ -90,11 +106,10 @@ class MyApp extends StatelessWidget {
           darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
           builder: (context, child) {
+            // avoid forcing child! — provide a safe fallback
             return ScrollConfiguration(
-              behavior: const ScrollBehavior().copyWith(
-                physics: const BouncingScrollPhysics(),
-              ),
-              child: child!,
+              behavior: const ScrollBehavior(),
+              child: child ?? const SizedBox.shrink(),
             );
           },
           onUnknownRoute: (settings) {
@@ -139,15 +154,20 @@ class ThemeSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
-      builder:
-          (context, themeProvider, _) => Switch(
-            value: themeProvider.themeMode == ThemeMode.dark,
-            onChanged: (value) {
-              themeProvider.setThemeMode(
-                value ? ThemeMode.dark : ThemeMode.light,
-              );
-            },
-          ),
+      builder: (context, themeProvider, _) {
+        // guard against null themeMode (defensive)
+        final ThemeMode current = themeProvider.themeMode ?? ThemeMode.light;
+        final bool isDark = current == ThemeMode.dark;
+        return Switch(
+          value: isDark,
+          onChanged: (value) {
+            // onChanged will always provide non-null bool for standard Switch
+            themeProvider.setThemeMode(
+              value ? ThemeMode.dark : ThemeMode.light,
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -163,6 +183,72 @@ class CustomDrawer extends StatelessWidget {
           // ...other items...
           ListTile(title: const Text('เปลี่ยนธีม'), trailing: ThemeSwitcher()),
         ],
+      ),
+    );
+  }
+}
+
+class ErrorInitScreen extends StatelessWidget {
+  final Object? error;
+
+  const ErrorInitScreen({super.key, this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    final String message = error?.toString() ?? 'Unknown initialization error';
+    return Scaffold(
+      appBar: AppBar(title: const Text('Initialization error')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Firebase failed to initialize.',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(message, style: const TextStyle(fontSize: 14)),
+            const SizedBox(height: 16),
+            const Text(
+              'Suggested steps:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '1. Stop the app and run a full rebuild: flutter clean && flutter pub get',
+            ),
+            const Text(
+              '2. If iOS: run pod install inside ios/ and rebuild in Xcode.',
+            ),
+            const Text(
+              '3. If Android: ensure google-services.json is in android/app/',
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                // Try a hot retry by restarting the app process — here we just suggest the command
+                await showDialog(
+                  context: context,
+                  builder:
+                      (c) => AlertDialog(
+                        title: const Text('Run rebuild'),
+                        content: const Text(
+                          'Please stop the app and run:\nflutter clean && flutter pub get\nthen rebuild the app.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(c).pop(),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                );
+              },
+              child: const Text('How to fix'),
+            ),
+          ],
+        ),
       ),
     );
   }

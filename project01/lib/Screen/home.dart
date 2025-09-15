@@ -14,9 +14,6 @@ class MyHomePage extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Image.asset(
-                "assets/images/481294383_1069057821931551_1987990633305513186_n.jpg",
-              ),
               SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,

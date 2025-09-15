@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project01/Screen/page/map/campus_navigation.dart'
+import 'package:project01/Screen/page/map/campus_navigation_clean.dart'
     show CampusNavigation;
 
 class MapPage extends StatelessWidget {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
-import 'package:project01/models/post.dart';
 
 // CustomPainter for drawing Floor Plan B
 class FloorPlanBPainter extends CustomPainter {
