@@ -49,7 +49,11 @@ flutter {
 }
 
 dependencies {
-    // ...
+    // Import the Firebase BoM to align Firebase dependency versions
+    implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
+
+    // Example Firebase product (Analytics). Add others as needed without versions.
+    implementation("com.google.firebase:firebase-analytics")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

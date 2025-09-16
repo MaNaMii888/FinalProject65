@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:project01/providers/theme_provider.dart';
 import 'package:project01/firebase_options.dart';
 import 'dart:async';
+import 'package:project01/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,13 +87,32 @@ class MyApp extends StatelessWidget {
               return StreamBuilder<User?>(
                 stream: FirebaseAuth.instance.authStateChanges(),
                 builder: (context, snapshot) {
+                  print('Auth state changed: ${snapshot.connectionState}');
+                  print('Has user: ${snapshot.hasData}');
+                  print('User: ${snapshot.data?.email}');
+
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Scaffold(
+                      body: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('กำลังตรวจสอบสถานะการเข้าสู่ระบบ...'),
+                          ],
+                        ),
+                      ),
+                    );
                   }
-                  if (snapshot.hasData) {
-                    return const DashboardPage(); // หน้าหลักสำหรับผู้ใช้ที่ล็อกอินแล้ว
+
+                  if (snapshot.hasData && snapshot.data != null) {
+                    print('User is signed in, navigating to dashboard');
+                    return const DashboardPage();
                   }
-                  return const LoginPage(); // หน้าล็อกอินสำหรับผู้ใช้ที่ยังไม่ได้ล็อกอิน
+
+                  print('No user found, showing login page');
+                  return const LoginPage();
                 },
               );
             },
@@ -155,9 +175,8 @@ class ThemeSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, _) {
-        // guard against null themeMode (defensive)
-        final ThemeMode current = themeProvider.themeMode ?? ThemeMode.light;
-        final bool isDark = current == ThemeMode.dark;
+        // themeProvider.themeMode is non-nullable; derive boolean directly
+        final bool isDark = themeProvider.themeMode == ThemeMode.dark;
         return Switch(
           value: isDark,
           onChanged: (value) {

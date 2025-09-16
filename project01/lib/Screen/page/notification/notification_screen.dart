@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../services/notifications_service.dart';
+import '../../../services/notifications_service.dart';
 
 // 1. Notification Popup (Modal Bottom Sheet)
 class NotificationPopup {

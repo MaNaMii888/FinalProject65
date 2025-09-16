@@ -34,6 +34,9 @@ class Post {
 
   // เพิ่ม factory constructor สำหรับแปลง JSON
   factory Post.fromJson(Map<String, dynamic> json) {
+    // Debug: แสดงข้อมูลที่ได้จาก Firebase
+    print('Post.fromJson - Raw data: $json');
+
     return Post(
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
@@ -46,7 +49,9 @@ class Post {
       location: json['location'] ?? json['room'] ?? '',
       category: json['category']?.toString() ?? '',
       isLostItem: json['isLostItem'] ?? true,
-      status: json['status'] ?? '',
+      status:
+          json['status'] ??
+          'active', // เปลี่ยน default เป็น 'active' เพื่อให้ตรงกับข้อมูลที่บันทึก
       createdAt:
           (json['createdAt'] is Timestamp)
               ? (json['createdAt'] as Timestamp).toDate()

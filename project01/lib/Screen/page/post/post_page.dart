@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/action/find_item_action.dart';
-import 'package:project01/Screen/action/post_actions_buttons.dart';
+import 'package:project01/Screen/page/post/widget/post_actions_buttons.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,25 +16,38 @@ class PostPage extends StatefulWidget {
 class _PostPageState extends State<PostPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<Post> posts = [];
+  List<Post> allPosts = [];
+  List<Post> lostPosts = [];
+  List<Post> foundPosts = [];
   bool isLoading = true;
   String searchQuery = '';
   String? selectedCategory;
-  static const int pageSize = 10;
+  static const int pageSize = 20;
   DocumentSnapshot? lastDocument;
   bool hasMore = true;
 
   @override
   void initState() {
     super.initState();
+    // Initialize TabController for two tabs: ของหาย, เจอของ
     _tabController = TabController(length: 2, vsync: this);
-    _loadPosts();
+    // Load initial posts
+    _loadAllPosts();
   }
 
-  Future<void> _loadPosts() async {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAllPosts() async {
     if (!mounted) return;
     setState(() => isLoading = true);
+    print('=== Starting _loadAllPosts() ===');
+
     try {
+      print('Querying Firebase collection: lost_found_items');
       final snapshot = await FirebaseFirestore.instance
           .collection('lost_found_items')
           .orderBy('createdAt', descending: true)
@@ -42,59 +55,45 @@ class _PostPageState extends State<PostPage>
           .get()
           .timeout(const Duration(seconds: 10));
 
-      if (snapshot.docs.isNotEmpty) {
-        lastDocument = snapshot.docs.last;
-      }
-
-      if (!mounted) return;
-      setState(() {
-        posts =
-            snapshot.docs
-                .map((doc) => Post.fromJson({...doc.data(), 'id': doc.id}))
-                .toList();
-        isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => isLoading = false);
-      _showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: $e');
-    }
-  }
-
-  Future<void> _loadMorePosts() async {
-    if (!hasMore || isLoading) return;
-
-    setState(() => isLoading = true);
-    try {
-      var query = FirebaseFirestore.instance
-          .collection('lost_found_items')
-          .orderBy('createdAt', descending: true)
-          .limit(pageSize);
-
-      if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument!);
-      }
-
-      final snapshot = await query.get();
-
-      if (snapshot.docs.length < pageSize) {
-        hasMore = false;
-      }
+      print('Firebase query result - Number of docs: ${snapshot.docs.length}');
 
       if (snapshot.docs.isNotEmpty) {
         lastDocument = snapshot.docs.last;
+        // Debug: แสดงข้อมูลของแต่ละ document
+        for (int i = 0; i < snapshot.docs.length; i++) {
+          print('Document $i: ${snapshot.docs[i].data()}');
+        }
+      } else {
+        print('No documents found in Firebase collection');
       }
 
+      if (!mounted) return;
+
+      // แปลงข้อมูลทั้งหมด
+      final allPostsData =
+          snapshot.docs
+              .map((doc) => Post.fromJson({...doc.data(), 'id': doc.id}))
+              .toList();
+
+      // แยกข้อมูลตามประเภท
+      final lostItems = allPostsData.where((post) => post.isLostItem).toList();
+      final foundItems =
+          allPostsData.where((post) => !post.isLostItem).toList();
+
       setState(() {
-        posts.addAll(
-          snapshot.docs.map(
-            (doc) => Post.fromJson({...doc.data(), 'id': doc.id}),
-          ),
-        );
+        allPosts = allPostsData;
+        lostPosts = lostItems;
+        foundPosts = foundItems;
         isLoading = false;
       });
+
+      print(
+        'Posts loaded - All: ${allPosts.length}, Lost: ${lostPosts.length}, Found: ${foundPosts.length}',
+      );
     } catch (e) {
+      if (!mounted) return;
       setState(() => isLoading = false);
+      print('Error loading posts: $e');
       _showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: $e');
     }
   }
@@ -110,9 +109,9 @@ class _PostPageState extends State<PostPage>
   }
 
   String _normalize(String input) => input.replaceAll(' ', '').toLowerCase();
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -133,7 +132,10 @@ class _PostPageState extends State<PostPage>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [_buildPostsList(true), _buildPostsList(false)],
+              children: [
+                _buildPostsList(true), // ของหาย
+                _buildPostsList(false), // เจอของ
+              ],
             ),
           ),
         ],
@@ -143,13 +145,13 @@ class _PostPageState extends State<PostPage>
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const LostItemForm()),
-          );
+          ).then((_) => _loadAllPosts()); // รีเฟรชข้อมูลหลังจากสร้างโพสต์
         },
         onFoundPress: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const FindItemForm()),
-          );
+          ).then((_) => _loadAllPosts()); // รีเฟรชข้อมูลหลังจากสร้างโพสต์
         },
       ),
     );
@@ -185,18 +187,20 @@ class _PostPageState extends State<PostPage>
                   ),
                 ),
                 onChanged: (value) {
-                  // TODO: Handle search query
+                  setState(() {
+                    searchQuery = value;
+                  });
                 },
               ),
             ),
           ),
-          const SizedBox(
-            width: 8.0,
-          ), // เพิ่มระยะห่างระหว่าง TextField และ PopupButton
+          const SizedBox(width: 8.0),
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
             onSelected: (value) {
-              // TODO: Handle filter selection
+              setState(() {
+                selectedCategory = value;
+              });
             },
             itemBuilder:
                 (context) => const [
@@ -212,58 +216,184 @@ class _PostPageState extends State<PostPage>
     );
   }
 
-  Widget _buildPostsList(bool isLostItems) {
+  // หน้าหลักแสดงโพสต์ทั้งหมด
+  Widget _buildAllPostsList() {
+    print('=== _buildAllPostsList called ===');
+    print('isLoading: $isLoading');
+    print('Total all posts: ${allPosts.length}');
+
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    // กรองโพสต์ตามเงื่อนไขการค้นหาและหมวดหมู่
-    final normalizedQuery = _normalize(searchQuery);
-    final filteredPosts =
-        posts.where((post) {
-          final matchesType = post.isLostItem == isLostItems;
-          final matchesSearch =
-              normalizedQuery.isEmpty ||
-              _normalize(post.title).contains(normalizedQuery) ||
-              _normalize(post.description).contains(normalizedQuery) ||
-              _normalize(post.building).contains(normalizedQuery) ||
-              _normalize(post.location).contains(normalizedQuery);
-          final matchesCategory =
-              selectedCategory == null ||
-              selectedCategory == 'all' ||
-              post.category == selectedCategory;
-          return matchesType && matchesSearch && matchesCategory;
-        }).toList();
+
+    final filteredPosts = _filterPosts(allPosts);
+    print('Filtered all posts: ${filteredPosts.length}');
+
+    if (filteredPosts.isEmpty) {
+      return _buildEmptyState(
+        'ยังไม่มีโพสต์',
+        'เมื่อมีผู้ใช้แจ้งของหายหรือเจอของ จะแสดงที่นี่',
+      );
+    }
 
     return RefreshIndicator(
-      onRefresh: _loadPosts,
-      child: Container(
-        color:
-            Theme.of(context).colorScheme.surface, // 👈 เปลี่ยนสีพื้นหลังตรงนี้
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (ScrollNotification scrollInfo) {
-            if (scrollInfo.metrics.pixels ==
-                scrollInfo.metrics.maxScrollExtent) {
-              _loadMorePosts();
-            }
-            return true;
-          },
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: filteredPosts.length,
-            itemBuilder:
-                (context, index) => _buildPostItem(
-                  filteredPosts[index],
-                  isMobile: MediaQuery.of(context).size.width < 600,
-                ),
+      onRefresh: _loadAllPosts,
+      child: _buildPostsListView(filteredPosts),
+    );
+  }
+
+  // หน้าสำหรับแสดงโพสต์ตามประเภท (ของหาย/เจอของ)
+  Widget _buildPostsList(bool isLostItems) {
+    print('=== _buildPostsList called for ${isLostItems ? "Lost Items" : "Found Items"} ===');
+    
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .where('isLostItem', isEqualTo: isLostItems)
+          .snapshots(),
+      builder: (context, snapshot) {
+        print('StreamBuilder state: ${snapshot.connectionState}');
+        print('Has error: ${snapshot.hasError}');
+        print('Has data: ${snapshot.hasData}');
+        
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          print('StreamBuilder waiting...');
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          print('StreamBuilder error: ${snapshot.error}');
+          return _buildEmptyState(
+            'เกิดข้อผิดพลาดในการโหลด',
+            'Error: ${snapshot.error}',
+          );
+        }
+        
+        final docs = snapshot.data?.docs ?? [];
+        print('Number of documents from Firebase: ${docs.length}');
+        
+        if (docs.isEmpty) {
+          final message =
+              isLostItems ? 'ยังไม่มีโพสต์ของหาย' : 'ยังไม่มีโพสต์เจอของ';
+          final subtitle =
+              isLostItems
+                  ? 'เมื่อมีผู้ใช้แจ้งของหาย จะแสดงที่นี่'
+                  : 'เมื่อมีผู้ใช้แจ้งเจอของ จะแสดงที่นี่';
+          return _buildEmptyState(message, subtitle);
+        }
+
+        try {
+          final allPostsData = docs
+              .map((doc) {
+                final data = doc.data();
+                print('Document ${doc.id}: $data');
+                return Post.fromJson({...data, 'id': doc.id});
+              })
+              .toList();
+
+          print('Successfully parsed ${allPostsData.length} posts');
+
+          // เรียงลำดับข้อมูลใน client side แทนการใช้ orderBy ใน query
+          allPostsData.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          final filteredPosts = _filterPosts(allPostsData);
+          print('Filtered posts: ${filteredPosts.length}');
+
+          if (filteredPosts.isEmpty) {
+            final message =
+                isLostItems ? 'ไม่พบโพสต์ของหายที่ตรงกับการค้นหา' : 'ไม่พบโพสต์เจอของที่ตรงกับการค้นหา';
+            return _buildEmptyState(message, 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง');
+          }
+
+          return RefreshIndicator(
+            onRefresh: _loadAllPosts,
+            child: _buildPostsListView(filteredPosts),
+          );
+        } catch (e) {
+          print('Error parsing posts: $e');
+          return _buildEmptyState(
+            'เกิดข้อผิดพลาดในการแปลงข้อมูล',
+            'Error: $e',
+          );
+        }
+      },
+    );
+  }
+
+  // กรองโพสต์ตามเงื่อนไขการค้นหาและหมวดหมู่
+  List<Post> _filterPosts(List<Post> posts) {
+    final normalizedQuery = _normalize(searchQuery);
+    print(
+      'Filtering posts - searchQuery: "$searchQuery", selectedCategory: $selectedCategory',
+    );
+
+    return posts.where((post) {
+      final matchesSearch =
+          normalizedQuery.isEmpty ||
+          _normalize(post.title).contains(normalizedQuery) ||
+          _normalize(post.description).contains(normalizedQuery) ||
+          _normalize(post.building).contains(normalizedQuery) ||
+          _normalize(post.location).contains(normalizedQuery);
+
+      final matchesCategory =
+          selectedCategory == null ||
+          selectedCategory == 'all' ||
+          post.category == selectedCategory;
+
+      print(
+        'Post: "${post.title}", matchesSearch: $matchesSearch, matchesCategory: $matchesCategory',
+      );
+
+      return matchesSearch && matchesCategory;
+    }).toList();
+  }
+
+  // สร้าง ListView สำหรับแสดงโพสต์
+  Widget _buildPostsListView(List<Post> posts) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: posts.length,
+      itemBuilder:
+          (context, index) => _buildPostItem(
+            posts[index],
+            isMobile: MediaQuery.of(context).size.width < 600,
           ),
-        ),
+    );
+  }
+
+  // สร้าง empty state
+  Widget _buildEmptyState(String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(title, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Debug: Total posts = ${allPosts.length}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+          ),
+        ],
       ),
     );
   }
 
+  // สร้าง PostItem
   Widget _buildPostItem(Post post, {required bool isMobile}) {
+    print(
+      '_buildPostItem - Post: ${post.title}, isLostItem: ${post.isLostItem}',
+    );
+
     if (isMobile) {
-      // Mobile layout - แนวนอน
+      // Mobile layout
       return Card(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: InkWell(
@@ -372,7 +502,7 @@ class _PostPageState extends State<PostPage>
         ),
       );
     } else {
-      // Tablet/Desktop layout - แนวตั้ง (Card style)
+      // Tablet/Desktop layout
       return Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -555,35 +685,5 @@ class _PostPageState extends State<PostPage>
     } else {
       return 'เมื่อสักครู่';
     }
-  }
-
-  void _handleContact(Post post) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('ช่องทางการติดต่อ'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text(post.userName),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.phone),
-                  title: Text(post.contact),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
-          ),
-    );
   }
 }

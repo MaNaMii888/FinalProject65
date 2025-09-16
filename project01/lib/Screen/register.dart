@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:project01/Screen/home.dart';
 import 'package:project01/models/profile.dart' show Profile;
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:project01/Screen/login.dart';
-import 'package:project01/models/profile.dart';
+import 'package:project01/services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -21,33 +20,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final Future<FirebaseApp> firebase = Firebase.initializeApp();
   Profile profile = Profile(email: '', password: '');
-  final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+  final AuthService _authService = AuthService(); // Using singleton instance
 
   Future<UserCredential?> signUpWithGoogle() async {
     try {
-      GoogleSignInAccount? account;
-      try {
-        final Future<GoogleSignInAccount?>? lf =
-            googleSignIn.attemptLightweightAuthentication();
-        if (lf != null) account = await lf;
-      } catch (_) {
-        account = null;
-      }
-      if (account == null) {
-        try {
-          account = await googleSignIn.authenticate();
-        } catch (e) {
-          print('Google authenticate threw: $e');
-          return null;
-        }
-      }
-
-      final googleAuth = account.authentication;
-      final idToken = googleAuth.idToken;
-      if (idToken == null) return null;
-
-      final credential = GoogleAuthProvider.credential(idToken: idToken);
-      return await FirebaseAuth.instance.signInWithCredential(credential);
+      return await _authService.signInWithGoogle();
     } catch (e) {
       print('Error signing up with Google: $e');
       return null;

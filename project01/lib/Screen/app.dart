@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'page/map/map_page.dart';
-import 'page/post_page.dart';
+import 'page/post/post_page.dart';
 import 'page/profile/profile_page.dart';
 
 /// Flutter code sample for [NavigationBar].
@@ -58,12 +58,14 @@ class _NavigationExampleState extends State<NavigationExample> {
           ),
         ],
       ),
-      body:
-          <Widget>[
-            const MapPage(),
-            const PostPage(),
-            const ProfilePage(),
-          ][currentPageIndex],
+      body: SizedBox.expand(
+        child:
+            <Widget>[
+              const MapPage(),
+              const PostPage(),
+              const ProfilePage(),
+            ][currentPageIndex],
+      ),
     );
   }
 }

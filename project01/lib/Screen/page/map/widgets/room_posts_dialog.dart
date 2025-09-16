@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class RoomPostsDialog extends StatelessWidget {
   final String roomName;

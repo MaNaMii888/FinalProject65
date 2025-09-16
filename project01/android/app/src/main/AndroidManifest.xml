@@ -18,6 +18,10 @@
         android:label="project01"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Provide the default web client ID for Google Sign-In resolution -->
+        <meta-data
+            android:name="com.google.android.gms.client.id"
+            android:value="@string/default_web_client_id" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

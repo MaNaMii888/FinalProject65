@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
 import 'package:project01/Screen/page/profile/profile_menu_page.dart';
-import 'package:project01/Screen/login.dart';
 import 'package:project01/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';

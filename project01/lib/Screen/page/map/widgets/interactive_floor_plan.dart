@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 import 'package:project01/Screen/page/map/widgets/room_posts_dialog.dart';
-import 'package:project01/Screen/page/map/painters/floor_plan_a_painter.dart';
-import 'package:project01/Screen/page/map/painters/floor_plan_b_painter.dart';
+import 'package:project01/Screen/page/map/widgets/painters/floor_plan_a_painter.dart';
+import 'package:project01/Screen/page/map/widgets/painters/floor_plan_b_painter.dart';
 
 class InteractiveFloorPlan extends StatefulWidget {
   final String buildingId;

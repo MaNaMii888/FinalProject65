@@ -99,7 +99,7 @@ class FloorPlanAPainter extends CustomPainter {
 
     // วาดไอคอนแสดงจำนวนโพสต์
     if (hasPosts) {
-      _drawPostIndicator(canvas, scaledRect, roomData!, scaleFactor);
+      _drawPostIndicator(canvas, scaledRect, roomData, scaleFactor);
     }
 
     final TextPainter textPainter = TextPainter(

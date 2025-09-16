@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:project01/Screen/app.dart';
 import 'package:project01/Screen/register.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:project01/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,81 +15,13 @@ class _LoginScreenState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+  final AuthService _authService = AuthService(); // Using singleton instance
 
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Show loading dialog first
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: AlertDialog(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text("กำลังเข้าสู่ระบบด้วย Google..."),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-
-      // Try lightweight auth first (may be null) then fall back to interactive
-      GoogleSignInAccount? account;
-      try {
-        final Future<GoogleSignInAccount?>? lf =
-            googleSignIn.attemptLightweightAuthentication();
-        if (lf != null) {
-          account = await lf;
-        }
-      } catch (_) {
-        account = null;
-      }
-
-      if (account == null) {
-        try {
-          account = await googleSignIn.authenticate();
-        } catch (e) {
-          Navigator.of(context).pop(); // ปิด loading dialog
-          return null;
-        }
-      }
-
-      final googleAuth = account.authentication;
-      final idToken = googleAuth.idToken;
-      if (idToken == null) {
-        Navigator.of(context).pop();
-        return null;
-      }
-
-      final credential = GoogleAuthProvider.credential(idToken: idToken);
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(
-        credential,
-      );
-      Navigator.of(context).pop();
-      return userCredential;
+      return await _authService.signInWithGoogle();
     } catch (e) {
-      Navigator.of(context).pop(); // ปิด loading dialog
-      // Show error dialog
-      await showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('เกิดข้อผิดพลาด'),
-              content: Text('ไม่สามารถเข้าสู่ระบบได้: ${e.toString()}'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('ปิด'),
-                ),
-              ],
-            ),
-      );
+      print('Error signing in with Google: $e');
       return null;
     }
   }
@@ -289,17 +221,24 @@ class _LoginScreenState extends State<LoginPage> {
                           onPressed: () async {
                             showDialog(
                               context: context,
-                              barrierDismissible: false,
+                              barrierDismissible: true,
                               builder: (BuildContext context) {
-                                return const Center(
-                                  child: AlertDialog(
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        CircularProgressIndicator(),
-                                        SizedBox(height: 16),
-                                        Text("กำลังเข้าสู่ระบบด้วย Google..."),
-                                      ],
+                                return WillPopScope(
+                                  onWillPop: () async {
+                                    // อนุญาตให้กด back เพื่อปิด loading dialog
+                                    return true;
+                                  },
+                                  child: const Center(
+                                    child: AlertDialog(
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircularProgressIndicator(),
+                                          SizedBox(height: 16),
+                                          Text("กำลังเข้าสู่ระบบด้วย Google..."),
+                                          SizedBox(height: 8),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
@@ -309,17 +248,24 @@ class _LoginScreenState extends State<LoginPage> {
                             try {
                               final UserCredential? userCredential =
                                   await signInWithGoogle();
-                              Navigator.of(context).pop(); // ปิด Loading Dialog
+                              
+                              // ตรวจสอบว่า dialog ยังเปิดอยู่หรือไม่ก่อนปิด
+                              if (Navigator.canPop(context)) {
+                                Navigator.of(context).pop(); // ปิด Loading Dialog
+                              }
 
-                              if (userCredential != null) {
-                                // เข้าสู่ระบบสำเร็จ
+                              // ตรวจสอบทั้ง userCredential และ Firebase Auth currentUser
+                              final currentUser = FirebaseAuth.instance.currentUser;
+                              
+                              if (userCredential != null || currentUser != null) {
+                                // เข้าสู่ระบบสำเร็จ (ตรวจสอบ 2 แหล่ง)
                                 await showDialog(
                                   context: context,
                                   builder: (BuildContext context) {
                                     return AlertDialog(
                                       title: const Text('สำเร็จ'),
-                                      content: const Text(
-                                        'เข้าสู่ระบบด้วย Google สำเร็จ',
+                                      content: Text(
+                                        'เข้าสู่ระบบด้วย Google สำเร็จ\nยินดีต้อนรับ ${currentUser?.displayName ?? 'ผู้ใช้'}',
                                       ),
                                       icon: const Icon(
                                         Icons.check_circle,
@@ -346,34 +292,98 @@ class _LoginScreenState extends State<LoginPage> {
                                   },
                                 );
                               } else {
-                                // เข้าสู่ระบบไม่สำเร็จ
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: const Text('เกิดข้อผิดพลาด'),
-                                      content: const Text(
-                                        'ไม่สามารถเข้าสู่ระบบด้วย Google ได้',
-                                      ),
-                                      icon: const Icon(
-                                        Icons.error,
-                                        color: Colors.red,
-                                        size: 48,
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.pop(context),
-                                          child: const Text('ปิด'),
+                                // รอสักครู่แล้วตรวจสอบอีกครั้ง (กรณี async delay)
+                                await Future.delayed(Duration(milliseconds: 500));
+                                final retryCurrentUser = FirebaseAuth.instance.currentUser;
+                                
+                                if (retryCurrentUser != null) {
+                                  // Login สำเร็จแล้วจริงๆ แต่ async delay
+                                  await showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text('สำเร็จ'),
+                                        content: Text(
+                                          'เข้าสู่ระบบด้วย Google สำเร็จ\nยินดีต้อนรับ ${retryCurrentUser.displayName ?? 'ผู้ใช้'}',
                                         ),
-                                      ],
-                                    );
-                                  },
-                                );
+                                        icon: const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                          size: 48,
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).pop();
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (context) =>
+                                                          const NavigationBarApp(),
+                                                ),
+                                              );
+                                            },
+                                            child: const Text('ตกลง'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                } else {
+                                  // เข้าสู่ระบบไม่สำเร็จจริงๆ
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text('เกิดข้อผิดพลาด'),
+                                        content: const Text(
+                                          'ไม่สามารถเข้าสู่ระบบด้วย Google ได้\nกรุณาลองใหม่อีกครั้ง',
+                                        ),
+                                        icon: const Icon(
+                                          Icons.error,
+                                          color: Colors.red,
+                                          size: 48,
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(context),
+                                            child: const Text('ปิด'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                }
                               }
                             } catch (e) {
-                              Navigator.of(context).pop(); // ปิด Loading Dialog
-                              print('Error: $e');
+                              // ตรวจสอบว่า dialog ยังเปิดอยู่หรือไม่ก่อนปิด
+                              if (Navigator.canPop(context)) {
+                                Navigator.of(context).pop(); // ปิด Loading Dialog
+                              }
+                              await showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text('เกิดข้อผิดพลาด'),
+                                    content: const Text(
+                                      'ไม่สามารถเข้าสู้ระบบด้วย googleได้',
+                                    ),
+                                    icon: const Icon(
+                                      Icons.error,
+                                      color: Colors.red,
+                                      size: 48,
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('ปิด'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
                             }
                           },
                         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/Screen/login.dart';
+import 'package:project01/services/auth_service.dart';
 
 class ProfileMenuPage extends StatefulWidget {
   const ProfileMenuPage({super.key});
@@ -232,19 +233,63 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
           ),
     ).then((confirm) async {
       if (confirm == true && context.mounted) {
-        try {
-          await FirebaseAuth.instance.signOut();
-          if (context.mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const LoginPage()),
-              (route) => false,
+        // แสดง loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (BuildContext context) {
+            return WillPopScope(
+              onWillPop: () async => true,
+              child: const Center(
+                child: AlertDialog(
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('กำลังออกจากระบบ...'),
+                    ],
+                  ),
+                ),
+              ),
             );
+          },
+        );
+        
+        try {
+          // ใช้ AuthService สำหรับ sign out แทน FirebaseAuth โดยตรง
+          final authService = AuthService();
+          await authService.signOut();
+          
+          if (context.mounted) {
+            // ปิด loading dialog
+            if (Navigator.canPop(context)) {
+              Navigator.of(context).pop();
+            }
+            
+            
+            // กลับไปหน้า login และ clear navigation stack
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false,
+              );
+            }
           }
         } catch (e) {
           if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+            // ปิด loading dialog ในกรณี error
+            if (Navigator.canPop(context)) {
+              Navigator.of(context).pop();
+            }
+            
+            // แสดง error message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('เกิดข้อผิดพลาดในการออกจากระบบ: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         }
       }
