@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/action/find_item_action.dart';
-import 'package:project01/Screen/page/post/widget/post_actions_buttons.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,38 +15,25 @@ class PostPage extends StatefulWidget {
 class _PostPageState extends State<PostPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<Post> allPosts = [];
-  List<Post> lostPosts = [];
-  List<Post> foundPosts = [];
+  List<Post> posts = [];
   bool isLoading = true;
   String searchQuery = '';
   String? selectedCategory;
-  static const int pageSize = 20;
+  static const int pageSize = 10;
   DocumentSnapshot? lastDocument;
   bool hasMore = true;
 
   @override
   void initState() {
     super.initState();
-    // Initialize TabController for two tabs: ของหาย, เจอของ
     _tabController = TabController(length: 2, vsync: this);
-    // Load initial posts
-    _loadAllPosts();
+    _loadPosts();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadAllPosts() async {
+  Future<void> _loadPosts() async {
     if (!mounted) return;
     setState(() => isLoading = true);
-    print('=== Starting _loadAllPosts() ===');
-
     try {
-      print('Querying Firebase collection: lost_found_items');
       final snapshot = await FirebaseFirestore.instance
           .collection('lost_found_items')
           .orderBy('createdAt', descending: true)
@@ -55,45 +41,59 @@ class _PostPageState extends State<PostPage>
           .get()
           .timeout(const Duration(seconds: 10));
 
-      print('Firebase query result - Number of docs: ${snapshot.docs.length}');
-
       if (snapshot.docs.isNotEmpty) {
         lastDocument = snapshot.docs.last;
-        // Debug: แสดงข้อมูลของแต่ละ document
-        for (int i = 0; i < snapshot.docs.length; i++) {
-          print('Document $i: ${snapshot.docs[i].data()}');
-        }
-      } else {
-        print('No documents found in Firebase collection');
       }
 
       if (!mounted) return;
-
-      // แปลงข้อมูลทั้งหมด
-      final allPostsData =
-          snapshot.docs
-              .map((doc) => Post.fromJson({...doc.data(), 'id': doc.id}))
-              .toList();
-
-      // แยกข้อมูลตามประเภท
-      final lostItems = allPostsData.where((post) => post.isLostItem).toList();
-      final foundItems =
-          allPostsData.where((post) => !post.isLostItem).toList();
-
       setState(() {
-        allPosts = allPostsData;
-        lostPosts = lostItems;
-        foundPosts = foundItems;
+        posts =
+            snapshot.docs
+                .map((doc) => Post.fromJson({...doc.data(), 'id': doc.id}))
+                .toList();
         isLoading = false;
+        hasMore = snapshot.docs.length == pageSize;
       });
-
-      print(
-        'Posts loaded - All: ${allPosts.length}, Lost: ${lostPosts.length}, Found: ${foundPosts.length}',
-      );
     } catch (e) {
       if (!mounted) return;
       setState(() => isLoading = false);
-      print('Error loading posts: $e');
+      _showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: $e');
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (!hasMore || isLoading) return;
+    setState(() => isLoading = true);
+    try {
+      var query = FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .orderBy('createdAt', descending: true)
+          .limit(pageSize);
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument!);
+      }
+
+      final snapshot = await query.get();
+
+      if (snapshot.docs.length < pageSize) {
+        hasMore = false;
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        lastDocument = snapshot.docs.last;
+      }
+
+      setState(() {
+        posts.addAll(
+          snapshot.docs.map(
+            (doc) => Post.fromJson({...doc.data(), 'id': doc.id}),
+          ),
+        );
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
       _showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: $e');
     }
   }
@@ -132,27 +132,63 @@ class _PostPageState extends State<PostPage>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildPostsList(true), // ของหาย
-                _buildPostsList(false), // เจอของ
-              ],
+              children: [_buildPostsList(true), _buildPostsList(false)],
             ),
           ),
         ],
       ),
-      bottomNavigationBar: PostActionButtons(
-        onLostPress: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const LostItemForm()),
-          ).then((_) => _loadAllPosts()); // รีเฟรชข้อมูลหลังจากสร้างโพสต์
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder:
+                (context) => Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LostItemForm(),
+                            ),
+                          ).then((_) => _loadPosts());
+                        },
+                        icon: const Icon(Icons.help_outline),
+                        label: const Text('แจ้งของหาย'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const FindItemForm(),
+                            ),
+                          ).then((_) => _loadPosts());
+                        },
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('แจ้งพบของหาย'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+          );
         },
-        onFoundPress: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const FindItemForm()),
-          ).then((_) => _loadAllPosts()); // รีเฟรชข้อมูลหลังจากสร้างโพสต์
-        },
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -216,184 +252,73 @@ class _PostPageState extends State<PostPage>
     );
   }
 
-  // หน้าหลักแสดงโพสต์ทั้งหมด
-  Widget _buildAllPostsList() {
-    print('=== _buildAllPostsList called ===');
-    print('isLoading: $isLoading');
-    print('Total all posts: ${allPosts.length}');
-
+  Widget _buildPostsList(bool isLostItems) {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final filteredPosts = _filterPosts(allPosts);
-    print('Filtered all posts: ${filteredPosts.length}');
+    final normalizedQuery = _normalize(searchQuery);
+    final filteredPosts =
+        posts.where((post) {
+          final matchesType = post.isLostItem == isLostItems;
+          final matchesSearch =
+              normalizedQuery.isEmpty ||
+              _normalize(post.title).contains(normalizedQuery) ||
+              _normalize(post.description).contains(normalizedQuery) ||
+              _normalize(post.building).contains(normalizedQuery) ||
+              _normalize(post.location).contains(normalizedQuery);
+          final matchesCategory =
+              selectedCategory == null ||
+              selectedCategory == 'all' ||
+              post.category == selectedCategory;
+          return matchesType && matchesSearch && matchesCategory;
+        }).toList();
 
     if (filteredPosts.isEmpty) {
-      return _buildEmptyState(
-        'ยังไม่มีโพสต์',
-        'เมื่อมีผู้ใช้แจ้งของหายหรือเจอของ จะแสดงที่นี่',
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              isLostItems ? 'ยังไม่มีโพสต์ของหาย' : 'ยังไม่มีโพสต์เจอของ',
+              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'ลองเปลี่ยนคำค้นหาหรือตัวกรอง',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+          ],
+        ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: _loadAllPosts,
-      child: _buildPostsListView(filteredPosts),
-    );
-  }
-
-  // หน้าสำหรับแสดงโพสต์ตามประเภท (ของหาย/เจอของ)
-  Widget _buildPostsList(bool isLostItems) {
-    print('=== _buildPostsList called for ${isLostItems ? "Lost Items" : "Found Items"} ===');
-    
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('lost_found_items')
-          .where('isLostItem', isEqualTo: isLostItems)
-          .snapshots(),
-      builder: (context, snapshot) {
-        print('StreamBuilder state: ${snapshot.connectionState}');
-        print('Has error: ${snapshot.hasError}');
-        print('Has data: ${snapshot.hasData}');
-        
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          print('StreamBuilder waiting...');
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (snapshot.hasError) {
-          print('StreamBuilder error: ${snapshot.error}');
-          return _buildEmptyState(
-            'เกิดข้อผิดพลาดในการโหลด',
-            'Error: ${snapshot.error}',
-          );
-        }
-        
-        final docs = snapshot.data?.docs ?? [];
-        print('Number of documents from Firebase: ${docs.length}');
-        
-        if (docs.isEmpty) {
-          final message =
-              isLostItems ? 'ยังไม่มีโพสต์ของหาย' : 'ยังไม่มีโพสต์เจอของ';
-          final subtitle =
-              isLostItems
-                  ? 'เมื่อมีผู้ใช้แจ้งของหาย จะแสดงที่นี่'
-                  : 'เมื่อมีผู้ใช้แจ้งเจอของ จะแสดงที่นี่';
-          return _buildEmptyState(message, subtitle);
-        }
-
-        try {
-          final allPostsData = docs
-              .map((doc) {
-                final data = doc.data();
-                print('Document ${doc.id}: $data');
-                return Post.fromJson({...data, 'id': doc.id});
-              })
-              .toList();
-
-          print('Successfully parsed ${allPostsData.length} posts');
-
-          // เรียงลำดับข้อมูลใน client side แทนการใช้ orderBy ใน query
-          allPostsData.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-          final filteredPosts = _filterPosts(allPostsData);
-          print('Filtered posts: ${filteredPosts.length}');
-
-          if (filteredPosts.isEmpty) {
-            final message =
-                isLostItems ? 'ไม่พบโพสต์ของหายที่ตรงกับการค้นหา' : 'ไม่พบโพสต์เจอของที่ตรงกับการค้นหา';
-            return _buildEmptyState(message, 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง');
+      onRefresh: _loadPosts,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (scrollInfo) {
+          if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+            _loadMorePosts();
           }
-
-          return RefreshIndicator(
-            onRefresh: _loadAllPosts,
-            child: _buildPostsListView(filteredPosts),
-          );
-        } catch (e) {
-          print('Error parsing posts: $e');
-          return _buildEmptyState(
-            'เกิดข้อผิดพลาดในการแปลงข้อมูล',
-            'Error: $e',
-          );
-        }
-      },
-    );
-  }
-
-  // กรองโพสต์ตามเงื่อนไขการค้นหาและหมวดหมู่
-  List<Post> _filterPosts(List<Post> posts) {
-    final normalizedQuery = _normalize(searchQuery);
-    print(
-      'Filtering posts - searchQuery: "$searchQuery", selectedCategory: $selectedCategory',
-    );
-
-    return posts.where((post) {
-      final matchesSearch =
-          normalizedQuery.isEmpty ||
-          _normalize(post.title).contains(normalizedQuery) ||
-          _normalize(post.description).contains(normalizedQuery) ||
-          _normalize(post.building).contains(normalizedQuery) ||
-          _normalize(post.location).contains(normalizedQuery);
-
-      final matchesCategory =
-          selectedCategory == null ||
-          selectedCategory == 'all' ||
-          post.category == selectedCategory;
-
-      print(
-        'Post: "${post.title}", matchesSearch: $matchesSearch, matchesCategory: $matchesCategory',
-      );
-
-      return matchesSearch && matchesCategory;
-    }).toList();
-  }
-
-  // สร้าง ListView สำหรับแสดงโพสต์
-  Widget _buildPostsListView(List<Post> posts) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: posts.length,
-      itemBuilder:
-          (context, index) => _buildPostItem(
-            posts[index],
-            isMobile: MediaQuery.of(context).size.width < 600,
-          ),
-    );
-  }
-
-  // สร้าง empty state
-  Widget _buildEmptyState(String title, String subtitle) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(title, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Debug: Total posts = ${allPosts.length}',
-            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-          ),
-        ],
+          return true;
+        },
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: filteredPosts.length,
+          itemBuilder:
+              (context, index) => _buildPostItem(
+                filteredPosts[index],
+                isMobile: MediaQuery.of(context).size.width < 600,
+              ),
+        ),
       ),
     );
   }
 
-  // สร้าง PostItem
   Widget _buildPostItem(Post post, {required bool isMobile}) {
-    print(
-      '_buildPostItem - Post: ${post.title}, isLostItem: ${post.isLostItem}',
-    );
-
     if (isMobile) {
-      // Mobile layout
       return Card(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: InkWell(
@@ -502,7 +427,7 @@ class _PostPageState extends State<PostPage>
         ),
       );
     } else {
-      // Tablet/Desktop layout
+      // Desktop/Tablet layout
       return Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -512,151 +437,111 @@ class _PostPageState extends State<PostPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image section
               if (post.imageUrl.isNotEmpty)
-                Expanded(
-                  flex: 3,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    child: CachedNetworkImage(
-                      imageUrl: post.imageUrl,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder:
-                          (context, url) =>
-                              const Center(child: CircularProgressIndicator()),
-                      errorWidget:
-                          (context, url, error) => const Icon(Icons.error),
-                    ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
                   ),
-                )
-              else
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        post.isLostItem
-                            ? Icons.help_outline
-                            : Icons.check_circle_outline,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
-                    ),
+                  child: CachedNetworkImage(
+                    imageUrl: post.imageUrl,
+                    width: double.infinity,
+                    height: 180,
+                    fit: BoxFit.cover,
+                    placeholder:
+                        (context, url) =>
+                            const Center(child: CircularProgressIndicator()),
+                    errorWidget:
+                        (context, url, error) => const Icon(Icons.error),
                   ),
                 ),
-
-              // Content section
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header with status
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor:
-                                post.isLostItem
-                                    ? Colors.red[100]
-                                    : Colors.green[100],
-                            child: Icon(
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor:
                               post.isLostItem
-                                  ? Icons.help_outline
-                                  : Icons.check_circle_outline,
-                              size: 16,
-                              color:
-                                  post.isLostItem ? Colors.red : Colors.green,
-                            ),
+                                  ? Colors.red[100]
+                                  : Colors.green[100],
+                          child: Icon(
+                            post.isLostItem
+                                ? Icons.help_outline
+                                : Icons.check_circle_outline,
+                            size: 16,
+                            color: post.isLostItem ? Colors.red : Colors.green,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              post.userName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (post.status == 'closed')
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'ปิด',
-                                style: TextStyle(fontSize: 10),
-                              ),
-                            ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // Title
-                      Text(
-                        post.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      const SizedBox(height: 4),
-
-                      // Location
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 14,
-                            color: Colors.grey[600],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            post.userName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              '${post.building} • ${post.location}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        ),
+                        if (post.status == 'closed')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'ปิด',
+                              style: TextStyle(fontSize: 10),
                             ),
                           ),
-                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      post.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
-
-                      const SizedBox(height: 4),
-
-                      // Time
-                      Text(
-                        _getTimeAgo(post.createdAt),
-                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                      ),
-                    ],
-                  ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${post.building} • ${post.location}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _getTimeAgo(post.createdAt),
+                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                    ),
+                  ],
                 ),
               ),
             ],
