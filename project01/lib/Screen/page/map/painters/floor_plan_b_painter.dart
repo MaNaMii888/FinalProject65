@@ -87,7 +87,7 @@ class FloorPlanBPainter extends CustomPainter {
     canvas.drawRect(scaledRect, finalBorderPaint);
 
     // วาดไอคอนแสดงจำนวนโพสต์
-    if (hasPosts && roomData != null) {
+    if (hasPosts) {
       _drawPostIndicator(canvas, scaledRect, roomData, scaleFactor);
     }
 
