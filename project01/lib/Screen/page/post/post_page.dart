@@ -23,6 +23,15 @@ class _PostPageState extends State<PostPage>
   DocumentSnapshot? lastDocument;
   bool hasMore = true;
 
+  // FAB Animated
+  bool isFabOpen = false;
+
+  void toggleFab() {
+    setState(() {
+      isFabOpen = !isFabOpen;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -137,58 +146,76 @@ class _PostPageState extends State<PostPage>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            builder:
-                (context) => Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LostItemForm(),
-                            ),
-                          ).then((_) => _loadPosts());
-                        },
-                        icon: const Icon(Icons.help_outline),
-                        label: const Text('แจ้งของหาย'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const FindItemForm(),
-                            ),
-                          ).then((_) => _loadPosts());
-                        },
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('แจ้งพบของหาย'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                        ),
-                      ),
-                    ],
-                  ),
+      floatingActionButton: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          // ปุ่ม "พบของหาย"
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            bottom: isFabOpen ? 100 : 16,
+            right: 16,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: isFabOpen ? 1 : 0,
+              child: FloatingActionButton.extended(
+                heroTag: 'found',
+                onPressed: () {
+                  toggleFab();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FindItemForm()),
+                  ).then((_) => _loadPosts());
+                },
+                label: const Text('พบของหาย'),
+                backgroundColor: Colors.purple[200],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
-          );
-        },
-        child: const Icon(Icons.add),
+              ),
+            ),
+          ),
+          // ปุ่ม "แจ้งของหาย"
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            bottom: isFabOpen ? 160 : 16,
+            right: 16,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: isFabOpen ? 1 : 0,
+              child: FloatingActionButton.extended(
+                heroTag: 'lost',
+                onPressed: () {
+                  toggleFab();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LostItemForm()),
+                  ).then((_) => _loadPosts());
+                },
+                label: const Text('แจ้งของหาย'),
+                backgroundColor: Colors.purple,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          ),
+          // ปุ่มหลัก + / X
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton(
+              backgroundColor: Colors.purple[300],
+              onPressed: toggleFab,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child:
+                    isFabOpen
+                        ? const Icon(Icons.close, key: ValueKey('close'))
+                        : const Icon(Icons.add, key: ValueKey('add')),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
