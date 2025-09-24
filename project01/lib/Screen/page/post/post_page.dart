@@ -1,5 +1,8 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/post/action/find_item_action.dart';
+import 'package:project01/Screen/page/post/action/post_actions_buttons.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -121,102 +124,53 @@ class _PostPageState extends State<PostPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'ประกาศของหาย/เจอของ',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [Tab(text: 'ของหาย'), Tab(text: 'เจอของ')],
-          indicatorColor: Theme.of(context).colorScheme.primary,
-          dividerColor: Colors.transparent,
-        ),
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          _buildSearchBar(),
-          Expanded(
-            child: TabBarView(
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: Text(
+              'ประกาศของหาย/เจอของ',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            bottom: TabBar(
               controller: _tabController,
-              children: [_buildPostsList(true), _buildPostsList(false)],
+              tabs: const [Tab(text: 'ของหาย'), Tab(text: 'เจอของ')],
+              indicatorColor: Theme.of(context).colorScheme.primary,
+              dividerColor: Colors.transparent,
             ),
+            elevation: 0,
           ),
-        ],
-      ),
-      floatingActionButton: Stack(
-        alignment: Alignment.bottomRight,
-        children: [
-          // ปุ่ม "พบของหาย"
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
-            bottom: isFabOpen ? 100 : 16,
-            right: 16,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 250),
-              opacity: isFabOpen ? 1 : 0,
-              child: FloatingActionButton.extended(
-                heroTag: 'found',
-                onPressed: () {
-                  toggleFab();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FindItemForm()),
-                  ).then((_) => _loadPosts());
-                },
-                label: const Text('พบของหาย'),
-                backgroundColor: Colors.purple[200],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+          body: Column(
+            children: [
+              _buildSearchBar(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [_buildPostsList(true), _buildPostsList(false)],
                 ),
               ),
-            ),
+            ],
           ),
-          // ปุ่ม "แจ้งของหาย"
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 250),
-            bottom: isFabOpen ? 160 : 16,
-            right: 16,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 250),
-              opacity: isFabOpen ? 1 : 0,
-              child: FloatingActionButton.extended(
-                heroTag: 'lost',
-                onPressed: () {
-                  toggleFab();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LostItemForm()),
-                  ).then((_) => _loadPosts());
-                },
-                label: const Text('แจ้งของหาย'),
-                backgroundColor: Colors.purple,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-            ),
+        ),
+
+        /// 👇 ปุ่ม FAB
+        Positioned(
+          child: PostActionButton(
+            onLostPress: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LostItemForm()),
+              ).then((_) => _loadPosts());
+            },
+            onFoundPress: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FindItemForm()),
+              ).then((_) => _loadPosts());
+            },
           ),
-          // ปุ่มหลัก + / X
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FloatingActionButton(
-              backgroundColor: Colors.purple[300],
-              onPressed: toggleFab,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child:
-                    isFabOpen
-                        ? const Icon(Icons.close, key: ValueKey('close'))
-                        : const Icon(Icons.add, key: ValueKey('add')),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

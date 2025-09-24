@@ -51,6 +51,7 @@ class MapView extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 Widget _buildMapView() {
   return LayoutBuilder(
     builder: (context, constraints) {

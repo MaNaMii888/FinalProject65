@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
-import 'package:project01/Screen/page/map/widgets/room_posts_dialog.dart';
+import 'package:project01/Screen/page/map/feature/room_posts_dialog.dart';
 
 class FloorPlanB extends StatelessWidget {
   final String? findRequest;

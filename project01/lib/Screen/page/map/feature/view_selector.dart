@@ -48,6 +48,7 @@ class ViewSelector extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -71,7 +72,7 @@ class ViewSelector extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,       
                   children: [
                     _buildPopupOption(
                       icon: Icons.map,

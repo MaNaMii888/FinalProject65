@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
-import 'package:project01/Screen/page/map/widgets/floor_plan_a.dart';
-import 'package:project01/Screen/page/map/widgets/floor_plan_b.dart';
+import 'package:project01/Screen/page/map/feature/floor_plan_a.dart';
+import 'package:project01/Screen/page/map/feature/floor_plan_b.dart';
 import 'package:project01/Screen/page/notification/smart_notification_popup.dart';
-import 'package:project01/Screen/page/map/widgets/action_button.dart';
+import 'package:project01/Screen/page/map/feature/action_button.dart';
 import 'package:project01/services/smart_matching_service.dart';
 
 class CampusNavigation extends StatefulWidget {

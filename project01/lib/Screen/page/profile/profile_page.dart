@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
-import 'package:project01/Screen/page/profile/profile_menu_page.dart';
+import 'package:project01/Screen/page/profile/menu/profile_menu_page.dart';
 import 'package:project01/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -250,10 +250,10 @@ class _ProfilePageState extends State<ProfilePage>
         } else {
           // Tablet/Desktop layout
           return ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: screenWidth < 900 ? 600 : 800,
-                maxHeight: screenWidth < 900 ? 700 : 800,
-              ),
+            constraints: BoxConstraints(
+              maxWidth: screenWidth < 900 ? 600 : 800,
+              maxHeight: screenWidth < 900 ? 700 : 800,
+            ),
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 screenWidth < 900 ? 24 : 32,
@@ -261,12 +261,12 @@ class _ProfilePageState extends State<ProfilePage>
                 screenWidth < 900 ? 24 : 32,
                 screenWidth < 900 ? 16 : 24,
               ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildProfileImage(user, userData),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildProfileImage(user, userData),
                   const SizedBox(height: 20),
-                      _buildUserInfo(user, userData),
+                  _buildUserInfo(user, userData),
                   const SizedBox(height: 20),
                   Expanded(child: _buildStats(userData)),
                 ],
@@ -293,36 +293,36 @@ class _ProfilePageState extends State<ProfilePage>
         ],
       ),
       child: Stack(
-      children: [
-        CircleAvatar(
+        children: [
+          CircleAvatar(
             radius: 45,
-          backgroundColor: Colors.grey[200],
-          backgroundImage:
-              (userData['profileUrl'] != null || user.photoURL != null)
-                  ? CachedNetworkImageProvider(
-                    userData['profileUrl'] ?? user.photoURL!,
-                  )
-                  : null,
-          child:
-              (userData['profileUrl'] == null && user.photoURL == null)
+            backgroundColor: Colors.grey[200],
+            backgroundImage:
+                (userData['profileUrl'] != null || user.photoURL != null)
+                    ? CachedNetworkImageProvider(
+                      userData['profileUrl'] ?? user.photoURL!,
+                    )
+                    : null,
+            child:
+                (userData['profileUrl'] == null && user.photoURL == null)
                     ? const Icon(Icons.person, size: 45, color: Colors.grey)
-                  : null,
-        ),
-        if (userData['isOnline'] == true)
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
+                    : null,
+          ),
+          if (userData['isOnline'] == true)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
                 width: 12,
                 height: 12,
-              decoration: BoxDecoration(
-                color: Colors.green,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
               ),
             ),
-          ),
-      ],
+        ],
       ),
     );
   }
@@ -334,8 +334,8 @@ class _ProfilePageState extends State<ProfilePage>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-    return Column(
-      children: [
+        return Column(
+          children: [
             Stack(
               alignment: Alignment.center,
               children: [
@@ -347,12 +347,12 @@ class _ProfilePageState extends State<ProfilePage>
                           constraints.maxWidth * 0.8, // ใช้ 80% ของความกว้าง
                     ),
                     child: Text(
-          name,
+                      name,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
-          textAlign: TextAlign.center,
+                      textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
@@ -396,20 +396,20 @@ class _ProfilePageState extends State<ProfilePage>
               ],
             ),
             const SizedBox(height: 2),
-        Text(
-          email,
-          style: TextStyle(color: Colors.grey[600], fontSize: 16),
-          textAlign: TextAlign.center,
-        ),
-        if (phone != null && phone.isNotEmpty) ...[
+            Text(
+              email,
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            if (phone != null && phone.isNotEmpty) ...[
               const SizedBox(height: 2),
-          Text(
-            'โทร: $phone',
-            style: TextStyle(color: Colors.grey[600], fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ],
+              Text(
+                'โทร: $phone',
+                style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
         );
       },
     );
@@ -421,21 +421,21 @@ class _ProfilePageState extends State<ProfilePage>
         // แสดงสถิติ
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+          children: [
             Expanded(
               child: _buildStatItem(
-            'ของหาย',
-            '${userData['lostCount'] ?? 0}',
-            Icons.search,
-          ),
+                'ของหาย',
+                '${userData['lostCount'] ?? 0}',
+                Icons.search,
+              ),
             ),
             Container(height: 32, width: 1, color: Colors.grey[300]),
             Expanded(
               child: _buildStatItem(
-            'เจอของ',
-            '${userData['foundCount'] ?? 0}',
-            Icons.check_circle,
-          ),
+                'เจอของ',
+                '${userData['foundCount'] ?? 0}',
+                Icons.check_circle,
+              ),
             ),
           ],
         ),

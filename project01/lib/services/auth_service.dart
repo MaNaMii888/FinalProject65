@@ -98,6 +98,7 @@ class AuthService {
   static const Duration _cooldownPeriod = Duration(minutes: 15);
 
   // Cache mechanism - ปรับให้เหมาะสมกับการใช้งาน
+  // ignore: unused_field
   static UserCredential? _cachedCredential;
   static DateTime? _lastSignInAttempt;
   static const Duration _cacheTimeout = Duration(minutes: 5); // ลดเวลา cache
