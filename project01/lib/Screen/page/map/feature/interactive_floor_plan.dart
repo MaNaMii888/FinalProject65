@@ -47,28 +47,28 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final localPosition = renderBox.globalToLocal(details.globalPosition);
 
-    final roomInfo = _getRoomAtPosition(localPosition);
-    if (roomInfo != null) {
-      final roomId = roomInfo['roomId'];
-      final roomName = roomInfo['roomName'];
-      if (roomId != null && roomName != null) {
-        _showRoomPosts(roomId, roomName);
+    final buildingInfo = _getBuildingAtPosition(localPosition);
+    if (buildingInfo != null) {
+      final buildingId = buildingInfo['buildingId'];
+      final buildingName = buildingInfo['buildingName'];
+      if (buildingId != null && buildingName != null) {
+        _showBuildingPosts(buildingId, buildingName);
       }
     }
   }
 
-  Map<String, String>? _getRoomAtPosition(Offset position) {
-    // กำหนดตำแหน่งห้องสำหรับอาคาร A
+  Map<String, String>? _getBuildingAtPosition(Offset position) {
+    // กำหนดตำแหน่งอาคารสำหรับ Zone A
     if (widget.buildingId == 'A') {
-      return _getRoomAtPositionBuildingA(position);
+      return _getBuildingAtPositionZoneA(position);
     } else {
-      return _getRoomAtPositionBuildingB(position);
+      return _getBuildingAtPositionZoneB(position);
     }
   }
 
-  Map<String, String>? _getRoomAtPositionBuildingA(Offset position) {
-    // กำหนดตำแหน่งห้องสำหรับอาคาร A - ปรับให้ขยายเต็มพื้นที่
-    final roomPositions = {
+  Map<String, String>? _getBuildingAtPositionZoneA(Offset position) {
+    // กำหนดตำแหน่งอาคารสำหรับ Zone A - ปรับให้ขยายเต็มพื้นที่
+    final buildingPositions = {
       '7': Rect.fromLTWH(120, 15, 100, 50), // ขยายและปรับตำแหน่ง
       '6': Rect.fromLTWH(140, 75, 100, 70), // ขยายและปรับตำแหน่ง
       '8': Rect.fromLTWH(20, 75, 50, 70), // ขยายและปรับตำแหน่ง
@@ -84,7 +84,7 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
       '11': Rect.fromLTWH(5, 350, 70, 130), // ขยายและปรับตำแหน่ง
     };
 
-    final roomNames = {
+    final buildingNames = {
       '7': 'อาคาร 7',
       '6': 'อาคาร 6',
       '8': 'อาคาร 8',
@@ -100,12 +100,12 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
       '11': 'อาคาร 11',
     };
 
-    return _checkRoomPosition(position, roomPositions, roomNames);
+    return _checkBuildingPosition(position, buildingPositions, buildingNames);
   }
 
-  Map<String, String>? _getRoomAtPositionBuildingB(Offset position) {
-    // กำหนดตำแหน่งห้องสำหรับอาคาร B - ปรับให้ขยายเต็มพื้นที่
-    final roomPositions = {
+  Map<String, String>? _getBuildingAtPositionZoneB(Offset position) {
+    // กำหนดตำแหน่งอาคารสำหรับ Zone B - ปรับให้ขยายเต็มพื้นที่
+    final buildingPositions = {
       '28': Rect.fromLTWH(15, 15, 60, 35), // ขยายและปรับตำแหน่ง
       '19': Rect.fromLTWH(15, 55, 50, 55), // ขยายและปรับตำแหน่ง
       '20': Rect.fromLTWH(70, 55, 70, 35), // ขยายและปรับตำแหน่ง
@@ -124,7 +124,7 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
       '33': Rect.fromLTWH(125, 315, 70, 25), // ขยายและปรับตำแหน่ง
     };
 
-    final roomNames = {
+    final buildingNames = {
       '28': 'อาคาร 28',
       '19': 'อาคาร 19',
       '20': 'อาคาร 20',
@@ -143,13 +143,13 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
       '33': 'อาคาร 33',
     };
 
-    return _checkRoomPosition(position, roomPositions, roomNames);
+    return _checkBuildingPosition(position, buildingPositions, buildingNames);
   }
 
-  Map<String, String>? _checkRoomPosition(
+  Map<String, String>? _checkBuildingPosition(
     Offset position,
-    Map<String, Rect> roomPositions,
-    Map<String, String> roomNames,
+    Map<String, Rect> buildingPositions,
+    Map<String, String> buildingNames,
   ) {
     // คำนวณ scale factor - ปรับให้อาคารขยายเต็มพื้นที่
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
@@ -161,8 +161,8 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
     final scaleFactorY =
         size.height / 500.0; // ปรับจาก 500 เป็น 500 เพื่อรักษาอัตราส่วน
 
-    for (final entry in roomPositions.entries) {
-      final roomId = entry.key;
+    for (final entry in buildingPositions.entries) {
+      final buildingId = entry.key;
       final originalRect = entry.value;
 
       // คำนวณตำแหน่งที่ scale แล้ว - ปรับให้ขยายเต็มพื้นที่
@@ -174,22 +174,22 @@ class _InteractiveFloorPlanState extends State<InteractiveFloorPlan> {
       );
 
       if (scaledRect.contains(position)) {
-        return {'roomId': roomId, 'roomName': roomNames[roomId] ?? roomId};
+        return {'buildingId': buildingId, 'buildingName': buildingNames[buildingId] ?? buildingId};
       }
     }
     return null;
   }
 
-  void _showRoomPosts(String roomId, String roomName) {
-    final roomData = widget.roomDataMap?[roomId];
-    final posts = roomData?.posts ?? [];
+  void _showBuildingPosts(String buildingId, String buildingName) {
+    final buildingData = widget.roomDataMap?[buildingId];
+    final posts = buildingData?.posts ?? [];
 
     showDialog(
       context: context,
       builder:
           (context) => RoomPostsDialog(
-            roomName: roomName,
-            buildingName: widget.buildingId == 'A' ? 'อาคาร A' : 'อาคาร B',
+            roomName: buildingName,
+            buildingName: widget.buildingId == 'A' ? 'Zone A' : 'Zone B',
             posts: posts,
           ),
     );

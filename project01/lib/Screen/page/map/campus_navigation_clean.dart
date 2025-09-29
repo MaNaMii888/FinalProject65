@@ -115,12 +115,12 @@ class _CampusNavigationState extends State<CampusNavigation> {
         final Map<String, RoomData> newRoomDataMap = {};
 
         for (final room in building.rooms) {
-          final roomData = await BuildingDataService.getRoomData(
-            buildingId,
-            room.id.toString(),
-            room.name,
+          final buildingData = await BuildingDataService.getBuildingData(
+            buildingId, // zoneId
+            room.id.toString(), // buildingId
+            room.name, // buildingName
           );
-          newRoomDataMap[room.id.toString()] = roomData;
+          newRoomDataMap[room.id.toString()] = buildingData;
         }
 
         if (!mounted) return;

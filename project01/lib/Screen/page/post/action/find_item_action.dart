@@ -174,7 +174,14 @@ class _LostItemFormState extends State<LostItemForm> {
   bool agreedToTerms = false;
   double uploadProgress = 0.0;
 
-  static const List<String> buildings = ['อาคาร 1', 'อาคาร 2', 'อาคาร 3'];
+  static const List<String> buildings = [
+    'อาคาร 1', 'อาคาร 2', 'อาคาร 3', 'อาคาร 4', 'อาคาร 5', 
+    'อาคาร 6', 'อาคาร 7', 'อาคาร 8', 'อาคาร 9', 'อาคาร 10',
+    'อาคาร 11', 'อาคาร 12', 'อาคาร 15', 'อาคาร 16', 'อาคาร 17',
+    'อาคาร 18', 'อาคาร 19', 'อาคาร 20', 'อาคาร 22', 'อาคาร 24',
+    'อาคาร 26', 'อาคาร 27', 'อาคาร 28', 'อาคาร 29', 'อาคาร 30',
+    'อาคาร 31', 'อาคาร 33', 'โรงอาหาร', 'ห้องสมุด', 'สำนักงาน', 'สนาม'
+  ];
   static const Map<int, String> categories = {
     1: "ของใช้ส่วนตัว",
     2: "เอกสาร/บัตร",
@@ -714,7 +721,14 @@ class _FindItemFormState extends State<FindItemForm> {
   bool agreedToTerms = false;
   double uploadProgress = 0.0;
 
-  static const List<String> buildings = ['อาคาร 1', 'อาคาร 2', 'อาคาร 3'];
+  static const List<String> buildings = [
+    'อาคาร 1', 'อาคาร 2', 'อาคาร 3', 'อาคาร 4', 'อาคาร 5', 
+    'อาคาร 6', 'อาคาร 7', 'อาคาร 8', 'อาคาร 9', 'อาคาร 10',
+    'อาคาร 11', 'อาคาร 12', 'อาคาร 15', 'อาคาร 16', 'อาคาร 17',
+    'อาคาร 18', 'อาคาร 19', 'อาคาร 20', 'อาคาร 22', 'อาคาร 24',
+    'อาคาร 26', 'อาคาร 27', 'อาคาร 28', 'อาคาร 29', 'อาคาร 30',
+    'อาคาร 31', 'อาคาร 33', 'โรงอาหาร', 'ห้องสมุด', 'สำนักงาน', 'สนาม'
+  ];
   static const Map<int, String> categories = {
     1: "ของใช้ส่วนตัว",
     2: "เอกสาร/บัตร",

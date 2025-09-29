@@ -69,18 +69,18 @@ class Building {
 class BuildingDataService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ดึงข้อมูลโพสต์สำหรับห้องเฉพาะ
-  static Future<RoomData> getRoomData(
+  // ดึงข้อมูลโพสต์สำหรับอาคารเฉพาะ (เดิมเรียก room แต่จริงๆ คือ building)
+  static Future<RoomData> getBuildingData(
+    String zoneId,
     String buildingId,
-    String roomId,
-    String roomName,
+    String buildingName,
   ) async {
     try {
+      // ค้นหาโพสต์ที่ building ตรงกับชื่ออาคาร (เช่น 'อาคาร 1')
       final querySnapshot =
           await _firestore
               .collection('lost_found_items')
-              .where('building', isEqualTo: buildingId)
-              .where('location', isEqualTo: roomId)
+              .where('building', isEqualTo: buildingName) // ใช้ buildingName
               .orderBy('createdAt', descending: true)
               .get();
 
@@ -90,17 +90,17 @@ class BuildingDataService {
               .toList();
 
       return RoomData(
-        roomId: roomId,
-        roomName: roomName,
-        buildingId: buildingId,
+        roomId: buildingId,
+        roomName: buildingName,
+        buildingId: zoneId,
         posts: posts,
       );
     } catch (e) {
-      debugPrint('Error fetching room data: $e');
+      debugPrint('Error fetching building data: $e');
       return RoomData(
-        roomId: roomId,
-        roomName: roomName,
-        buildingId: buildingId,
+        roomId: buildingId,
+        roomName: buildingName,
+        buildingId: zoneId,
         posts: [],
       );
     }
@@ -117,10 +117,10 @@ class BuildingDataService {
         final List<Room> updatedRooms = [];
 
         for (final room in building.rooms) {
-          final roomData = await getRoomData(
-            buildingId,
-            room.id.toString(),
-            room.name,
+          final buildingData = await getBuildingData(
+            buildingId, // zoneId
+            room.id.toString(), // buildingId
+            room.name, // buildingName
           );
 
           updatedRooms.add(
@@ -128,7 +128,7 @@ class BuildingDataService {
               id: room.id,
               name: room.name,
               type: room.type,
-              roomData: roomData,
+              roomData: buildingData,
             ),
           );
         }
@@ -146,17 +146,20 @@ class BuildingDataService {
     }
   }
 
-  // ดึงข้อมูลโพสต์สำหรับห้องเดียว
-  static Future<List<Post>> getPostsForRoom(
+  // ดึงข้อมูลโพสต์สำหรับอาคารเดียว
+  static Future<List<Post>> getPostsForBuilding(
+    String zoneId,
     String buildingId,
-    String roomId,
   ) async {
     try {
+      // หาชื่ออาคารจาก zoneId และ buildingId
+      String? buildingName = _getBuildingNameFromId(zoneId, buildingId);
+      if (buildingName == null) return [];
+      
       final querySnapshot =
           await _firestore
               .collection('lost_found_items')
-              .where('building', isEqualTo: buildingId)
-              .where('location', isEqualTo: roomId)
+              .where('building', isEqualTo: buildingName)
               .orderBy('createdAt', descending: true)
               .get();
 
@@ -164,9 +167,22 @@ class BuildingDataService {
           .map((doc) => Post.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
     } catch (e) {
-      debugPrint('Error fetching posts for room: $e');
+      debugPrint('Error fetching posts for building: $e');
       return [];
     }
+  }
+
+  // Helper function เพื่อหาชื่ออาคารจาก zoneId และ buildingId
+  static String? _getBuildingNameFromId(String zoneId, String buildingId) {
+    final zone = buildingData[zoneId];
+    if (zone == null) return null;
+    
+    final building = zone.rooms.firstWhere(
+      (room) => room.id.toString() == buildingId,
+      orElse: () => Room(id: '', name: '', type: ''),
+    );
+    
+    return building.name.isNotEmpty ? building.name : null;
   }
 }
 
