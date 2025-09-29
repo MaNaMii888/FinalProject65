@@ -418,27 +418,6 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildStats(Map<String, dynamic> userData) {
     return Column(
       children: [
-        // แสดงสถิติ
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              child: _buildStatItem(
-                'ของหาย',
-                '${userData['lostCount'] ?? 0}',
-                Icons.search,
-              ),
-            ),
-            Container(height: 32, width: 1, color: Colors.grey[300]),
-            Expanded(
-              child: _buildStatItem(
-                'เจอของ',
-                '${userData['foundCount'] ?? 0}',
-                Icons.check_circle,
-              ),
-            ),
-          ],
-        ),
         SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
@@ -634,6 +613,102 @@ class _ProfilePageState extends State<ProfilePage>
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
+                            ),
+                            PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  // Placeholder: ปรับให้ไปหน้าแก้ไขจริงเมื่อพร้อม
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('กดแก้ไข (ทดสอบ)'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                } else if (value == 'delete') {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder:
+                                        (context) => AlertDialog(
+                                          title: const Text('ยืนยันการลบ'),
+                                          content: const Text(
+                                            'คุณต้องการลบโพสต์นี้หรือไม่?',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed:
+                                                  () => Navigator.pop(
+                                                    context,
+                                                    false,
+                                                  ),
+                                              child: const Text('ยกเลิก'),
+                                            ),
+                                            TextButton(
+                                              onPressed:
+                                                  () => Navigator.pop(
+                                                    context,
+                                                    true,
+                                                  ),
+                                              child: const Text('ลบ'),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: Colors.red,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                  );
+
+                                  if (confirm == true) {
+                                    try {
+                                      await FirebaseFirestore.instance
+                                          .collection('lost_found_items')
+                                          .doc(post.id)
+                                          .delete();
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('ลบโพสต์เรียบร้อย'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'ไม่สามารถลบโพสต์ได้: $e',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                              itemBuilder:
+                                  (context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.edit, color: Colors.black),
+                                          SizedBox(width: 8),
+                                          Text('แก้ไข'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.delete, color: Colors.red),
+                                          SizedBox(width: 8),
+                                          Text('ลบโพสต์'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                             ),
                           ],
                         ),

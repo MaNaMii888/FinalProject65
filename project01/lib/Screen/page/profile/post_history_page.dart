@@ -154,6 +154,136 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                                   ),
                                 ),
                               ),
+
+                              // Debug: ตรวจสอบค่า userId
+                              // แสดงเมนูแก้ไข/ลบ เฉพาะโพสต์ของผู้ใช้คนนี้
+                              Builder(
+                                builder: (context) {
+                                  // Debug prints
+                                  print(
+                                    'DEBUG: post.userId = "${post.userId}"',
+                                  );
+                                  print(
+                                    'DEBUG: widget.userId = "${widget.userId}"',
+                                  );
+                                  print(
+                                    'DEBUG: Are equal? ${post.userId == widget.userId}',
+                                  );
+
+                                  // แสดงปุ่มเสมอเพื่อทดสอบ (ชั่วคราว)
+                                  return PopupMenuButton<String>(
+                                    onSelected: (value) async {
+                                      if (value == 'edit') {
+                                        // Placeholder: ปรับให้ไปหน้าแก้ไขจริงเมื่อพร้อม
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'กดแก้ไข - post.userId: ${post.userId}, widget.userId: ${widget.userId}',
+                                            ),
+                                            duration: Duration(seconds: 3),
+                                          ),
+                                        );
+                                      } else if (value == 'delete') {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder:
+                                              (context) => AlertDialog(
+                                                title: const Text(
+                                                  'ยืนยันการลบ',
+                                                ),
+                                                content: Text(
+                                                  'คุณต้องการลบโพสต์นี้หรือไม่?\npost.userId: ${post.userId}\nwidget.userId: ${widget.userId}',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed:
+                                                        () => Navigator.pop(
+                                                          context,
+                                                          false,
+                                                        ),
+                                                    child: const Text('ยกเลิก'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed:
+                                                        () => Navigator.pop(
+                                                          context,
+                                                          true,
+                                                        ),
+                                                    child: const Text('ลบ'),
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                        );
+
+                                        if (confirm == true) {
+                                          try {
+                                            await FirebaseFirestore.instance
+                                                .collection('lost_found_items')
+                                                .doc(post.id)
+                                                .delete();
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'ลบโพสต์เรียบร้อย',
+                                                ),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          } catch (e) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'ไม่สามารถลบโพสต์ได้: $e',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                                    itemBuilder:
+                                        (context) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.edit,
+                                                  color: Colors.black,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text('แก้ไข'),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text('ลบโพสต์'),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                  );
+                                },
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
