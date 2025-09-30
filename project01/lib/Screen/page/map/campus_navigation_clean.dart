@@ -608,12 +608,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
                       child: Stack(
                         children: [
                           // อาคารเต็มพื้นที่ - ขยายให้เต็ม Container
-                          Positioned.fill(
-                            child: FloorPlanA(
-                              findRequest: findRequest,
-                              roomDataMap: roomDataMap,
-                            ),
-                          ),
+                          Positioned.fill(child: FloorPlanA()),
                           // ปุ่ม Action กลมๆ ด้านขวา - สำหรับเปลี่ยนไปหน้าแผนที่
                           Positioned(
                             right: 20,
@@ -643,12 +638,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
                       child: Stack(
                         children: [
                           // อาคารเต็มพื้นที่ - ขยายให้เต็ม Container
-                          Positioned.fill(
-                            child: FloorPlanB(
-                              findRequest: findRequest,
-                              roomDataMap: roomDataMap,
-                            ),
-                          ),
+                          Positioned.fill(child: FloorPlanB()),
                           // ปุ่ม Action กลมๆ ด้านขวา - สำหรับเปลี่ยนไปหน้าแผนที่
                           Positioned(
                             right: 20,
@@ -855,10 +845,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
                       child: Stack(
                         children: [
                           // อาคารเต็มพื้นที่
-                          FloorPlanA(
-                            findRequest: findRequest,
-                            roomDataMap: roomDataMap,
-                          ),
+                          FloorPlanA(),
                           // ปุ่ม Action กลมๆ ด้านขวา - สำหรับเปลี่ยนไปหน้าแผนที่
                           Positioned(
                             right: screenWidth < 900 ? 28 : 36,
@@ -888,12 +875,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
                       child: Stack(
                         children: [
                           // อาคารเต็มพื้นที่ - ขยายให้เต็ม Container
-                          Positioned.fill(
-                            child: FloorPlanB(
-                              findRequest: findRequest,
-                              roomDataMap: roomDataMap,
-                            ),
-                          ),
+                          Positioned.fill(child: FloorPlanB()),
                           // ปุ่ม Action กลมๆ ด้านขวา - สำหรับเปลี่ยนไปหน้าแผนที่
                           Positioned(
                             right: screenWidth < 900 ? 28 : 36,

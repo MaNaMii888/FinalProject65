@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 import 'package:project01/Screen/page/map/feature/room_posts_dialog.dart';
+import 'package:project01/models/post.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FloorPlanA extends StatelessWidget {
-  final String? findRequest;
-  final Map<String, RoomData>? roomDataMap;
-
-  const FloorPlanA({super.key, this.findRequest, this.roomDataMap});
+  const FloorPlanA({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // ตรวจหา safe area และ status bar แบบ dynamic [[memory:7064663]]
+    // ตรวจหา safe area และ status bar แบบ dynamic
     final statusBarHeight = MediaQuery.of(context).padding.top;
     final topPadding = (statusBarHeight * 0.1).clamp(4.0, 12.0);
 
@@ -19,78 +17,67 @@ class FloorPlanA extends StatelessWidget {
       child: Column(
         children: [
           SizedBox(height: topPadding),
-
-          // จัด layout ตามภาพที่ส่งมา - Grid 3x4
           Expanded(
             child: Column(
               children: [
-                // แถวที่ 1: 8, 7, 5
+                // แถว 1: 8, 7, 5
                 Expanded(
                   child: Row(
                     children: [
-                      Expanded(child: _buildingBox("8")),
+                      Expanded(child: _buildingBox(context, "8")),
                       const SizedBox(width: 8),
-                      Expanded(flex: 2, child: _buildingBox("7")),
+                      Expanded(flex: 2, child: _buildingBox(context, "7")),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildingBox("5")),
+                      Expanded(child: _buildingBox(context, "5")),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // แถวที่ 2: 9, 6, 4
+                // แถว 2: 9, 6, 4
                 Expanded(
                   child: Row(
                     children: [
-                      Expanded(child: _buildingBox("9")),
+                      Expanded(child: _buildingBox(context, "9")),
                       const SizedBox(width: 8),
-                      Expanded(flex: 2, child: _buildingBox("6")),
+                      Expanded(flex: 2, child: _buildingBox(context, "6")),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildingBox("4")),
+                      Expanded(child: _buildingBox(context, "4")),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // แถวที่ 3: 10, 2, 3
+                // แถว 3: 10, 2, 3
                 Expanded(
                   child: Row(
                     children: [
-                      Expanded(child: _buildingBox("10")),
+                      Expanded(child: _buildingBox(context, "10")),
                       const SizedBox(width: 8),
-                      Expanded(flex: 2, child: _buildingBox("2")),
+                      Expanded(flex: 2, child: _buildingBox(context, "2")),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildingBox("3")),
+                      Expanded(child: _buildingBox(context, "3")),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // แถวที่ 4: 11, 1 (เล็กลง + พื้นที่ว่าง), 12
+                // แถว 4: 11, 1, 12
                 Expanded(
-                  flex: 2, // รักษาความสูงเดิม
+                  flex: 2,
                   child: Row(
                     children: [
-                      Expanded(child: _buildingBox("11")),
+                      Expanded(child: _buildingBox(context, "11")),
                       const SizedBox(width: 8),
-                      // อาคาร 1 - แบ่งเป็น 2 ส่วน
                       Expanded(
                         flex: 2,
                         child: Column(
                           children: [
-                            // ส่วนบน - อาคาร 1 ขนาดเล็ก (ครึ่งหนึ่ง)
-                            Expanded(flex: 1, child: _buildingBox("1")),
+                            Expanded(flex: 1, child: _buildingBox(context, "1")),
                             const SizedBox(height: 4),
-                            // ส่วนล่าง - พื้นที่ว่าง (ครึ่งหนึ่ง)
-                            Expanded(
-                              flex: 1,
-                              child: Container(), // พื้นที่ว่าง
-                            ),
+                            Expanded(flex: 1, child: Container()), // พื้นที่ว่าง
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildingBox("12")),
+                      Expanded(child: _buildingBox(context, "12")),
                     ],
                   ),
                 ),
@@ -102,43 +89,31 @@ class FloorPlanA extends StatelessWidget {
     );
   }
 
-  /// Widget กล่องอาคาร ที่สามารถ tap ได้
-  Widget _buildingBox(String number, {double? height}) {
-    return Builder(
-      builder: (context) {
-        // ตรวจสอบว่ามีข้อมูลห้องหรือไม่
-        final hasRoomData = roomDataMap?.containsKey(number) == true;
-        final roomData = roomDataMap?[number];
-        final postCount = roomData?.posts.length ?? 0;
+  /// Widget กล่องอาคาร พร้อม badge แสดงจำนวนโพสต์
+  Widget _buildingBox(BuildContext context, String number) {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .where('building', isEqualTo: 'อาคาร $number')
+          .get(),
+      builder: (context, snapshot) {
+        int postCount = 0;
+        if (snapshot.hasData) {
+          postCount = snapshot.data!.docs.length;
+        }
 
         return GestureDetector(
-          onTap: () {
-            if (hasRoomData) {
-              _showRoomPosts(context, number, 'อาคาร $number', roomData!);
-            }
-          },
-          child: Container(
-            height: height,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color:
-                  hasRoomData
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.8)
-                      : Colors.grey[600],
-              borderRadius: BorderRadius.circular(8),
-              border:
-                  hasRoomData
-                      ? Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      )
-                      : null,
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
+          onTap: () => _showRoomPosts(context, number, 'อาคาร $number'),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey[300],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: CircleAvatar(
                     radius: 16,
                     backgroundColor: Colors.white,
                     child: Text(
@@ -150,50 +125,73 @@ class FloorPlanA extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (hasRoomData && postCount > 0) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$postCount โพสต์',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                ),
+              ),
+              // แสดง badge จำนวนโพสต์
+              if (postCount > 0)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$postCount',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                  ],
-                ],
-              ),
-            ),
+                  ),
+                ),
+            ],
           ),
         );
       },
     );
   }
 
-  void _showRoomPosts(
-    BuildContext context,
-    String roomId,
-    String roomName,
-    RoomData roomData,
-  ) {
+  /// โหลดโพสต์จาก Firestore ของตึกที่กด
+  void _showRoomPosts(BuildContext context, String roomId, String roomName) {
     showDialog(
       context: context,
-      builder:
-          (context) => RoomPostsDialog(
+      builder: (context) => FutureBuilder<QuerySnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('lost_found_items')
+            .where('building', isEqualTo: 'อาคาร $roomId')
+            .orderBy('createdAt', descending: true)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text('เกิดข้อผิดพลาด'),
+              content: Text(snapshot.error.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('ปิด'),
+                ),
+              ],
+            );
+          }
+
+          final posts = snapshot.data!.docs
+              .map((doc) => Post.fromJson({...doc.data() as Map<String, dynamic>, 'id': doc.id}))
+              .toList();
+
+          return RoomPostsDialog(
             roomName: roomName,
             buildingName: 'Zone A',
-            posts: roomData.posts,
-          ),
+            posts: posts,
+          );
+        },
+      ),
     );
   }
 }

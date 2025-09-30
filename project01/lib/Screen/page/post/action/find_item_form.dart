@@ -324,7 +324,7 @@ class _FindItemFormState extends State<FindItemForm> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // เพิ่มการยืนยัน
+    // ยืนยันก่อนบันทึก
     final confirm = await showDialog<bool>(
       context: context,
       builder:
@@ -348,79 +348,76 @@ class _FindItemFormState extends State<FindItemForm> {
 
     if (confirm != true) return;
 
+    if (selectedCategory == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณาเลือกประเภทสิ่งของ')));
+      return;
+    }
+
+    setState(() => isLoading = true);
+
     try {
-      final result = await InternetAddress.lookup('google.com');
-      if (result.isEmpty || result[0].rawAddress.isEmpty) {
-        throw Exception('ไม่มีการเชื่อมต่ออินเทอร์เน็ต');
-      }
+      String? imageUrl;
 
-      if (selectedCategory == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('กรุณาเลือกประเภทสิ่งของ')),
-        );
-        return;
-      }
-
-      setState(() => isLoading = true);
-      try {
-        // Upload image if exists
-        String? imageUrl;
-        if (_imageFile != null) {
+      // อัปโหลดรูปถ้ามี
+      if (_imageFile != null) {
+        try {
           final ref = FirebaseStorage.instance
               .ref()
               .child('found_items')
               .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
 
-          await ref.putFile(_imageFile!);
-          imageUrl = await ref.getDownloadURL();
+          await ref.putFile(_imageFile!); // อัปโหลดรูป
+          imageUrl = await ref.getDownloadURL(); // รับ URL ของรูป
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('อัปโหลดรูปไม่สำเร็จ: $e')));
+          setState(() => isLoading = false);
+          return; // หยุดโพสต์ถ้าอัปโหลดไม่สำเร็จ
         }
-
-        // Create post document
-        final post = {
-          'userId': FirebaseAuth.instance.currentUser?.uid,
-          'userName':
-              FirebaseAuth.instance.currentUser?.displayName ?? 'Anonymous',
-          'title': titleController.text,
-          'description': detailController.text,
-          'imageUrl': imageUrl ?? '',
-          'location': locationController.text,
-          'building': selectedBuilding,
-          'category': selectedCategory?.toString(),
-          'createdAt': FieldValue.serverTimestamp(),
-          'isLostItem': false, // This is a found item
-          'status': 'open',
-          'contact': contactController.text,
-        };
-
-        await FirebaseFirestore.instance
-            .collection('lost_found_items')
-            .add(post);
-
-        // อัพเดทจำนวนโพสต์ของผู้ใช้
-        if (FirebaseAuth.instance.currentUser?.uid != null) {
-          await PostCountService.updatePostCount(
-            FirebaseAuth.instance.currentUser!.uid,
-            false, // isLostItem = false สำหรับ found item
-          );
-        }
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('บันทึกข้อมูลสำเร็จ')));
-        Navigator.pop(context);
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
-      } finally {
-        if (mounted) setState(() => isLoading = false);
       }
+
+      // สร้างโพสต์ใน Firestore
+      final post = {
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'userName':
+            FirebaseAuth.instance.currentUser?.displayName ?? 'Anonymous',
+        'title': titleController.text,
+        'description': detailController.text,
+        'imageUrl': imageUrl ?? '', // ใส่ URL หรือว่าง
+        'location': locationController.text,
+        'building': selectedBuilding,
+        'category': selectedCategory?.toString(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'isLostItem': false,
+        'status': 'open',
+        'contact': contactController.text,
+      };
+
+      await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+
+      // อัปเดทจำนวนโพสต์
+      if (FirebaseAuth.instance.currentUser?.uid != null) {
+        await PostCountService.updatePostCount(
+          FirebaseAuth.instance.currentUser!.uid,
+          false,
+        );
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('บันทึกข้อมูลสำเร็จ')));
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
