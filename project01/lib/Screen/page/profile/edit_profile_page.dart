@@ -6,6 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'dart:typed_data';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -192,18 +195,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 70,
-    );
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 70,
+      );
 
-    if (image != null) {
-      setState(() {
-        _imageFile = File(image.path);
-      });
+      if (image != null) {
+        // อ่าน bytes แล้วเขียนไฟล์ใหม่ไปยัง temporary directory ของแอป
+        final bytes = await image.readAsBytes();
+        final tempDir = await getTemporaryDirectory();
+        final safeName =
+            '${DateTime.now().millisecondsSinceEpoch}_${path.basename(image.path)}';
+        final safePath = path.join(tempDir.path, safeName);
+        final file = File(safePath);
+        await file.writeAsBytes(bytes, flush: true);
+
+        setState(() {
+          _imageFile = file;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('ไม่สามารถเลือกรูปภาพได้: $e')));
     }
   }
 
@@ -221,8 +239,56 @@ class _EditProfilePageState extends State<EditProfilePage> {
             .child('profile_images')
             .child('${user!.uid}.jpg');
 
-        await ref.putFile(_imageFile!);
-        photoURL = await ref.getDownloadURL();
+        // metadata
+        final ext = path.extension(_imageFile!.path).toLowerCase();
+        final contentType = ext == '.png' ? 'image/png' : 'image/jpeg';
+        final metadata = SettableMetadata(contentType: contentType);
+
+        // Upload with retries and fallback to putData
+        Uint8List? fileBytes;
+        const int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            final uploadTask = ref.putFile(_imageFile!, metadata);
+
+            // wait with timeout
+            final snapshot = await uploadTask.timeout(
+              const Duration(minutes: 2),
+              onTimeout: () {
+                uploadTask.cancel();
+                throw Exception('การอัพโหลดใช้เวลานานเกินไป');
+              },
+            );
+
+            photoURL = await snapshot.ref.getDownloadURL();
+            break;
+          } catch (e) {
+            debugPrint('Profile upload attempt $attempt failed: $e');
+            if (attempt == maxAttempts) {
+              // fallback to putData
+              try {
+                fileBytes ??= Uint8List.fromList(
+                  await _imageFile!.readAsBytes(),
+                );
+                final uploadTask = ref.putData(fileBytes, metadata);
+                final snapshot = await uploadTask.timeout(
+                  const Duration(minutes: 2),
+                  onTimeout: () {
+                    uploadTask.cancel();
+                    throw Exception('การอัพโหลดใช้เวลานานเกินไป (putData)');
+                  },
+                );
+                photoURL = await snapshot.ref.getDownloadURL();
+                break;
+              } catch (fallbackError) {
+                debugPrint('Profile fallback putData failed: $fallbackError');
+                rethrow;
+              }
+            } else {
+              await Future.delayed(Duration(seconds: attempt * 2));
+            }
+          }
+        }
       }
 
       final updatedData = {
@@ -252,13 +318,41 @@ class _EditProfilePageState extends State<EditProfilePage> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
-            backgroundColor: Colors.red,
-          ),
+      // Defensive handling for a known Pigeon/platform-channel cast issue
+      final errStr = e.toString();
+      if (errStr.contains('PigeonUser') || errStr.contains('List<Object')) {
+        debugPrint(
+          'Detected Pigeon/list cast error during profile save: $errStr',
         );
+        // Try a lightweight recovery: reload current user and sign out to clear plugin state
+        try {
+          await FirebaseAuth.instance.currentUser?.reload();
+          // attempt programmatic sign-out to clear any plugin-side cached state
+          await FirebaseAuth.instance.signOut();
+        } catch (clearError) {
+          debugPrint('Error while attempting to clear auth state: $clearError');
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'เกิดปัญหาชั่วคราวกับระบบเชื่อมต่อ (Pigeon). กรุณาออกจากระบบ แล้วเข้าสู่ระบบใหม่ แล้วลองอัพเดตรูปอีกครั้ง',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('เกิดข้อผิดพลาด: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) {

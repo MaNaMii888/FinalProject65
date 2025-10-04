@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginPage> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -235,7 +235,9 @@ class _LoginScreenState extends State<LoginPage> {
                                         children: [
                                           CircularProgressIndicator(),
                                           SizedBox(height: 16),
-                                          Text("กำลังเข้าสู่ระบบด้วย Google..."),
+                                          Text(
+                                            "กำลังเข้าสู่ระบบด้วย Google...",
+                                          ),
                                           SizedBox(height: 8),
                                         ],
                                       ),
@@ -248,16 +250,20 @@ class _LoginScreenState extends State<LoginPage> {
                             try {
                               final UserCredential? userCredential =
                                   await signInWithGoogle();
-                              
+
                               // ตรวจสอบว่า dialog ยังเปิดอยู่หรือไม่ก่อนปิด
                               if (Navigator.canPop(context)) {
-                                Navigator.of(context).pop(); // ปิด Loading Dialog
+                                Navigator.of(
+                                  context,
+                                ).pop(); // ปิด Loading Dialog
                               }
 
                               // ตรวจสอบทั้ง userCredential และ Firebase Auth currentUser
-                              final currentUser = FirebaseAuth.instance.currentUser;
-                              
-                              if (userCredential != null || currentUser != null) {
+                              final currentUser =
+                                  FirebaseAuth.instance.currentUser;
+
+                              if (userCredential != null ||
+                                  currentUser != null) {
                                 // เข้าสู่ระบบสำเร็จ (ตรวจสอบ 2 แหล่ง)
                                 await showDialog(
                                   context: context,
@@ -293,9 +299,12 @@ class _LoginScreenState extends State<LoginPage> {
                                 );
                               } else {
                                 // รอสักครู่แล้วตรวจสอบอีกครั้ง (กรณี async delay)
-                                await Future.delayed(Duration(milliseconds: 500));
-                                final retryCurrentUser = FirebaseAuth.instance.currentUser;
-                                
+                                await Future.delayed(
+                                  Duration(milliseconds: 500),
+                                );
+                                final retryCurrentUser =
+                                    FirebaseAuth.instance.currentUser;
+
                                 if (retryCurrentUser != null) {
                                   // Login สำเร็จแล้วจริงๆ แต่ async delay
                                   await showDialog(
@@ -360,7 +369,9 @@ class _LoginScreenState extends State<LoginPage> {
                             } catch (e) {
                               // ตรวจสอบว่า dialog ยังเปิดอยู่หรือไม่ก่อนปิด
                               if (Navigator.canPop(context)) {
-                                Navigator.of(context).pop(); // ปิด Loading Dialog
+                                Navigator.of(
+                                  context,
+                                ).pop(); // ปิด Loading Dialog
                               }
                               await showDialog(
                                 context: context,

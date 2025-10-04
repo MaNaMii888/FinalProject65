@@ -24,14 +24,17 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+
         if (_selectedIndex != 0) {
           // ถ้าไม่ได้อยู่ที่หน้าแผนที่ ให้กลับไปที่หน้าแผนที่
           setState(() {
             _selectedIndex = 0;
           });
-          return false;
+          return;
         }
 
         // ถ้าอยู่ที่หน้าแผนที่แล้ว ให้กดย้อนกลับ 2 ครั้งเพื่อออกจากแอป
@@ -45,9 +48,12 @@ class _DashboardPageState extends State<DashboardPage> {
               duration: Duration(seconds: 2),
             ),
           );
-          return false;
+          return;
         }
-        return true;
+        // Exit the app
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         body: _pages[_selectedIndex],

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -87,8 +89,21 @@ class ImageService {
         maxHeight: 1080,
         imageQuality: 85,
       );
-      if (image == null) return null;
-      final file = File(image.path);
+
+      if (image == null) {
+        // ผู้ใช้ยกเลิกการเลือกรูป
+        return null;
+      }
+
+      // บางระบบ (เช่น Android) จะคืน path แบบ scaled_... ที่ระบบอาจลบได้เร็ว
+      // เพื่อความเสถียร ให้คัดลอกเนื้อหาไฟล์ไปยังโฟลเดอร์ชั่วคราวของแอปก่อน
+      final bytes = await image.readAsBytes();
+      final tempDir = await getTemporaryDirectory();
+      final safeName =
+          '${DateTime.now().millisecondsSinceEpoch}_${path.basename(image.path)}';
+      final safePath = path.join(tempDir.path, safeName);
+      final file = File(safePath);
+      await file.writeAsBytes(bytes, flush: true);
 
       // ตรวจสอบขนาดไฟล์
       final fileSize = await file.length();
@@ -110,32 +125,226 @@ class ImageService {
   }
 
   static Future<File> compressImage(File imageFile) async {
-    final bytes = await imageFile.readAsBytes();
-    final image = img.decodeImage(bytes);
-    if (image != null) {
-      final resized = img.copyResize(image, width: 800);
-      final compressedBytes = img.encodeJpg(resized, quality: 70);
-      final compressedFile = File('${imageFile.path}_compressed.jpg');
-      await compressedFile.writeAsBytes(compressedBytes);
-      return compressedFile;
+    try {
+      debugPrint('🖼️ [COMPRESS] เริ่มบีบอัดรูปภาพ...');
+
+      final bytes = await imageFile.readAsBytes();
+      final originalSizeMB = (bytes.length / 1024 / 1024);
+      debugPrint(
+        '🖼️ [COMPRESS] ขนาดต้นฉบับ: ${originalSizeMB.toStringAsFixed(2)} MB',
+      );
+
+      final image = img.decodeImage(bytes);
+      if (image != null) {
+        debugPrint(
+          '🖼️ [COMPRESS] ขนาดต้นฉบับ: ${image.width}x${image.height}',
+        );
+
+        // คำนวณขนาดที่เหมาะสม
+        int targetWidth = 600;
+        if (image.width > 2000) targetWidth = 500;
+        if (image.width > 4000) targetWidth = 400;
+
+        final resized = img.copyResize(image, width: targetWidth);
+        debugPrint(
+          '🖼️ [COMPRESS] ขนาดใหม่: ${resized.width}x${resized.height}',
+        );
+
+        // บีบอัดแบบ progressive
+        int quality = 60;
+        List<int> compressedBytes;
+
+        do {
+          compressedBytes = img.encodeJpg(resized, quality: quality);
+          debugPrint(
+            '🖼️ [COMPRESS] Quality $quality%: ${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
+          );
+
+          if (compressedBytes.length <= 500 * 1024) break; // เป้าหมาย 500KB
+
+          quality -= 10;
+        } while (quality >= 20);
+
+        final compressedSizeMB = (compressedBytes.length / 1024 / 1024);
+        debugPrint(
+          '✅ [COMPRESS] เสร็จสิ้น: ${compressedSizeMB.toStringAsFixed(2)} MB (Quality: $quality%)',
+        );
+
+        final compressedFile = File('${imageFile.path}_compressed.jpg');
+        await compressedFile.writeAsBytes(compressedBytes);
+        return compressedFile;
+      }
+    } catch (e) {
+      debugPrint('💥 [COMPRESS] ข้อผิดพลาด: $e');
     }
     return imageFile;
   }
 
   static Future<String?> uploadImageToFirebase(
     File imageFile,
-    String folder,
-  ) async {
+    String folder, {
+    Function(double)? onProgress,
+  }) async {
     try {
+      debugPrint('� [UPLOAD] เริ่มกระบวนการอัพโหลด...');
+
+      // ตรวจสอบ Authentication ก่อน (จำเป็นสำหรับ Storage Rules)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint('❌ [UPLOAD] ผู้ใช้ไม่ได้เข้าสู่ระบบ');
+        throw Exception('กรุณาเข้าสู่ระบบก่อนอัพโหลดรูปภาพ');
+      }
+
+      // ตรวจสอบ ID Token ยังใช้ได้อยู่หรือไม่
+      try {
+        await user.getIdToken(true); // force refresh token
+        debugPrint('✅ [UPLOAD] Authentication Token ใช้ได้: ${user.email}');
+      } catch (e) {
+        debugPrint('❌ [UPLOAD] Token หมดอายุ: $e');
+        throw Exception('โปรดเข้าสู่ระบบใหม่');
+      }
+
+      debugPrint(
+        '🔥 [UPLOAD] ขนาดไฟล์ต้นฉบับ: ${imageFile.lengthSync()} bytes',
+      );
+
+      // บีบอัดรูปก่อนอัพโหลด
+      debugPrint('🔧 [UPLOAD] เริ่มบีบอัดรูปภาพ...');
       final compressed = await compressImage(imageFile);
+
+      // สร้าง path ที่เฉพาะเจาะจงสำหรับ user
       final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${path.basename(compressed.path)}';
-      final ref = FirebaseStorage.instance.ref('$folder/$fileName');
-      final uploadTask = ref.putFile(compressed);
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+          'lost_found_${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final storagePath = 'images/${user.uid}/$fileName'; // จัดกลุ่มตาม user ID
+
+      debugPrint('📁 [UPLOAD] ไฟล์: $storagePath');
+      final ref = FirebaseStorage.instance.ref().child(storagePath);
+
+      // กำหนด metadata ที่ชัดเจน
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        cacheControl: 'max-age=3600',
+        customMetadata: {
+          'uploadedBy': user.email ?? 'unknown',
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'originalSize': imageFile.lengthSync().toString(),
+        },
+      );
+
+      // อัพโหลดด้วย retry logic และ fallback เป็น putData หาก putFile ล้ม
+      String? downloadURL;
+      final int maxAttempts = 3;
+
+      // Prepare bytes for potential putData fallback (lazy read)
+      Uint8List? fileBytes;
+
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          debugPrint(
+            '🚀 [UPLOAD] ความพยายามที่ $attempt/$maxAttempts (method=putFile)',
+          );
+
+          final uploadTask = ref.putFile(compressed, metadata);
+
+          // ติดตาม progress การอัพโหลด
+          if (onProgress != null) {
+            uploadTask.snapshotEvents.listen(
+              (snapshot) {
+                if (snapshot.totalBytes > 0) {
+                  final progress =
+                      snapshot.bytesTransferred / snapshot.totalBytes;
+                  debugPrint(
+                    '📊 [UPLOAD] ความคืบหน้า (putFile): ${(progress * 100).toStringAsFixed(1)}%',
+                  );
+                  onProgress(progress);
+                }
+              },
+              onError: (error) {
+                debugPrint(
+                  '❌ [UPLOAD] ข้อผิดพลาดระหว่างอัพโหลด (putFile): $error',
+                );
+              },
+            );
+          }
+
+          final snapshot = await uploadTask.timeout(
+            Duration(minutes: 2),
+            onTimeout: () {
+              debugPrint(
+                '⏰ [UPLOAD] หมดเวลารอ (putFile) ความพยายามที่ $attempt',
+              );
+              uploadTask.cancel();
+              throw Exception('การอัพโหลดใช้เวลานานเกินไป (putFile)');
+            },
+          );
+
+          downloadURL = await snapshot.ref.getDownloadURL();
+          debugPrint('✅ [UPLOAD] putFile สำเร็จที่ความพยายาม $attempt');
+          debugPrint('🔗 [UPLOAD] URL: $downloadURL');
+          break;
+        } catch (e, st) {
+          debugPrint('💥 [UPLOAD] putFile ความพยายามที่ $attempt ล้มเหลว: $e');
+          debugPrint('💥 [UPLOAD] stack: $st');
+
+          // Last attempt -> try fallback to putData if possible
+          if (attempt == maxAttempts) {
+            try {
+              debugPrint(
+                '🔁 [UPLOAD] พยายาม fallback -> putData (อ่าน bytes และอัพโหลด)',
+              );
+              fileBytes ??= Uint8List.fromList(await compressed.readAsBytes());
+
+              final uploadTask = ref.putData(fileBytes, metadata);
+
+              if (onProgress != null) {
+                uploadTask.snapshotEvents.listen(
+                  (s) {
+                    if (s.totalBytes > 0) {
+                      final progress = s.bytesTransferred / s.totalBytes;
+                      debugPrint(
+                        '📊 [UPLOAD] ความคืบหน้า (putData): ${(progress * 100).toStringAsFixed(1)}%',
+                      );
+                      onProgress(progress);
+                    }
+                  },
+                  onError: (error) {
+                    debugPrint(
+                      '❌ [UPLOAD] ข้อผิดพลาดระหว่างอัพโหลด (putData): $error',
+                    );
+                  },
+                );
+              }
+
+              final snapshot = await uploadTask.timeout(
+                Duration(minutes: 2),
+                onTimeout: () {
+                  debugPrint('⏰ [UPLOAD] หมดเวลารอ (putData)');
+                  uploadTask.cancel();
+                  throw Exception('การอัพโหลดใช้เวลานานเกินไป (putData)');
+                },
+              );
+
+              downloadURL = await snapshot.ref.getDownloadURL();
+              debugPrint('✅ [UPLOAD] putData สำเร็จ (fallback)');
+            } catch (fallbackError, fallbackSt) {
+              debugPrint(
+                '💥 [UPLOAD] fallback putData ล้มเหลว: $fallbackError',
+              );
+              debugPrint('💥 [UPLOAD] fallback stack: $fallbackSt');
+              throw Exception(
+                'การอัพโหลดล้มเหลว (ทั้ง putFile และ putData): $fallbackError',
+              );
+            }
+          } else {
+            // รอสักครู่ก่อน retry
+            await Future.delayed(Duration(seconds: attempt * 2));
+          }
+        }
+      }
+
+      return downloadURL;
     } catch (e) {
-      debugPrint('Image upload error: $e');
+      debugPrint('💥 [UPLOAD] ข้อผิดพลาดขั้นสุดท้าย: $e');
       return null;
     }
   }
@@ -175,12 +384,37 @@ class _LostItemFormState extends State<LostItemForm> {
   double uploadProgress = 0.0;
 
   static const List<String> buildings = [
-    'อาคาร 1', 'อาคาร 2', 'อาคาร 3', 'อาคาร 4', 'อาคาร 5', 
-    'อาคาร 6', 'อาคาร 7', 'อาคาร 8', 'อาคาร 9', 'อาคาร 10',
-    'อาคาร 11', 'อาคาร 12', 'อาคาร 15', 'อาคาร 16', 'อาคาร 17',
-    'อาคาร 18', 'อาคาร 19', 'อาคาร 20', 'อาคาร 22', 'อาคาร 24',
-    'อาคาร 26', 'อาคาร 27', 'อาคาร 28', 'อาคาร 29', 'อาคาร 30',
-    'อาคาร 31', 'อาคาร 33', 'โรงอาหาร', 'ห้องสมุด', 'สำนักงาน', 'สนาม'
+    'อาคาร 1',
+    'อาคาร 2',
+    'อาคาร 3',
+    'อาคาร 4',
+    'อาคาร 5',
+    'อาคาร 6',
+    'อาคาร 7',
+    'อาคาร 8',
+    'อาคาร 9',
+    'อาคาร 10',
+    'อาคาร 11',
+    'อาคาร 12',
+    'อาคาร 15',
+    'อาคาร 16',
+    'อาคาร 17',
+    'อาคาร 18',
+    'อาคาร 19',
+    'อาคาร 20',
+    'อาคาร 22',
+    'อาคาร 24',
+    'อาคาร 26',
+    'อาคาร 27',
+    'อาคาร 28',
+    'อาคาร 29',
+    'อาคาร 30',
+    'อาคาร 31',
+    'อาคาร 33',
+    'โรงอาหาร',
+    'ห้องสมุด',
+    'สำนักงาน',
+    'สนาม',
   ];
   static const Map<int, String> categories = {
     1: "ของใช้ส่วนตัว",
@@ -236,12 +470,23 @@ class _LostItemFormState extends State<LostItemForm> {
 
       String? imageUrl;
       if (_imageFile != null) {
-        setState(() => uploadProgress = 0.2);
+        setState(() {
+          uploadProgress = 0.1;
+        });
         imageUrl = await ImageService.uploadImageToFirebase(
           _imageFile!,
           'lost_items',
+          onProgress: (progress) {
+            setState(() {
+              // ปรับ progress จาก 0.1-0.8 สำหรับการอัพโหลด
+              uploadProgress = 0.1 + (progress * 0.7);
+            });
+          },
         );
-        setState(() => uploadProgress = 0.8);
+        if (imageUrl == null) {
+          throw Exception('ไม่สามารถอัพโหลดรูปภาพได้');
+        }
+        setState(() => uploadProgress = 0.85);
       }
 
       final post = {
@@ -722,12 +967,37 @@ class _FindItemFormState extends State<FindItemForm> {
   double uploadProgress = 0.0;
 
   static const List<String> buildings = [
-    'อาคาร 1', 'อาคาร 2', 'อาคาร 3', 'อาคาร 4', 'อาคาร 5', 
-    'อาคาร 6', 'อาคาร 7', 'อาคาร 8', 'อาคาร 9', 'อาคาร 10',
-    'อาคาร 11', 'อาคาร 12', 'อาคาร 15', 'อาคาร 16', 'อาคาร 17',
-    'อาคาร 18', 'อาคาร 19', 'อาคาร 20', 'อาคาร 22', 'อาคาร 24',
-    'อาคาร 26', 'อาคาร 27', 'อาคาร 28', 'อาคาร 29', 'อาคาร 30',
-    'อาคาร 31', 'อาคาร 33', 'โรงอาหาร', 'ห้องสมุด', 'สำนักงาน', 'สนาม'
+    'อาคาร 1',
+    'อาคาร 2',
+    'อาคาร 3',
+    'อาคาร 4',
+    'อาคาร 5',
+    'อาคาร 6',
+    'อาคาร 7',
+    'อาคาร 8',
+    'อาคาร 9',
+    'อาคาร 10',
+    'อาคาร 11',
+    'อาคาร 12',
+    'อาคาร 15',
+    'อาคาร 16',
+    'อาคาร 17',
+    'อาคาร 18',
+    'อาคาร 19',
+    'อาคาร 20',
+    'อาคาร 22',
+    'อาคาร 24',
+    'อาคาร 26',
+    'อาคาร 27',
+    'อาคาร 28',
+    'อาคาร 29',
+    'อาคาร 30',
+    'อาคาร 31',
+    'อาคาร 33',
+    'โรงอาหาร',
+    'ห้องสมุด',
+    'สำนักงาน',
+    'สนาม',
   ];
   static const Map<int, String> categories = {
     1: "ของใช้ส่วนตัว",
@@ -783,12 +1053,23 @@ class _FindItemFormState extends State<FindItemForm> {
 
       String? imageUrl;
       if (_imageFile != null) {
-        setState(() => uploadProgress = 0.2);
+        setState(() {
+          uploadProgress = 0.1;
+        });
         imageUrl = await ImageService.uploadImageToFirebase(
           _imageFile!,
           'found_items',
+          onProgress: (progress) {
+            setState(() {
+              // ปรับ progress จาก 0.1-0.8 สำหรับการอัพโหลด
+              uploadProgress = 0.1 + (progress * 0.7);
+            });
+          },
         );
-        setState(() => uploadProgress = 0.8);
+        if (imageUrl == null) {
+          throw Exception('ไม่สามารถอัพโหลดรูปภาพได้');
+        }
+        setState(() => uploadProgress = 0.85);
       }
 
       final post = {
