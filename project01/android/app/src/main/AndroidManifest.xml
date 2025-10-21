@@ -25,6 +25,10 @@
         android:label="project01"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Google Maps API Key -->
+        <meta-data android:name="com.google.android.geo.API_KEY"
+                   android:value="AIzaSyB3fq8yyrO0n346CIDdgXeg60WVTZ1Yhn0"/>
+        
         <!-- Provide the default web client ID for Google Sign-In resolution -->
         <meta-data
             android:name="com.google.android.gms.client.id"

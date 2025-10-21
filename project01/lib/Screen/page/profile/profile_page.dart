@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
 import 'package:project01/Screen/page/profile/menu/profile_menu_page.dart';
+import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
 import 'package:project01/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -617,13 +618,8 @@ class _ProfilePageState extends State<ProfilePage>
                             PopupMenuButton<String>(
                               onSelected: (value) async {
                                 if (value == 'edit') {
-                                  // Placeholder: ปรับให้ไปหน้าแก้ไขจริงเมื่อพร้อม
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('กดแก้ไข (ทดสอบ)'),
-                                      duration: Duration(seconds: 1),
-                                    ),
-                                  );
+                                  // เปิดหน้าแก้ไขโพสต์
+                                  await _editPost(post);
                                 } else if (value == 'delete') {
                                   final confirm = await showDialog<bool>(
                                     context: context,
@@ -823,6 +819,16 @@ class _ProfilePageState extends State<ProfilePage>
       default:
         return 'ไม่ระบุ';
     }
+  }
+
+  // ฟังก์ชันแก้ไขโพสต์
+  Future<void> _editPost(Post post) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => EditPostBottomSheet(post: post),
+    );
   }
 
   String _formatDate(DateTime date) {

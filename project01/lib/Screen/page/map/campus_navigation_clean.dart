@@ -1,6 +1,9 @@
 // campus_navigation_clean.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 import 'package:project01/Screen/page/map/feature/floor_plan_a.dart';
 import 'package:project01/Screen/page/map/feature/floor_plan_b.dart';
@@ -22,6 +25,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
   String? selectedBuilding;
   String findRequest = '';
   final PageController _pageController = PageController();
+  GoogleMapController? _mapController;
 
   // เพิ่มตัวแปรสำหรับเก็บข้อมูลห้อง
   Map<String, RoomData>? roomDataMap;
@@ -219,7 +223,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
               Expanded(
                 child: Stack(
                   children: [
-                    // พื้นที่แผนที่หลัก - ใช้พื้นที่เต็มหน้าจอ
+                    // พื้นที่แผนที่หลัก - Google Maps
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Card(
@@ -229,33 +233,36 @@ class _CampusNavigationState extends State<CampusNavigation> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.secondary.withOpacity(0.1),
+                          child: GoogleMap(
+                            onMapCreated: (GoogleMapController controller) {
+                              _mapController = controller;
+                              debugPrint('✅ Google Maps โหลดสำเร็จ');
+                            },
+                            initialCameraPosition: const CameraPosition(
+                              target: LatLng(
+                                13.7563,
+                                100.5018,
+                              ), // กรุงเทพฯ ใจกลาง
+                              zoom: 15.0,
                             ),
-                            child: const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.map,
-                                    size: 100,
-                                    color: Colors.grey,
+                            myLocationEnabled: true,
+                            myLocationButtonEnabled: true,
+                            mapType: MapType.normal,
+                            zoomGesturesEnabled: true,
+                            scrollGesturesEnabled: true,
+                            rotateGesturesEnabled: true,
+                            tiltGesturesEnabled: true,
+                            onTap: (LatLng position) {
+                              debugPrint(
+                                '📍 แตะแผนที่ที่: ${position.latitude}, ${position.longitude}',
+                              );
+                            },
+                            gestureRecognizers:
+                                <Factory<OneSequenceGestureRecognizer>>{
+                                  Factory<OneSequenceGestureRecognizer>(
+                                    () => EagerGestureRecognizer(),
                                   ),
-                                  SizedBox(height: 24),
-                                  Text(
-                                    'แผนที่มหาวิทยาลัย\n(จะเชื่อมต่อกับ Google Maps)',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                                },
                           ),
                         ),
                       ),

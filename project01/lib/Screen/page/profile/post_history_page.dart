@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
+import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
 
 class PostHistoryPage extends StatefulWidget {
   final String userId;
@@ -174,17 +175,8 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                                   return PopupMenuButton<String>(
                                     onSelected: (value) async {
                                       if (value == 'edit') {
-                                        // Placeholder: ปรับให้ไปหน้าแก้ไขจริงเมื่อพร้อม
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'กดแก้ไข - post.userId: ${post.userId}, widget.userId: ${widget.userId}',
-                                            ),
-                                            duration: Duration(seconds: 3),
-                                          ),
-                                        );
+                                        // เปิดหน้าแก้ไขโพสต์
+                                        await _editPost(post);
                                       } else if (value == 'delete') {
                                         final confirm = await showDialog<bool>(
                                           context: context,
@@ -375,6 +367,16 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
           );
         },
       ),
+    );
+  }
+
+  // ฟังก์ชันแก้ไขโพสต์
+  Future<void> _editPost(Post post) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => EditPostBottomSheet(post: post),
     );
   }
 

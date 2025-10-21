@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/post/action/find_item_action.dart';
 import 'package:project01/Screen/page/post/action/post_actions_buttons.dart';
@@ -18,6 +16,7 @@ class PostPage extends StatefulWidget {
 class _PostPageState extends State<PostPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
   List<Post> posts = [];
   bool isLoading = true;
   String searchQuery = '';
@@ -40,6 +39,13 @@ class _PostPageState extends State<PostPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadPosts();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPosts() async {
@@ -122,6 +128,71 @@ class _PostPageState extends State<PostPage>
 
   String _normalize(String input) => input.replaceAll(' ', '').toLowerCase();
 
+  // ฟังก์ชันเคลียร์ตัวกรองทั้งหมด
+  void _clearAllFilters() {
+    setState(() {
+      searchQuery = '';
+      selectedCategory = null;
+    });
+    // เคลียร์ข้อความค้นหาใน TextField
+    _searchController.clear();
+  }
+
+  // ฟังก์ชันแสดงข้อความตัวกรองที่กำลังใช้งาน
+  String _getActiveFiltersText() {
+    List<String> activeFilters = [];
+
+    if (searchQuery.isNotEmpty) {
+      activeFilters.add('คำค้นหา "$searchQuery"');
+    }
+
+    if (selectedCategory != null) {
+      String categoryName = _getCategoryName(selectedCategory!);
+      activeFilters.add('ประเภท "$categoryName"');
+    }
+
+    if (activeFilters.isEmpty) {
+      return 'ไม่มีตัวกรอง';
+    }
+
+    return activeFilters.join(' • ');
+  }
+
+  // ฟังก์ชันแปลงรหัสหมวดหมู่เป็นชื่อ
+  String _getCategoryName(String categoryId) {
+    switch (categoryId) {
+      case '1':
+        return 'ของใช้ส่วนตัว';
+      case '2':
+        return 'เอกสาร/บัตร';
+      case '3':
+        return 'อุปกรณ์การเรียน';
+      case '4':
+        return 'ของมีค่าอื่นๆ';
+      default:
+        return 'ไม่ระบุ';
+    }
+  }
+
+  // ฟังก์ชันนับจำนวนโพสต์ที่ผ่านตัวกรอง
+  int _getFilteredPostsCount(bool isLostItems) {
+    final normalizedQuery = _normalize(searchQuery);
+    return posts.where((post) {
+      final matchesType = post.isLostItem == isLostItems;
+      final matchesSearch =
+          normalizedQuery.isEmpty ||
+          _normalize(post.title).contains(normalizedQuery) ||
+          _normalize(post.description).contains(normalizedQuery) ||
+          _normalize(post.building).contains(normalizedQuery) ||
+          _normalize(post.location).contains(normalizedQuery);
+      final matchesCategory =
+          selectedCategory == null ||
+          selectedCategory == 'all' ||
+          post.category == selectedCategory;
+      return matchesType && matchesSearch && matchesCategory;
+    }).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -134,7 +205,62 @@ class _PostPageState extends State<PostPage>
             ),
             bottom: TabBar(
               controller: _tabController,
-              tabs: const [Tab(text: 'ของหาย'), Tab(text: 'เจอของ')],
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('ของหาย'),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${_getFilteredPostsCount(true)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('เจอของ'),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${_getFilteredPostsCount(false)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               indicatorColor: Theme.of(context).colorScheme.primary,
               dividerColor: Colors.transparent,
             ),
@@ -177,57 +303,117 @@ class _PostPageState extends State<PostPage>
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: const Offset(0, 3),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.3),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'ค้นหา...',
-                  prefixIcon: Icon(Icons.search, color: Colors.grey),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 12.0,
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'ค้นหา...',
+                      prefixIcon: Icon(Icons.search, color: Colors.grey),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                      });
+                    },
                   ),
                 ),
-                onChanged: (value) {
+              ),
+              const SizedBox(width: 8.0),
+              PopupMenuButton<String?>(
+                icon: const Icon(Icons.filter_list),
+                onSelected: (value) {
                   setState(() {
-                    searchQuery = value;
+                    selectedCategory = value;
                   });
                 },
+                itemBuilder:
+                    (context) => const [
+                      PopupMenuItem<String?>(
+                        value: null,
+                        child: Text('ทั้งหมด'),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '1',
+                        child: Text('ของใช้ส่วนตัว'),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '2',
+                        child: Text('เอกสาร/บัตร'),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '3',
+                        child: Text('อุปกรณ์การเรียน'),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '4',
+                        child: Text('ของมีค่าอื่นๆ'),
+                      ),
+                    ],
+              ),
+            ],
+          ),
+          // แสดงสถานะตัวกรองและปุ่มเคลียร์
+          if (searchQuery.isNotEmpty || selectedCategory != null)
+            Container(
+              margin: const EdgeInsets.only(top: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.filter_alt, size: 16, color: Colors.blue[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'กรองโดย: ${_getActiveFiltersText()}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _clearAllFilters,
+                    icon: Icon(Icons.clear, size: 18, color: Colors.red[600]),
+                    tooltip: 'เคลียร์ตัวกรองทั้งหมด',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 8.0),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              setState(() {
-                selectedCategory = value;
-              });
-            },
-            itemBuilder:
-                (context) => const [
-                  PopupMenuItem(value: null, child: Text('ทั้งหมด')),
-                  PopupMenuItem(value: '1', child: Text('ของใช้ส่วนตัว')),
-                  PopupMenuItem(value: '2', child: Text('เอกสาร/บัตร')),
-                  PopupMenuItem(value: '3', child: Text('อุปกรณ์การเรียน')),
-                  PopupMenuItem(value: '4', child: Text('ของมีค่าอื่นๆ')),
-                ],
-          ),
         ],
       ),
     );
@@ -256,21 +442,57 @@ class _PostPageState extends State<PostPage>
         }).toList();
 
     if (filteredPosts.isEmpty) {
+      String noResultsText = '';
+      String suggestionText = '';
+
+      if (searchQuery.isNotEmpty || selectedCategory != null) {
+        // มีการใช้ตัวกรองแต่ไม่มีผลลัพธ์
+        noResultsText = 'ไม่พบผลลัพธ์ที่ค้นหา';
+        suggestionText = 'ลองเปลี่ยนคำค้นหาหรือเคลียร์ตัวกรอง';
+      } else {
+        // ไม่มีข้อมูลเลย
+        noResultsText =
+            isLostItems ? 'ยังไม่มีโพสต์ของหาย' : 'ยังไม่มีโพสต์เจอของ';
+        suggestionText =
+            isLostItems ? 'เป็นคนแรกที่แจ้งของหาย' : 'เป็นคนแรกที่แจ้งเจอของ';
+      }
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+            Icon(
+              searchQuery.isNotEmpty || selectedCategory != null
+                  ? Icons.search_off
+                  : (isLostItems
+                      ? Icons.help_outline
+                      : Icons.check_circle_outline),
+              size: 80,
+              color: Colors.grey[400],
+            ),
             const SizedBox(height: 16),
             Text(
-              isLostItems ? 'ยังไม่มีโพสต์ของหาย' : 'ยังไม่มีโพสต์เจอของ',
+              noResultsText,
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
             Text(
-              'ลองเปลี่ยนคำค้นหาหรือตัวกรอง',
+              suggestionText,
               style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
             ),
+            if (searchQuery.isNotEmpty || selectedCategory != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _clearAllFilters,
+                icon: const Icon(Icons.clear_all),
+                label: const Text('เคลียร์ตัวกรอง'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[100],
+                  foregroundColor: Colors.orange[800],
+                ),
+              ),
+            ],
           ],
         ),
       );

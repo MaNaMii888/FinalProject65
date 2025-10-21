@@ -593,7 +593,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                 const SizedBox(height: 8),
                 Text('สถานที่: ${post.location}'),
                 Text('อาคาร: ${post.building}'),
-                Text('ประเภท: ${post.category}'),
+                Text('ประเภท: ${_getCategoryName(post.category)}'),
                 Text('ติดต่อ: ${post.contact}'),
               ],
             ),
@@ -630,6 +630,22 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
           ),
     );
   }
+
+  // ฟังก์ชันแปลงรหัสหมวดหมู่เป็นชื่อ
+  String _getCategoryName(String categoryId) {
+    switch (categoryId) {
+      case '1':
+        return 'ของใช้ส่วนตัว';
+      case '2':
+        return 'เอกสาร/บัตร';
+      case '3':
+        return 'อุปกรณ์การเรียน';
+      case '4':
+        return 'ของมีค่าอื่นๆ';
+      default:
+        return categoryId.isEmpty ? 'ไม่ระบุ' : categoryId;
+    }
+  }
 }
 
 // Data models
@@ -648,4 +664,3 @@ class SmartNotificationItem {
     this.relatedUserPost,
   });
 }
-
