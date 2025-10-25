@@ -240,14 +240,16 @@ class _CampusNavigationState extends State<CampusNavigation> {
                             },
                             initialCameraPosition: const CameraPosition(
                               target: LatLng(
-                                13.7563,
-                                100.5018,
-                              ), // กรุงเทพฯ ใจกลาง
-                              zoom: 15.0,
+                                13.732371977476102,
+                                100.49013701457356,
+                              ), // พิกัดที่ปรับปรุงใหม่
+                              zoom: 17.0,
                             ),
+                            // markers: _campusMarkers, // ลบ markers ออก
                             myLocationEnabled: true,
                             myLocationButtonEnabled: true,
                             mapType: MapType.normal,
+                            zoomControlsEnabled: false, // ปิดปุ่ม +/-
                             zoomGesturesEnabled: true,
                             scrollGesturesEnabled: true,
                             rotateGesturesEnabled: true,
@@ -268,10 +270,32 @@ class _CampusNavigationState extends State<CampusNavigation> {
                       ),
                     ),
 
-                    // ปุ่ม Action กลมๆ ด้านขวา - สำหรับเปลี่ยนไปหน้าอาคาร
+                    // ปุ่มควบคุมแผนที่ - กลับไปตำแหน่งเดิม
+                    Positioned(
+                      left: 20,
+                      bottom: 20, // กลับลงมาที่เดิม
+                      child: FloatingActionButton.small(
+                        heroTag: "center_campus",
+                        onPressed: () {
+                          _mapController?.animateCamera(
+                            CameraUpdate.newLatLngZoom(
+                              const LatLng(
+                                13.732371977476102,
+                                100.49013701457356,
+                              ),
+                              17.0,
+                            ),
+                          );
+                        },
+                        backgroundColor: Colors.blue,
+                        child: const Icon(Icons.school, color: Colors.white),
+                      ),
+                    ),
+
+                    // ปุ่มสีม่วงแสดงอาคาร - กลับไปตำแหน่งเดิม
                     Positioned(
                       right: 20,
-                      bottom: 20,
+                      bottom: 20, // กลับลงมาที่เดิม
                       child: BuildingActionButton(
                         onPressed: () {
                           setState(() {
@@ -386,25 +410,6 @@ class _CampusNavigationState extends State<CampusNavigation> {
                             ),
                           ),
                         ),
-                      ),
-                    ),
-
-                    // ปุ่ม Action กลมๆ ด้านขวา - สำหรับเปลี่ยนไปหน้าอาคาร
-                    Positioned(
-                      right: screenWidth < 900 ? 28 : 36,
-                      bottom: screenWidth < 900 ? 28 : 36,
-                      child: BuildingActionButton(
-                        onPressed: () {
-                          setState(() {
-                            currentView = 'building';
-                            selectedBuilding ??= 'A';
-                            if (selectedBuilding != null) {
-                              _loadRoomDataForBuilding(selectedBuilding!);
-                            }
-                          });
-                        },
-                        size: screenWidth < 900 ? 32 : 36,
-                        elevation: 10,
                       ),
                     ),
                   ],
