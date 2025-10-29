@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RoomPostsDialog extends StatelessWidget {
   final String roomName;
@@ -165,7 +166,7 @@ class RoomPostsDialog extends StatelessWidget {
                   const SizedBox(width: 16),
 
                   // Post details
-                  Expanded(
+                  Flexible(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -202,16 +203,9 @@ class RoomPostsDialog extends StatelessWidget {
                               ).colorScheme.onSurface.withOpacity(0.5),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              post.userName,
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withOpacity(0.5),
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
+                            // poster name (may be fetched)
+                            _posterNameWidget(context, post),
+                            const SizedBox(width: 12),
                             Icon(
                               Icons.access_time,
                               size: 16,
@@ -220,13 +214,16 @@ class RoomPostsDialog extends StatelessWidget {
                               ).colorScheme.onSurface.withOpacity(0.5),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              post.getTimeAgo(),
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withOpacity(0.5),
-                                fontSize: 12,
+                            Flexible(
+                              child: Text(
+                                post.getTimeAgo(),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.5),
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ],
@@ -236,9 +233,12 @@ class RoomPostsDialog extends StatelessWidget {
                   ),
 
                   // Arrow icon
-                  Icon(
-                    Icons.chevron_right,
-                    color: Theme.of(context).colorScheme.outline,
+                  SizedBox(
+                    width: 28,
+                    child: Icon(
+                      Icons.chevron_right,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
@@ -250,11 +250,78 @@ class RoomPostsDialog extends StatelessWidget {
   }
 
   void _showPostDetail(BuildContext context, Post post) {
-    Navigator.of(context).pop(); // ปิด dialog ก่อน
+    Navigator.of(context).pop(); // close dialog first
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => PostDetailSheet(post: post),
+    );
+  }
+
+  // Simple static cache for fetched user names to avoid repeated reads per dialog
+  static final Map<String, String> _userNameCache = {};
+
+  Widget _posterNameWidget(BuildContext context, Post post) {
+    final raw = post.userName.trim();
+    final textStyle = TextStyle(
+      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+      fontSize: 12,
+      fontWeight: FontWeight.bold,
+    );
+
+    if (raw.isNotEmpty) {
+      return Flexible(
+        child: Text(raw, overflow: TextOverflow.ellipsis, style: textStyle),
+      );
+    }
+
+    // If we already cached the name for this userId, show it
+    final uid = post.userId;
+    if (uid.isNotEmpty && _userNameCache.containsKey(uid)) {
+      return Flexible(
+        child: Text(
+          _userNameCache[uid]!,
+          overflow: TextOverflow.ellipsis,
+          style: textStyle,
+        ),
+      );
+    }
+
+    // Otherwise fetch it
+    if (uid.isEmpty) {
+      return Text('ไม่ระบุผู้โพสต์', style: textStyle);
+    }
+
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Text('กำลังโหลด...', style: textStyle);
+        }
+        try {
+          final data = snapshot.data?.data();
+          final name =
+              (data != null
+                      ? (data['name'] ??
+                          data['displayName'] ??
+                          data['fullName'] ??
+                          '')
+                      : '')
+                  .toString()
+                  .trim();
+          final result = name.isNotEmpty ? name : 'ไม่ระบุผู้โพสต์';
+          if (uid.isNotEmpty) _userNameCache[uid] = result;
+          return Flexible(
+            child: Text(
+              result,
+              overflow: TextOverflow.ellipsis,
+              style: textStyle,
+            ),
+          );
+        } catch (e) {
+          return Text('ไม่ระบุผู้โพสต์', style: textStyle);
+        }
+      },
     );
   }
 }

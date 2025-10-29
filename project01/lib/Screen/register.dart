@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
-import 'package:project01/Screen/home.dart';
+import 'package:project01/Screen/app.dart';
 import 'package:project01/models/profile.dart' show Profile;
 import 'package:project01/Screen/login.dart';
 import 'package:project01/services/auth_service.dart';
@@ -11,7 +11,7 @@ class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
@@ -141,7 +141,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     );
 
                                 // ปิด Loading Dialog
-                                Navigator.of(context).pop();
+                                if (mounted && Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                }
 
                                 // แสดง Success Dialog
                                 await showDialog(
@@ -158,13 +160,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       actions: [
                                         TextButton(
                                           onPressed: () {
-                                            Navigator.of(context).pop();
+                                            if (mounted &&
+                                                Navigator.canPop(context)) {
+                                              Navigator.of(context).pop();
+                                            }
                                             _formKey.currentState!.reset();
+                                            if (!mounted) return;
                                             Navigator.pushReplacement(
                                               context,
                                               MaterialPageRoute(
                                                 builder: (context) {
-                                                  return MyHomePage();
+                                                  return const NavigationBarApp();
                                                 },
                                               ),
                                             );
@@ -177,7 +183,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 );
                               } on FirebaseAuthException catch (e) {
                                 // ปิด Loading Dialog
-                                Navigator.of(context).pop();
+                                if (mounted && Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                }
 
                                 // แสดง Error Dialog
                                 await showDialog(
@@ -277,13 +285,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       actions: [
                                         TextButton(
                                           onPressed: () {
-                                            Navigator.of(context).pop();
+                                            if (mounted &&
+                                                Navigator.canPop(context)) {
+                                              Navigator.of(context).pop();
+                                            }
+                                            if (!mounted) return;
                                             Navigator.pushReplacement(
                                               context,
                                               MaterialPageRoute(
                                                 builder:
                                                     (context) =>
-                                                        const MyHomePage(),
+                                                        const NavigationBarApp(),
                                               ),
                                             );
                                           },

@@ -156,6 +156,10 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                                 ),
                               ),
 
+                              // แสดงชื่อผู้โพสต์และเวลาใต้หัวข้อ (เล็กและตัวหนาเล็กน้อย)
+                              // จะอยู่ต่อจากส่วนสถานะในแถวนี้
+                              // (สำหรับความชัดเจน เราแสดงชื่อผู้โพสต์ด้านล่างหัวข้อแทนที่จะแสดงในเมนู)
+
                               // Debug: ตรวจสอบค่า userId
                               // แสดงเมนูแก้ไข/ลบ เฉพาะโพสต์ของผู้ใช้คนนี้
                               Builder(
@@ -279,6 +283,44 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                             ],
                           ),
                           const SizedBox(height: 8),
+                          // แสดงชื่อผู้โพสต์และเวลา
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.person,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  post.userName.trim().isEmpty
+                                      ? 'ไม่ระบุผู้โพสต์'
+                                      : post.userName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(
+                                Icons.access_time,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                post.getTimeAgo(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
                           if (post.description.isNotEmpty) ...[
                             Text(
                               post.description,

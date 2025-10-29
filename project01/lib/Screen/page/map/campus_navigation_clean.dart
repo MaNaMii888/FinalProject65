@@ -245,7 +245,7 @@ class _CampusNavigationState extends State<CampusNavigation> {
                               ), // พิกัดที่ปรับปรุงใหม่
                               zoom: 17.0,
                             ),
-                            // markers: _campusMarkers, // ลบ markers ออก
+                            markers: const {}, // ลบ markers ออกทั้งหมด
                             myLocationEnabled: true,
                             myLocationButtonEnabled: true,
                             mapType: MapType.normal,
@@ -292,10 +292,10 @@ class _CampusNavigationState extends State<CampusNavigation> {
                       ),
                     ),
 
-                    // ปุ่มสีม่วงแสดงอาคาร - กลับไปตำแหน่งเดิม
+                    // ปุ่มสีม่วงแสดงอาคาร
                     Positioned(
                       right: 20,
-                      bottom: 20, // กลับลงมาที่เดิม
+                      bottom: 20,
                       child: BuildingActionButton(
                         onPressed: () {
                           setState(() {

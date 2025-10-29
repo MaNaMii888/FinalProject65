@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/register.dart';
 import 'package:project01/Screen/app.dart';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/auth_service.dart';
 import 'package:project01/utils/debug_helper.dart';
@@ -9,7 +10,7 @@ class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginPage> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginPage> {
@@ -133,25 +134,50 @@ class _LoginScreenState extends State<LoginPage> {
                               );
 
                               try {
-                                print('=== Email/Password Login Starting ===');
-                                print('Email: ${_emailController.text}');
-                                print(
+                                DebugHelper.log(
+                                  '=== Email/Password Login Starting ===',
+                                );
+                                DebugHelper.log(
+                                  'Email: ${_emailController.text.trim()}',
+                                );
+                                DebugHelper.log(
                                   'Password length: ${_passwordController.text.length}',
                                 );
 
+                                // Attempt sign-in with a timeout to avoid hanging spinner
                                 final userCredential = await FirebaseAuth
                                     .instance
                                     .signInWithEmailAndPassword(
                                       email: _emailController.text.trim(),
                                       password: _passwordController.text,
+                                    )
+                                    .timeout(
+                                      const Duration(seconds: 15),
+                                      onTimeout: () {
+                                        DebugHelper.log(
+                                          'Email/Password sign-in timed out',
+                                        );
+                                        throw TimeoutException(
+                                          'Sign-in timed out',
+                                        );
+                                      },
                                     );
 
-                                print(
+                                DebugHelper.log(
                                   'Login successful: ${userCredential.user?.email}',
                                 );
-                                Navigator.of(context).pop();
 
-                                // ไปหน้าหลักทันทีโดยไม่แสดง success dialog
+                                // If the widget was disposed while awaiting, abort further UI work
+                                if (!mounted) return;
+
+                                // Ensure loading dialog is dismissed
+                                if (mounted && Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                }
+
+                                // Navigate immediately to main app
+                                _formKey.currentState?.reset();
+                                if (!mounted) return;
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
@@ -159,12 +185,46 @@ class _LoginScreenState extends State<LoginPage> {
                                         (context) => const NavigationBarApp(),
                                   ),
                                 );
+                              } on TimeoutException catch (e) {
+                                DebugHelper.logError(
+                                  'Email/Password Timeout',
+                                  e,
+                                  null,
+                                );
+                                if (mounted && Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                }
+                                if (!mounted) return;
+                                await showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('เกิดข้อผิดพลาด'),
+                                      content: const Text(
+                                        'การเชื่อมต่อล้มเหลว (หมดเวลาการเชื่อมต่อ). กรุณาลองอีกครั้ง',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.of(context).pop(),
+                                          child: const Text('ปิด'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
                               } on FirebaseAuthException catch (e) {
-                                print('=== FirebaseAuth Error ===');
-                                print('Error code: ${e.code}');
-                                print('Error message: ${e.message}');
+                                DebugHelper.logError(
+                                  'FirebaseAuth Error',
+                                  e,
+                                  null,
+                                );
 
-                                Navigator.of(context).pop();
+                                if (mounted && Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                }
+
+                                if (!mounted) return;
 
                                 String errorMessage = 'ไม่สามารถเข้าสู่ระบบได้';
 
@@ -233,11 +293,18 @@ class _LoginScreenState extends State<LoginPage> {
                                     );
                                   },
                                 );
-                              } catch (e) {
-                                print('=== General Login Error ===');
-                                print('Error: $e');
+                              } catch (e, stack) {
+                                DebugHelper.logError(
+                                  'General Login Error',
+                                  e,
+                                  stack,
+                                );
 
-                                Navigator.of(context).pop();
+                                if (mounted && Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                }
+
+                                if (!mounted) return;
 
                                 await showDialog(
                                   context: context,

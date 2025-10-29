@@ -28,6 +28,33 @@ class _PostPageState extends State<PostPage>
   // FAB Animated
   bool isFabOpen = false;
 
+  // Cache for user names to avoid repeated reads
+  final Map<String, String> _userNameCache = {};
+
+  Future<String> _getUserName(String? userId) async {
+    if (userId == null || userId.trim().isEmpty) return 'ไม่ระบุผู้โพสต์';
+    if (_userNameCache.containsKey(userId)) return _userNameCache[userId]!;
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+      final data = doc.data();
+      final name =
+          (data != null &&
+                  data['name'] != null &&
+                  (data['name'] as String).trim().isNotEmpty)
+              ? data['name'] as String
+              : 'ไม่ระบุผู้โพสต์';
+      _userNameCache[userId] = name;
+      return name;
+    } catch (e) {
+      // on error return fallback
+      return 'ไม่ระบุผู้โพสต์';
+    }
+  }
+
   void toggleFab() {
     setState(() {
       isFabOpen = !isFabOpen;
@@ -548,10 +575,35 @@ class _PostPageState extends State<PostPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            post.userName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          post.userName.trim().isEmpty
+                              ? FutureBuilder<String>(
+                                future: _getUserName(post.userId),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Text(
+                                      'กำลังโหลด...',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    );
+                                  }
+                                  final name =
+                                      (snapshot.data ?? 'ไม่ระบุผู้โพสต์');
+                                  return Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                },
+                              )
+                              : Text(
+                                post.userName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                           Text(
                             '${post.isLostItem ? "แจ้งของหาย" : "แจ้งเจอของ"} • ${_getTimeAgo(post.createdAt)}',
                             style: TextStyle(
@@ -680,15 +732,45 @@ class _PostPageState extends State<PostPage>
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            post.userName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          child:
+                              post.userName.trim().isEmpty
+                                  ? FutureBuilder<String>(
+                                    future: _getUserName(post.userId),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Text(
+                                          'กำลังโหลด...',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        );
+                                      }
+                                      final name =
+                                          (snapshot.data ?? 'ไม่ระบุผู้โพสต์');
+                                      return Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      );
+                                    },
+                                  )
+                                  : Text(
+                                    post.userName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                         ),
                         if (post.status == 'closed')
                           Container(

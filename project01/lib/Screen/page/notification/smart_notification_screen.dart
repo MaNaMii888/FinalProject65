@@ -630,9 +630,19 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('ชื่อ: ${post.userName}'),
+                Row(
+                  children: [
+                    const Text('ชื่อ: '),
+                    Text(
+                      post.userName.trim().isEmpty
+                          ? 'ไม่ระบุผู้โพสต์'
+                          : post.userName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                Text('ติดต่อ: ${post.contact}'),
+                Row(children: [const Text('ติดต่อ: '), Text(post.contact)]),
               ],
             ),
             actions: [
