@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:project01/Screen/app.dart';
 import 'package:project01/Screen/register.dart';
+import 'package:project01/Screen/app.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/auth_service.dart';
+import 'package:project01/utils/debug_helper.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,11 +19,23 @@ class _LoginScreenState extends State<LoginPage> {
   final AuthService _authService = AuthService(); // Using singleton instance
 
   Future<UserCredential?> signInWithGoogle() async {
+    DebugHelper.log('=== Login.dart: Google Sign-In Starting ===');
+
     try {
-      return await _authService.signInWithGoogle();
-    } catch (e) {
-      print('Error signing in with Google: $e');
-      return null;
+      DebugHelper.logUserState();
+      await DebugHelper.logGoogleSignInState();
+
+      final result = await _authService.signInWithGoogle();
+
+      DebugHelper.log('=== Login.dart: Sign-In Result ===');
+      DebugHelper.log('Result: $result');
+      DebugHelper.logUserState();
+
+      return result;
+    } catch (e, stackTrace) {
+      DebugHelper.logError('Login.dart: Google Sign-In Error', e, stackTrace);
+      DebugHelper.logAuthError(e);
+      rethrow;
     }
   }
 
@@ -120,50 +133,110 @@ class _LoginScreenState extends State<LoginPage> {
                               );
 
                               try {
-                                await Future.delayed(
-                                  const Duration(seconds: 2),
+                                print('=== Email/Password Login Starting ===');
+                                print('Email: ${_emailController.text}');
+                                print(
+                                  'Password length: ${_passwordController.text.length}',
                                 );
 
-                                await FirebaseAuth.instance
+                                final userCredential = await FirebaseAuth
+                                    .instance
                                     .signInWithEmailAndPassword(
-                                      email: _emailController.text,
+                                      email: _emailController.text.trim(),
                                       password: _passwordController.text,
                                     );
 
+                                print(
+                                  'Login successful: ${userCredential.user?.email}',
+                                );
                                 Navigator.of(context).pop();
+
+                                // ไปหน้าหลักทันทีโดยไม่แสดง success dialog
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => const NavigationBarApp(),
+                                  ),
+                                );
+                              } on FirebaseAuthException catch (e) {
+                                print('=== FirebaseAuth Error ===');
+                                print('Error code: ${e.code}');
+                                print('Error message: ${e.message}');
+
+                                Navigator.of(context).pop();
+
+                                String errorMessage = 'ไม่สามารถเข้าสู่ระบบได้';
+
+                                switch (e.code) {
+                                  case 'user-not-found':
+                                    errorMessage =
+                                        'ไม่พบผู้ใช้งานนี้ กรุณาตรวจสอบอีเมลหรือลงทะเบียนใหม่';
+                                    break;
+                                  case 'wrong-password':
+                                    errorMessage =
+                                        'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
+                                    break;
+                                  case 'invalid-email':
+                                    errorMessage = 'รูปแบบอีเมลไม่ถูกต้อง';
+                                    break;
+                                  case 'user-disabled':
+                                    errorMessage = 'บัญชีผู้ใช้ถูกปิดใช้งาน';
+                                    break;
+                                  case 'too-many-requests':
+                                    errorMessage =
+                                        'มีการพยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่แล้วลองใหม่';
+                                    break;
+                                  case 'invalid-credential':
+                                    errorMessage =
+                                        'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง กรุณาตรวจสอบอีเมลและรหัสผ่าน';
+                                    break;
+                                  default:
+                                    errorMessage =
+                                        e.message ??
+                                        'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+                                }
 
                                 await showDialog(
                                   context: context,
                                   builder: (BuildContext context) {
                                     return AlertDialog(
-                                      title: const Text('สำเร็จ'),
-                                      content: const Text('เข้าสู่ระบบสำเร็จ'),
+                                      title: const Text('เกิดข้อผิดพลาด'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(errorMessage),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'รหัสข้อผิดพลาด: ${e.code}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                       icon: const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
+                                        Icons.error,
+                                        color: Colors.red,
                                         size: 48,
                                       ),
                                       actions: [
                                         TextButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                            _formKey.currentState!.reset();
-                                            Navigator.pushReplacement(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder:
-                                                    (context) =>
-                                                        const NavigationBarApp(),
-                                              ),
-                                            );
-                                          },
-                                          child: const Text('ตกลง'),
+                                          onPressed:
+                                              () => Navigator.of(context).pop(),
+                                          child: const Text('ปิด'),
                                         ),
                                       ],
                                     );
                                   },
                                 );
-                              } on FirebaseAuthException catch (e) {
+                              } catch (e) {
+                                print('=== General Login Error ===');
+                                print('Error: $e');
+
                                 Navigator.of(context).pop();
 
                                 await showDialog(
@@ -172,7 +245,7 @@ class _LoginScreenState extends State<LoginPage> {
                                     return AlertDialog(
                                       title: const Text('เกิดข้อผิดพลาด'),
                                       content: Text(
-                                        e.message ?? "ไม่สามารถเข้าสู่ระบบได้",
+                                        'เกิดข้อผิดพลาดที่ไม่คาดคิด: ${e.toString()}',
                                       ),
                                       icon: const Icon(
                                         Icons.error,
@@ -248,8 +321,19 @@ class _LoginScreenState extends State<LoginPage> {
                             );
 
                             try {
+                              print('=== Google Sign-In Starting ===');
                               final UserCredential? userCredential =
                                   await signInWithGoogle();
+
+                              print('=== Google Sign-In Result ===');
+                              print('UserCredential: $userCredential');
+                              print('User: ${userCredential?.user}');
+                              print(
+                                'User Email: ${userCredential?.user?.email}',
+                              );
+                              print(
+                                'User DisplayName: ${userCredential?.user?.displayName}',
+                              );
 
                               // ตรวจสอบว่า dialog ยังเปิดอยู่หรือไม่ก่อนปิด
                               if (Navigator.canPop(context)) {
@@ -261,17 +345,56 @@ class _LoginScreenState extends State<LoginPage> {
                               // ตรวจสอบทั้ง userCredential และ Firebase Auth currentUser
                               final currentUser =
                                   FirebaseAuth.instance.currentUser;
+                              print('Current Firebase User: $currentUser');
 
-                              if (userCredential != null ||
-                                  currentUser != null) {
-                                // เข้าสู่ระบบสำเร็จ (ตรวจสอบ 2 แหล่ง)
+                              if (userCredential != null &&
+                                  userCredential.user != null) {
+                                print('=== Login Success ===');
+                                // เข้าสู่ระบบสำเร็จ
                                 await showDialog(
                                   context: context,
                                   builder: (BuildContext context) {
                                     return AlertDialog(
                                       title: const Text('สำเร็จ'),
                                       content: Text(
-                                        'เข้าสู่ระบบด้วย Google สำเร็จ\nยินดีต้อนรับ ${currentUser?.displayName ?? 'ผู้ใช้'}',
+                                        'เข้าสู่ระบบด้วย Google สำเร็จ\nยินดีต้อนรับ ${userCredential.user?.displayName ?? currentUser?.displayName ?? 'ผู้ใช้'}',
+                                      ),
+                                      icon: const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                        size: 48,
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                            Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (context) =>
+                                                        const NavigationBarApp(),
+                                              ),
+                                            );
+                                          },
+                                          child: const Text('ตกลง'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              } else if (currentUser != null) {
+                                print(
+                                  '=== Login Success (via currentUser) ===',
+                                );
+                                // เข้าสู่ระบบสำเร็จผ่าน Firebase currentUser
+                                await showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('สำเร็จ'),
+                                      content: Text(
+                                        'เข้าสู่ระบบด้วย Google สำเร็จ\nยินดีต้อนรับ ${currentUser.displayName ?? 'ผู้ใช้'}',
                                       ),
                                       icon: const Icon(
                                         Icons.check_circle,
@@ -298,14 +421,17 @@ class _LoginScreenState extends State<LoginPage> {
                                   },
                                 );
                               } else {
+                                print('=== Login Failed - No User ===');
                                 // รอสักครู่แล้วตรวจสอบอีกครั้ง (กรณี async delay)
                                 await Future.delayed(
-                                  Duration(milliseconds: 500),
+                                  Duration(milliseconds: 1000),
                                 );
                                 final retryCurrentUser =
                                     FirebaseAuth.instance.currentUser;
+                                print('Retry Current User: $retryCurrentUser');
 
                                 if (retryCurrentUser != null) {
+                                  print('=== Login Success (after retry) ===');
                                   // Login สำเร็จแล้วจริงๆ แต่ async delay
                                   await showDialog(
                                     context: context,
@@ -340,6 +466,7 @@ class _LoginScreenState extends State<LoginPage> {
                                     },
                                   );
                                 } else {
+                                  print('=== Login Failed - User is null ===');
                                   // เข้าสู่ระบบไม่สำเร็จจริงๆ
                                   showDialog(
                                     context: context,
@@ -347,7 +474,7 @@ class _LoginScreenState extends State<LoginPage> {
                                       return AlertDialog(
                                         title: const Text('เกิดข้อผิดพลาด'),
                                         content: const Text(
-                                          'ไม่สามารถเข้าสู่ระบบด้วย Google ได้\nกรุณาลองใหม่อีกครั้ง',
+                                          'ไม่สามารถเข้าสู่ระบบด้วย Google ได้\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง',
                                         ),
                                         icon: const Icon(
                                           Icons.error,
@@ -366,20 +493,75 @@ class _LoginScreenState extends State<LoginPage> {
                                   );
                                 }
                               }
-                            } catch (e) {
+                            } catch (e, stackTrace) {
+                              print('=== Google Sign-In Error ===');
+                              print('Error: $e');
+                              print('StackTrace: $stackTrace');
+
                               // ตรวจสอบว่า dialog ยังเปิดอยู่หรือไม่ก่อนปิด
                               if (Navigator.canPop(context)) {
                                 Navigator.of(
                                   context,
                                 ).pop(); // ปิด Loading Dialog
                               }
-                              await showDialog(
+
+                              String errorMessage =
+                                  'ไม่สามารถเข้าสู่ระบบด้วย Google ได้';
+
+                              // จัดการ error messages ต่างๆ
+                              if (e.toString().contains('network_error') ||
+                                  e.toString().contains('NetworkError')) {
+                                errorMessage =
+                                    'ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง';
+                              } else if (e.toString().contains(
+                                    'sign_in_canceled',
+                                  ) ||
+                                  e.toString().contains('cancelled')) {
+                                errorMessage = 'การเข้าสู่ระบบถูกยกเลิก';
+                              } else if (e.toString().contains(
+                                'account-exists-with-different-credential',
+                              )) {
+                                errorMessage =
+                                    'บัญชีนี้มีอยู่แล้วกับข้อมูลประจำตัวอื่น';
+                              } else if (e.toString().contains(
+                                'user-disabled',
+                              )) {
+                                errorMessage = 'บัญชีผู้ใช้ถูกปิดใช้งาน';
+                              } else if (e.toString().contains('PigeonUser') ||
+                                  e.toString().contains('PigeonUserDetails') ||
+                                  e.toString().contains('type cast') ||
+                                  e.toString().contains(
+                                    'การเข้าสู่ระบบด้วย Google ล้มเหลว',
+                                  )) {
+                                errorMessage =
+                                    'เกิดข้อผิดพลาดในการเข้าสู่ระบบ Google\n\nวิธีแก้ไข:\n1. ปิดแอปแล้วเปิดใหม่\n2. หากยังไม่ได้ ลบข้อมูล Google app แล้วลองใหม่\n3. รีสตาร์ทโทรศัพท์';
+                              } else if (e.toString().contains(
+                                    'ApiException: 10',
+                                  ) ||
+                                  e.toString().contains('DEVELOPER_ERROR')) {
+                                errorMessage =
+                                    'การกำหนดค่า Google Sign-In ไม่ถูกต้อง\nกรุณาตรวจสอบ SHA-1 fingerprint ใน Firebase Console\nหรือติดต่อผู้พัฒนาแอป';
+                              }
+                              showDialog(
                                 context: context,
                                 builder: (BuildContext context) {
                                   return AlertDialog(
                                     title: const Text('เกิดข้อผิดพลาด'),
-                                    content: const Text(
-                                      'ไม่สามารถเข้าสู้ระบบด้วย googleได้',
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(errorMessage),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'รายละเอียด: ${e.toString()}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     icon: const Icon(
                                       Icons.error,
