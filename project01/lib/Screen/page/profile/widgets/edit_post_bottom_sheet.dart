@@ -35,13 +35,34 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
     'อาคาร 10',
     'อาคาร 11',
     'อาคาร 12',
+    'อาคาร 15',
+    'อาคาร 16',
+    'อาคาร 17',
+    'อาคาร 18',
+    'อาคาร 19',
+    'อาคาร 20',
+    'อาคาร 22',
+    'อาคาร 24',
+    'อาคาร 26',
+    'อาคาร 27',
+    'อาคาร 28',
+    'อาคาร 29',
+    'อาคาร 30',
+    'อาคาร 31',
+    'อาคาร 33',
+    'โรงอาหาร',
+    'ห้องสมุด',
+    'สำนักงาน',
+    'สนาม',
   ];
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.post.title);
-    _descriptionController = TextEditingController(text: widget.post.description);
+    _descriptionController = TextEditingController(
+      text: widget.post.description,
+    );
     _locationController = TextEditingController(text: widget.post.location);
     _buildingController = TextEditingController(text: widget.post.building);
     _contactController = TextEditingController(text: widget.post.contact);
@@ -68,14 +89,14 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
           .collection('lost_found_items')
           .doc(widget.post.id)
           .update({
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'location': _locationController.text.trim(),
-        'building': _buildingController.text.trim(),
-        'contact': _contactController.text.trim(),
-        'category': _selectedCategory,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'title': _titleController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'location': _locationController.text.trim(),
+            'building': _buildingController.text.trim(),
+            'contact': _contactController.text.trim(),
+            'category': _selectedCategory,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -122,8 +143,8 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
               Text(
                 'แก้ไขโพสต์',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Spacer(),
               IconButton(
@@ -178,12 +199,15 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.category),
                       ),
-                      items: CategoryUtils.categoryMap.entries
-                          .map((entry) => DropdownMenuItem<String>(
-                                value: entry.key,
-                                child: Text(entry.value),
-                              ))
-                          .toList(),
+                      items:
+                          CategoryUtils.categoryMap.entries
+                              .map(
+                                (entry) => DropdownMenuItem<String>(
+                                  value: entry.key,
+                                  child: Text(entry.value),
+                                ),
+                              )
+                              .toList(),
                       onChanged: (value) {
                         setState(() {
                           _selectedCategory = value!;
@@ -200,20 +224,24 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
 
                     // Building
                     DropdownButtonFormField<String>(
-                      value: buildings.contains(_buildingController.text) 
-                          ? _buildingController.text 
-                          : null,
+                      value:
+                          buildings.contains(_buildingController.text)
+                              ? _buildingController.text
+                              : null,
                       decoration: const InputDecoration(
                         labelText: 'อาคาร *',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.business),
                       ),
-                      items: buildings
-                          .map((building) => DropdownMenuItem<String>(
-                                value: building,
-                                child: Text(building),
-                              ))
-                          .toList(),
+                      items:
+                          buildings
+                              .map(
+                                (building) => DropdownMenuItem<String>(
+                                  value: building,
+                                  child: Text(building),
+                                ),
+                              )
+                              .toList(),
                       onChanged: (value) {
                         _buildingController.text = value ?? '';
                       },
@@ -267,7 +295,10 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                            onPressed:
+                                _isLoading
+                                    ? null
+                                    : () => Navigator.of(context).pop(),
                             child: const Text('ยกเลิก'),
                           ),
                         ),
@@ -279,16 +310,20 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                               backgroundColor: Theme.of(context).primaryColor,
                               foregroundColor: Colors.white,
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
-                                  )
-                                : const Text('บันทึก'),
+                            child:
+                                _isLoading
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : const Text('บันทึก'),
                           ),
                         ),
                       ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/register.dart';
 import 'package:project01/Screen/app.dart';
+import 'package:project01/Screen/forgot_password.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/auth_service.dart';
@@ -39,6 +40,8 @@ class _LoginScreenState extends State<LoginPage> {
       rethrow;
     }
   }
+
+  // Password reset moved to a separate screen: ForgotPasswordPage
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +103,28 @@ class _LoginScreenState extends State<LoginPage> {
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const ForgotPasswordPage(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'ลืมรหัสผ่าน?',
+                            style: TextStyle(
+                              decoration: TextDecoration.underline,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
