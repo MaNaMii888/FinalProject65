@@ -145,29 +145,43 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
   double _calculatePostSimilarity(Post userPost, Post otherPost) {
     double score = 0.0;
 
-    // 1. ตรวจสอบประเภทตรงข้าม (Lost vs Found) - 40%
+    // 1. ประเภทตรงข้าม (Lost vs Found) - 35%
     if (userPost.isLostItem != otherPost.isLostItem) {
-      score += 0.4;
+      score += 0.35;
     }
 
-    // 2. ตรวจสอบหมวดหมู่เดียวกัน - 25%
+    // 2. หมวดหมู่เดียวกัน - 20%
     if (userPost.category == otherPost.category) {
-      score += 0.25;
+      score += 0.20;
     }
 
-    // 3. ตรวจสอบอาคารเดียวกัน - 20%
+    // 3. อาคารเดียวกัน - 15%
     if (userPost.building == otherPost.building) {
-      score += 0.2;
+      score += 0.15;
     }
 
-    // 4. ตรวจสอบความคล้ายคลึงของคำในชื่อเรื่อง - 10%
+    // 4. สถานที่/ห้องเดียวกัน - 15% (ใหม่!)
+    if (userPost.location.isNotEmpty && otherPost.location.isNotEmpty) {
+      if (userPost.location.toLowerCase() == otherPost.location.toLowerCase()) {
+        score += 0.15;
+      } else {
+        // ตรวจสอบว่ามีคำที่เหมือนกันในสถานที่หรือไม่
+        double locationSimilarity = _calculateTextSimilarity(
+          userPost.location,
+          otherPost.location,
+        );
+        score += locationSimilarity * 0.10;
+      }
+    }
+
+    // 5. ความคล้ายคลึงของชื่อ - 10%
     double titleSimilarity = _calculateTextSimilarity(
       userPost.title,
       otherPost.title,
     );
-    score += titleSimilarity * 0.1;
+    score += titleSimilarity * 0.10;
 
-    // 5. ตรวจสอบความคล้ายคลึงของคำในรายละเอียด - 5%
+    // 6. ความคล้ายคลึงของรายละเอียด - 5%
     double descSimilarity = _calculateTextSimilarity(
       userPost.description,
       otherPost.description,
@@ -214,12 +228,27 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
 
     // ตรวจสอบหมวดหมู่เดียวกัน
     if (userPost.category == otherPost.category) {
-      reasons.add('หมวดหมู่เดียวกัน: ${otherPost.category}');
+      reasons.add('หมวดหมู่เดียวกัน: ${_getCategoryName(otherPost.category)}');
     }
 
     // ตรวจสอบอาคารเดียวกัน
     if (userPost.building == otherPost.building) {
       reasons.add('อาคารเดียวกัน: อาคาร ${otherPost.building}');
+    }
+
+    // ตรวจสอบสถานที่/ห้องเดียวกัน (ใหม่!)
+    if (userPost.location.isNotEmpty && otherPost.location.isNotEmpty) {
+      if (userPost.location.toLowerCase() == otherPost.location.toLowerCase()) {
+        reasons.add('สถานที่เดียวกัน: ${otherPost.location}');
+      } else {
+        double locationSimilarity = _calculateTextSimilarity(
+          userPost.location,
+          otherPost.location,
+        );
+        if (locationSimilarity > 0.5) {
+          reasons.add('สถานที่ใกล้เคียงกัน: ${otherPost.location}');
+        }
+      }
     }
 
     // ตรวจสอบคำที่คล้ายกัน
@@ -671,6 +700,7 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
     }
   }
 }
+
 
 // Data models
 class SmartNotificationItem {
