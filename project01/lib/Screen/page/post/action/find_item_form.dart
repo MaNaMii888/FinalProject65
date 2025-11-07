@@ -31,8 +31,11 @@ class _FindItemFormState extends State<FindItemForm> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('แจ้งพบของ'),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        title: Text(
+          'แจ้งพบของ',
+          style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(
@@ -55,7 +58,7 @@ class _FindItemFormState extends State<FindItemForm> {
                     height: 150,
                     decoration: BoxDecoration(
                       // ใช้สีจาก Theme แทนการกำหนดสีตายตัว
-                      color: Theme.of(context).colorScheme.surface,
+                      color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: Theme.of(

@@ -2,115 +2,94 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider extends ChangeNotifier {
-  static const String _key = "theme_mode";
-  ThemeMode _themeMode = ThemeMode.system;
+  // Persistent keys
+  static const _kPrimaryKey = 'theme_primary';
+  static const _kSecondaryKey = 'theme_secondary';
+  static const _kSurfaceKey = 'theme_surface';
 
-  ThemeProvider() : _themeMode = ThemeMode.light {
-    _loadThemeMode();
+  // Default colors
+  Color _primary = const Color(0xFF171717);
+  Color _secondary = const Color(0xFF444444);
+  Color _surface = const Color(0xFFDA0037);
+
+  ThemeProvider() {
+    // Try loading saved colors; non-blocking
+    _loadFromPrefs();
   }
 
-  ThemeMode get themeMode => _themeMode;
+  // getters
+  Color get primary => _primary;
+  Color get secondary => _secondary;
+  Color get surface => _surface;
 
-  void setThemeMode(ThemeMode mode) {
-    _themeMode = mode;
+  // Update methods
+  Future<void> updatePrimary(Color c) async {
+    _primary = c;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kPrimaryKey, c.toARGB32());
   }
 
-  Future<void> _loadThemeMode() async {
+  Future<void> updateSecondary(Color c) async {
+    _secondary = c;
+    notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    final savedMode = prefs.getString(_key);
-    if (savedMode != null) {
-      _themeMode = ThemeMode.values.firstWhere(
-        (mode) => mode.toString() == savedMode,
-        orElse: () => ThemeMode.light,
-      );
+    await prefs.setInt(_kSecondaryKey, c.toARGB32());
+  }
+
+  Future<void> updateSurface(Color c) async {
+    _surface = c;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kSurfaceKey, c.toARGB32());
+  }
+
+  ThemeData get theme {
+    return ThemeData(
+      fontFamily: 'Prompt',
+      useMaterial3: true,
+      colorScheme: ColorScheme.light(
+        primary: _primary,
+        secondary: _secondary,
+        surface: _surface,
+        onPrimary: const Color(0xFFEDEDED),
+        onSecondary: Colors.black87,
+        onSurface: Colors.black87,
+        error: Colors.red,
+        onError: Colors.white,
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF5EFFF),
+      appBarTheme: const AppBarTheme(
+        centerTitle: true,
+        elevation: 0,
+        color: Colors.transparent,
+        iconTheme: IconThemeData(color: Colors.black87),
+        titleTextStyle: TextStyle(
+          color: Colors.black87,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Prompt',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey(_kPrimaryKey)) {
+        _primary = Color(prefs.getInt(_kPrimaryKey)!);
+      }
+      if (prefs.containsKey(_kSecondaryKey)) {
+        _secondary = Color(prefs.getInt(_kSecondaryKey)!);
+      }
+      if (prefs.containsKey(_kSurfaceKey)) {
+        _surface = Color(prefs.getInt(_kSurfaceKey)!);
+      }
       notifyListeners();
+    } catch (e) {
+      // ignore load errors, keep defaults
+      debugPrint('ThemeProvider: failed to load prefs: $e');
     }
   }
-
-  static final lightTheme = ThemeData(
-    primarySwatch: Colors.deepPurple,
-    fontFamily: 'Prompt',
-    useMaterial3: true,
-    colorScheme: ColorScheme.light(
-      primary: const Color(0xFFA594F9),
-      secondary: const Color(0xFFCDC1FF),
-      surface: const Color(0xFFF5EFFF),
-      onPrimary: Colors.white,
-      onSecondary: Colors.black87,
-      onSurface: Colors.black87,
-      error: Colors.red,
-      onError: Colors.white,
-    ),
-    scaffoldBackgroundColor: const Color(0xFFF5EFFF),
-    appBarTheme: const AppBarTheme(
-      centerTitle: true,
-      elevation: 0,
-      color: Colors.transparent,
-      iconTheme: IconThemeData(color: Colors.black87),
-      titleTextStyle: TextStyle(
-        color: Colors.black87,
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        fontFamily: 'Prompt',
-      ),
-    ),
-  );
-
-  static final darkTheme = ThemeData(
-    brightness: Brightness.dark,
-    fontFamily: 'Prompt',
-    useMaterial3: true,
-    colorScheme: const ColorScheme(
-      brightness: Brightness.dark,
-      primary: Color(0xFF424874),
-      onPrimary: Color(0xFFF4EEFF),
-      secondary: Color(0xFFA6B1E1),
-      onSecondary: Color(0xFF424874),
-      surface: Color(0xFFDCD6F7),
-      onSurface: Color(0xFF424874),
-      error: Color(0xFFEF5350),
-      onError: Color(0xFFF4EEFF),
-    ),
-    scaffoldBackgroundColor: const Color(0xFF424874),
-    cardColor: const Color(0xFFDCD6F7),
-    appBarTheme: const AppBarTheme(
-      centerTitle: true,
-      elevation: 0,
-      color: Color(0xFF424874),
-      iconTheme: IconThemeData(color: Colors.white),
-      titleTextStyle: TextStyle(
-        color: Colors.white,
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        fontFamily: 'Prompt',
-      ),
-    ),
-    textTheme: TextTheme(
-      headlineLarge: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-      ),
-      headlineMedium: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-      ),
-      headlineSmall: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-      ),
-      titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      titleMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      titleSmall: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      bodyLarge: TextStyle(color: Color(0xFFF4EEFF)),
-      bodyMedium: TextStyle(color: Color(0xFFDCD6F7)),
-      bodySmall: TextStyle(color: Color(0xFFA6B1E1)),
-      labelLarge: TextStyle(color: Color(0xFFF4EEFF)),
-      labelMedium: TextStyle(color: Color(0xFFDCD6F7)),
-      labelSmall: TextStyle(color: Color(0xFFA6B1E1)),
-    ),
-    iconTheme: const IconThemeData(color: Color(0xFFF4EEFF)),
-    dividerColor: const Color(0xFFA6B1E1),
-    shadowColor: const Color(0xFF424874),
-  );
 }

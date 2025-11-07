@@ -144,7 +144,12 @@ class _PostPageState extends State<PostPage>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+
+    messenger.showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
@@ -225,13 +230,17 @@ class _PostPageState extends State<PostPage>
     return Stack(
       children: [
         Scaffold(
+          // Use theme primary as page background
+          backgroundColor: Theme.of(context).colorScheme.primary,
           appBar: AppBar(
-            title: Text(
-              'ประกาศของหาย/เจอของ',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            title: const SizedBox.shrink(),
+            toolbarHeight: 0,
             bottom: TabBar(
               controller: _tabController,
+              labelColor: Theme.of(context).colorScheme.onPrimary,
+              unselectedLabelColor: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withOpacity(0.7),
               tabs: [
                 Tab(
                   child: Row(
@@ -337,7 +346,7 @@ class _PostPageState extends State<PostPage>
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(25.0),
                     boxShadow: [
                       BoxShadow(
@@ -350,9 +359,19 @@ class _PostPageState extends State<PostPage>
                   ),
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    cursorColor: Theme.of(context).colorScheme.surface,
+                    decoration: InputDecoration(
                       hintText: 'ค้นหา...',
-                      prefixIcon: Icon(Icons.search, color: Colors.grey),
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 16.0,
@@ -369,7 +388,14 @@ class _PostPageState extends State<PostPage>
               ),
               const SizedBox(width: 8.0),
               PopupMenuButton<String?>(
-                icon: const Icon(Icons.filter_list),
+                icon: Icon(
+                  Icons.filter_list,
+                  color: Theme.of(context).colorScheme.surface,
+                ),
+                color: Theme.of(context).colorScheme.secondary,
+                elevation: 3, // ✅ ความสูงของเงา
+                shadowColor: Colors.white, // ✅ สีเงา
+                offset: const Offset(0, 60),
                 onSelected: (value) {
                   setState(() {
                     selectedCategory = value;
@@ -404,26 +430,32 @@ class _PostPageState extends State<PostPage>
           // แสดงสถานะตัวกรองและปุ่มเคลียร์
           if (searchQuery.isNotEmpty || selectedCategory != null)
             Container(
-              margin: const EdgeInsets.only(top: 8.0),
+              margin: const EdgeInsets.only(top: 16.0),
               padding: const EdgeInsets.symmetric(
                 horizontal: 12.0,
                 vertical: 8.0,
               ),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: Theme.of(context).colorScheme.secondary,
                 borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.filter_alt, size: 16, color: Colors.blue[600]),
+                  Icon(
+                    Icons.filter_alt,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'กรองโดย: ${_getActiveFiltersText()}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.blue[700],
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -550,7 +582,15 @@ class _PostPageState extends State<PostPage>
   Widget _buildPostItem(Post post, {required bool isMobile}) {
     if (isMobile) {
       return Card(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+        color: Theme.of(context).colorScheme.primary, // ✅ เพิ่มสีพื้นหลัง
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.onPrimary, // สีของกรอบ
+            width: 0.5, // ความหนาของกรอบ
+          ),
+        ),
         child: InkWell(
           onTap: () => _showPostDetail(post),
           child: Padding(
@@ -581,10 +621,14 @@ class _PostPageState extends State<PostPage>
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState ==
                                       ConnectionState.waiting) {
-                                    return const Text(
+                                    return Text(
                                       'กำลังโหลด...',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
+                                        color:
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .surface, // เปลี่ยนสีข้อความ
                                       ),
                                     );
                                   }
@@ -592,22 +636,33 @@ class _PostPageState extends State<PostPage>
                                       (snapshot.data ?? 'ไม่ระบุผู้โพสต์');
                                   return Text(
                                     name,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      color:
+                                          Theme.of(context)
+                                              .colorScheme
+                                              .surface, // เปลี่ยนสีข้อความ
                                     ),
                                   );
                                 },
                               )
                               : Text(
                                 post.userName,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.primary, // เปลี่ยนสีข้อความ
                                 ),
                               ),
                           Text(
                             '${post.isLostItem ? "แจ้งของหาย" : "แจ้งเจอของ"} • ${_getTimeAgo(post.createdAt)}',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color:
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .onPrimary, // สีเทาสำหรับรายละเอียด
                               fontSize: 12,
                             ),
                           ),
@@ -662,9 +717,13 @@ class _PostPageState extends State<PostPage>
                 const SizedBox(height: 8),
                 Text(
                   post.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color:
+                        Theme.of(
+                          context,
+                        ).colorScheme.onPrimaryContainer, // สีข้อความหัวเรื่อง
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -672,7 +731,7 @@ class _PostPageState extends State<PostPage>
                 const SizedBox(height: 4),
                 Text(
                   post.description,
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Colors.grey[700]),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -685,7 +744,14 @@ class _PostPageState extends State<PostPage>
       // Desktop/Tablet layout
       return Card(
         elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Theme.of(context).colorScheme.onPrimary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Colors.grey[300]!, // สีของกรอบ
+            width: 1.5, // ความหนาของกรอบ
+          ),
+        ),
         child: InkWell(
           onTap: () => _showPostDetail(post),
           borderRadius: BorderRadius.circular(16),
@@ -744,6 +810,7 @@ class _PostPageState extends State<PostPage>
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
+                                            color: Colors.black87,
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -756,6 +823,7 @@ class _PostPageState extends State<PostPage>
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
+                                          color: Colors.black87,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -767,6 +835,7 @@ class _PostPageState extends State<PostPage>
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
+                                      color: Colors.black87,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -795,6 +864,7 @@ class _PostPageState extends State<PostPage>
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

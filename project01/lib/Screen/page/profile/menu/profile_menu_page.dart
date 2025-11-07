@@ -61,11 +61,6 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           initiallyExpanded: isLegendExpanded,
-          onExpansionChanged: (expanded) {
-            setState(() {
-              isLegendExpanded = expanded;
-            });
-          },
           leading: Icon(Icons.info_outline, color: Colors.blue[600]),
           title: Text(
             'คำอธิบาย',
@@ -256,19 +251,18 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
             );
           },
         );
-        
+
         try {
           // ใช้ AuthService สำหรับ sign out แทน FirebaseAuth โดยตรง
           final authService = AuthService();
           await authService.signOut();
-          
+
           if (context.mounted) {
             // ปิด loading dialog
             if (Navigator.canPop(context)) {
               Navigator.of(context).pop();
             }
-            
-            
+
             // กลับไปหน้า login และ clear navigation stack
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(
@@ -283,7 +277,7 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
             if (Navigator.canPop(context)) {
               Navigator.of(context).pop();
             }
-            
+
             // แสดง error message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

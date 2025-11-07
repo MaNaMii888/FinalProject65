@@ -453,10 +453,6 @@ class _LostItemFormState extends State<LostItemForm> {
       _showError('กรุณาเลือกประเภทสิ่งของ');
       return;
     }
-    if (!agreedToTerms) {
-      _showError('กรุณายอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว');
-      return;
-    }
     final confirmed = await _showConfirmationDialog();
     if (!confirmed) return;
 
@@ -610,7 +606,10 @@ class _LostItemFormState extends State<LostItemForm> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('แจ้งของหาย'),
+          title: Text(
+            'แจ้งของหาย',
+            style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+          ),
           backgroundColor: Theme.of(context).colorScheme.primary,
           elevation: 0,
         ),
@@ -618,206 +617,199 @@ class _LostItemFormState extends State<LostItemForm> {
           key: _formKey,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: GestureDetector(
-                    onTap: isLoading ? null : _pickImage,
-                    child: Container(
-                      width: 150,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color:
-                              _imageFile != null ? Colors.green : Colors.grey,
-                          width: 2,
-                        ),
-                      ),
-                      child:
-                          _imageFile != null
-                              ? ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.file(
-                                  _imageFile!,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                              : const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_photo_alternate, size: 50),
-                                  Text('เพิ่มรูปภาพ'),
-                                  Text(
-                                    '(ไม่เกิน 5MB)',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: titleController,
-                  enabled: !isLoading,
-                  decoration: const InputDecoration(
-                    labelText: 'ชื่อสิ่งของที่หาย *',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.inventory),
-                  ),
-                  validator: ValidationService.validateTitle,
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'ประเภทสิ่งของ *',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                _buildCategoryRadios(),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(
-                          labelText: 'อาคารที่หาย *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.business),
-                        ),
-                        items:
-                            buildings
-                                .map(
-                                  (building) => DropdownMenuItem(
-                                    value: building,
-                                    child: Text(building),
-                                  ),
-                                )
-                                .toList(),
-                        value: selectedBuilding,
-                        validator:
-                            (value) => value == null ? 'กรุณาเลือกอาคาร' : null,
-                        onChanged:
-                            isLoading
-                                ? null
-                                : (value) =>
-                                    setState(() => selectedBuilding = value),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextFormField(
-                        controller: roomController,
-                        enabled: !isLoading,
-                        decoration: const InputDecoration(
-                          labelText: 'ห้องที่หาย *',
-                          hintText: '2102',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.room),
-                        ),
-                        validator: ValidationService.validateRoom,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: contactController,
-                  enabled: !isLoading,
-                  decoration: const InputDecoration(
-                    labelText: 'ช่องทางการติดต่อ *',
-                    hintText: 'เบอร์โทร 10 หลัก หรือ @lineID',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.contact_phone),
-                  ),
-                  validator: ValidationService.validateContact,
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(child: _buildDateField()),
-                    const SizedBox(width: 10),
-                    Expanded(child: _buildTimeField()),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: detailController,
-                  enabled: !isLoading,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'รายละเอียดเพิ่มเติม *',
-                    hintText:
-                        'ระบุลักษณะเฉพาะของสิ่งของ (อย่างน้อย 10 ตัวอักษร)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.description),
-                  ),
-                  validator: ValidationService.validateDetail,
-                ),
-                const SizedBox(height: 20),
-                CheckboxListTile(
-                  title: const Text('ยอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว *'),
-                  value: agreedToTerms,
-                  onChanged:
-                      isLoading
-                          ? null
-                          : (value) =>
-                              setState(() => agreedToTerms = value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    children: [
-                      if (isLoading && uploadProgress > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: LinearProgressIndicator(
-                            value: uploadProgress,
-                            backgroundColor: Colors.grey[300],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.red[400]!,
-                            ),
-                          ),
-                        ),
-                      ElevatedButton(
-                        onPressed: isLoading ? null : _submitForm,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red[400],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              color: Colors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: GestureDetector(
+                      onTap: isLoading ? null : _pickImage,
+                      child: Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color:
+                                _imageFile != null ? Colors.green : Colors.grey,
+                            width: 2,
                           ),
                         ),
                         child:
-                            isLoading
-                                ? const Row(
+                            _imageFile != null
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(
+                                    _imageFile!,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                                : const Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
+                                    Icon(Icons.add_photo_alternate, size: 50),
+                                    Text('เพิ่มรูปภาพ'),
+                                    Text(
+                                      '(ไม่เกิน 5MB)',
+                                      style: TextStyle(fontSize: 12),
                                     ),
-                                    SizedBox(width: 10),
-                                    Text('กำลังบันทึก...'),
                                   ],
-                                )
-                                : const Text('บันทึกการแจ้งของหาย'),
+                                ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: titleController,
+                    enabled: !isLoading,
+                    decoration: const InputDecoration(
+                      labelText: 'ชื่อสิ่งของที่หาย *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.inventory),
+                    ),
+                    validator: ValidationService.validateTitle,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'ประเภทสิ่งของ *',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  _buildCategoryRadios(),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(
+                            labelText: 'อาคารที่หาย *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.business),
+                          ),
+                          items:
+                              buildings
+                                  .map(
+                                    (building) => DropdownMenuItem(
+                                      value: building,
+                                      child: Text(building),
+                                    ),
+                                  )
+                                  .toList(),
+                          value: selectedBuilding,
+                          validator:
+                              (value) =>
+                                  value == null ? 'กรุณาเลือกอาคาร' : null,
+                          onChanged:
+                              isLoading
+                                  ? null
+                                  : (value) =>
+                                      setState(() => selectedBuilding = value),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextFormField(
+                          controller: roomController,
+                          enabled: !isLoading,
+                          decoration: const InputDecoration(
+                            labelText: 'ห้องที่หาย *',
+                            hintText: '2102',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.room),
+                          ),
+                          validator: ValidationService.validateRoom,
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: contactController,
+                    enabled: !isLoading,
+                    decoration: const InputDecoration(
+                      labelText: 'ช่องทางการติดต่อ *',
+                      hintText: 'เบอร์โทร 10 หลัก หรือ @lineID',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.contact_phone),
+                    ),
+                    validator: ValidationService.validateContact,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(child: _buildDateField()),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildTimeField()),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: detailController,
+                    enabled: !isLoading,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'รายละเอียดเพิ่มเติม *',
+                      hintText:
+                          'ระบุลักษณะเฉพาะของสิ่งของ (อย่างน้อย 10 ตัวอักษร)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    validator: ValidationService.validateDetail,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      children: [
+                        if (isLoading && uploadProgress > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: LinearProgressIndicator(
+                              value: uploadProgress,
+                              backgroundColor: Colors.grey[300],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.red[400]!,
+                              ),
+                            ),
+                          ),
+                        ElevatedButton(
+                          onPressed: isLoading ? null : _submitForm,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[400],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child:
+                              isLoading
+                                  ? const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('กำลังบันทึก...'),
+                                    ],
+                                  )
+                                  : const Text('บันทึกการแจ้งของหาย'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1034,10 +1026,6 @@ class _FindItemFormState extends State<FindItemForm> {
     }
     if (selectedCategory == null) {
       _showError('กรุณาเลือกประเภทสิ่งของ');
-      return;
-    }
-    if (!agreedToTerms) {
-      _showError('กรุณายอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว');
       return;
     }
     final confirmed = await _showConfirmationDialog();
@@ -1337,17 +1325,6 @@ class _FindItemFormState extends State<FindItemForm> {
                     prefixIcon: Icon(Icons.description),
                   ),
                   validator: ValidationService.validateDetail,
-                ),
-                const SizedBox(height: 20),
-                CheckboxListTile(
-                  title: const Text('ยอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว *'),
-                  value: agreedToTerms,
-                  onChanged:
-                      isLoading
-                          ? null
-                          : (value) =>
-                              setState(() => agreedToTerms = value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
                 ),
                 const SizedBox(height: 20),
                 SizedBox(

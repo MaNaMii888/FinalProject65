@@ -42,26 +42,39 @@ class FloorPlanB extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 // คอลัมน์กลาง
+                // คอลัมน์กลาง
                 Expanded(
                   flex: 4,
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(child: _buildingBox(context, "19")),
-                          const SizedBox(width: 4),
-                          Expanded(child: _buildingBox(context, "20")),
-                        ],
+                      Expanded(
+                        // ✅ เพิ่ม Expanded ให้ Row
+                        flex: 1, // ✅ กำหนด flex ให้ 19, 20
+                        child: Row(
+                          children: [
+                            Expanded(child: _buildingBox(context, "19")),
+                            const SizedBox(width: 5),
+                            Expanded(child: _buildingBox(context, "20")),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      _buildingBox(context, "18", height: 50),
+                      Expanded(
+                        // ✅ เปลี่ยนจาก fixed height เป็น Expanded
+                        flex: 1, // ✅ กำหนด flex ให้ 18
+                        child: _buildingBox(context, "18"),
+                      ),
                       const SizedBox(height: 8),
                       Expanded(
                         flex: 3,
-                        child: _buildingBox(context, "lobby", isSpecial: true),
+                        child: _buildingBox(context, "สนาม", isSpecial: true),
                       ),
                       const SizedBox(height: 8),
-                      _buildingBox(context, "33", height: 60),
+                      Expanded(
+                        // ✅ เปลี่ยนจาก fixed height เป็น Expanded
+                        flex: 1, // ✅ กำหนด flex ให้ 33
+                        child: _buildingBox(context, "33"),
+                      ),
                     ],
                   ),
                 ),

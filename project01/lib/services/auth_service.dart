@@ -100,7 +100,9 @@ class AuthService {
   // Cache mechanism - ปรับให้เหมาะสมกับการใช้งาน
   // ignore: unused_field
   static UserCredential? _cachedCredential;
+  // ignore: unused_field
   static DateTime? _lastSignInAttempt;
+  // ignore: unused_field
   static const Duration _cacheTimeout = Duration(minutes: 5); // ลดเวลา cache
   bool _checkRateLimit() {
     final now = DateTime.now();

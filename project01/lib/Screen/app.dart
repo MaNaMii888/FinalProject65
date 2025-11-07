@@ -38,7 +38,7 @@ class _NavigationExampleState extends State<NavigationExample> {
             currentPageIndex = index;
           });
         },
-        indicatorColor: const Color.fromARGB(255, 165, 148, 249),
+        indicatorColor: Theme.of(context).primaryColor,
         selectedIndex: currentPageIndex,
         destinations: const <Widget>[
           NavigationDestination(

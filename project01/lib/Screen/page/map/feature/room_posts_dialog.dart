@@ -17,75 +17,110 @@ class RoomPostsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.room,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          roomName,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        Text(
-                          buildingName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ],
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isLargeScreen = screenWidth > 600;
+
+    // ---- ใช้ responsive constraints แบบเดิมของคุณ ----
+    final BoxConstraints constraints = BoxConstraints(
+      maxWidth: 600,
+      maxHeight:
+          isLargeScreen
+              ? screenWidth * 0.7
+              : MediaQuery.of(context).size.height * 0.6,
+    );
+
+    // ---- เนื้อหาหลักของ dialog ----
+    Widget contentContainer = Container(
+      constraints: constraints,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
               ),
             ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.room,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        roomName,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        buildingName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ],
+            ),
+          ),
 
-            // Content
-            Expanded(
+          // ส่วนล่าง (โพสต์)
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onPrimary,
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(16),
+                ),
+              ),
               child:
                   posts.isEmpty
                       ? _buildEmptyState(context)
                       : _buildPostsList(context),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+
+    // ---- Dialog responsive สำหรับจอใหญ่ ----
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.transparent,
+      child:
+          isLargeScreen
+              ? FractionallySizedBox(
+                widthFactor: 0.6, // 60% ของหน้าจอ — ดูโปรสุดบน Desktop
+                child: contentContainer,
+              )
+              : contentContainer,
     );
   }
 
+  // ---------- Empty State ----------
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
@@ -117,6 +152,7 @@ class RoomPostsDialog extends StatelessWidget {
     );
   }
 
+  // ---------- Posts List ----------
   Widget _buildPostsList(BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -124,20 +160,20 @@ class RoomPostsDialog extends StatelessWidget {
       itemBuilder: (context, index) {
         final post = posts[index];
         return Card(
-          color: Theme.of(context).cardColor,
+          color: Theme.of(context).colorScheme.onPrimary,
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           child: InkWell(
-            onTap: () => _showPostDetail(context, post),
             borderRadius: BorderRadius.circular(12),
+            onTap: () => _showPostDetail(context, post),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // Status icon
+                  // Icon สถานะ
                   Container(
                     width: 48,
                     height: 48,
@@ -165,7 +201,7 @@ class RoomPostsDialog extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
 
-                  // Post details
+                  // เนื้อหาโพสต์
                   Flexible(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +239,6 @@ class RoomPostsDialog extends StatelessWidget {
                               ).colorScheme.onSurface.withOpacity(0.5),
                             ),
                             const SizedBox(width: 4),
-                            // poster name (may be fetched)
                             _posterNameWidget(context, post),
                             const SizedBox(width: 12),
                             Icon(
@@ -232,7 +267,7 @@ class RoomPostsDialog extends StatelessWidget {
                     ),
                   ),
 
-                  // Arrow icon
+                  // ลูกศรทางขวา
                   SizedBox(
                     width: 28,
                     child: Icon(
@@ -250,7 +285,7 @@ class RoomPostsDialog extends StatelessWidget {
   }
 
   void _showPostDetail(BuildContext context, Post post) {
-    Navigator.of(context).pop(); // close dialog first
+    Navigator.of(context).pop();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -258,7 +293,7 @@ class RoomPostsDialog extends StatelessWidget {
     );
   }
 
-  // Simple static cache for fetched user names to avoid repeated reads per dialog
+  // ---------- ชื่อผู้โพสต์ ----------
   static final Map<String, String> _userNameCache = {};
 
   Widget _posterNameWidget(BuildContext context, Post post) {
@@ -275,7 +310,6 @@ class RoomPostsDialog extends StatelessWidget {
       );
     }
 
-    // If we already cached the name for this userId, show it
     final uid = post.userId;
     if (uid.isNotEmpty && _userNameCache.containsKey(uid)) {
       return Flexible(
@@ -287,7 +321,6 @@ class RoomPostsDialog extends StatelessWidget {
       );
     }
 
-    // Otherwise fetch it
     if (uid.isEmpty) {
       return Text('ไม่ระบุผู้โพสต์', style: textStyle);
     }
@@ -301,16 +334,11 @@ class RoomPostsDialog extends StatelessWidget {
         try {
           final data = snapshot.data?.data();
           final name =
-              (data != null
-                      ? (data['name'] ??
-                          data['displayName'] ??
-                          data['fullName'] ??
-                          '')
-                      : '')
+              (data?['name'] ?? data?['displayName'] ?? data?['fullName'] ?? '')
                   .toString()
                   .trim();
           final result = name.isNotEmpty ? name : 'ไม่ระบุผู้โพสต์';
-          if (uid.isNotEmpty) _userNameCache[uid] = result;
+          _userNameCache[uid] = result;
           return Flexible(
             child: Text(
               result,
@@ -318,7 +346,7 @@ class RoomPostsDialog extends StatelessWidget {
               style: textStyle,
             ),
           );
-        } catch (e) {
+        } catch (_) {
           return Text('ไม่ระบุผู้โพสต์', style: textStyle);
         }
       },

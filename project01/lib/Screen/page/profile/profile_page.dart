@@ -4,8 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
 import 'package:project01/Screen/page/profile/menu/profile_menu_page.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
-import 'package:project01/providers/theme_provider.dart';
-import 'package:provider/provider.dart';
+// theme provider removed from this page per request
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
@@ -98,67 +97,37 @@ class _ProfilePageState extends State<ProfilePage>
       child: Scaffold(
         backgroundColor: const Color(0xFFEFFFFF),
         appBar: AppBar(
-          leading: Builder(
-            builder: (context) {
-              return PopupMenuButton<ThemeMode>(
-                icon: Icon(Icons.brightness_6, color: Colors.deepPurple),
-                tooltip: 'เปลี่ยนธีม',
-                onSelected: (mode) {
-                  Provider.of<ThemeProvider>(
-                    context,
-                    listen: false,
-                  ).setThemeMode(mode);
-                },
-                itemBuilder:
-                    (context) => [
-                      PopupMenuItem(
-                        value: ThemeMode.system,
-                        child: Row(
-                          children: [
-                            Icon(Icons.phone_android, color: Colors.grey[700]),
-                            const SizedBox(width: 8),
-                            const Text('ตามระบบ'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: ThemeMode.light,
-                        child: Row(
-                          children: [
-                            Icon(Icons.light_mode, color: Colors.amber[700]),
-                            const SizedBox(width: 8),
-                            const Text('โหมดสว่าง'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: ThemeMode.dark,
-                        child: Row(
-                          children: [
-                            Icon(Icons.dark_mode, color: Colors.blueGrey[700]),
-                            const SizedBox(width: 8),
-                            const Text('โหมดมืด'),
-                          ],
-                        ),
-                      ),
-                    ],
-              );
-            },
-          ),
+          // Theme selector removed per request
           title: const Text('โปรไฟล์'),
           centerTitle: true,
           backgroundColor: Colors.white,
           elevation: 1,
           actions: [
-            IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfileMenuPage(),
+            // Menu button styled as circular button (instead of square with border)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileMenuPage(),
+                      ),
                     ),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).primaryColor.withOpacity(0.08),
                   ),
+                  child: Icon(
+                    Icons.menu,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -458,6 +427,7 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  // ignore: unused_element
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Column(
       children: [
@@ -644,10 +614,10 @@ class _ProfilePageState extends State<ProfilePage>
                                                     context,
                                                     true,
                                                   ),
-                                              child: const Text('ลบ'),
                                               style: TextButton.styleFrom(
                                                 foregroundColor: Colors.red,
                                               ),
+                                              child: const Text('ลบ'),
                                             ),
                                           ],
                                         ),

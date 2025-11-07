@@ -207,11 +207,11 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                                                           context,
                                                           true,
                                                         ),
-                                                    child: const Text('ลบ'),
                                                     style: TextButton.styleFrom(
                                                       foregroundColor:
                                                           Colors.red,
                                                     ),
+                                                    child: const Text('ลบ'),
                                                   ),
                                                 ],
                                               ),

@@ -19,7 +19,9 @@ class AuthService {
 
   static Future<void> requireAuth(BuildContext context) async {
     if (!isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/login');
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
       throw Exception('User not authenticated');
     }
   }
@@ -453,10 +455,6 @@ class _LostItemFormState extends State<LostItemForm> {
       _showError('กรุณาเลือกประเภทสิ่งของ');
       return;
     }
-    if (!agreedToTerms) {
-      _showError('กรุณายอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว');
-      return;
-    }
     final confirmed = await _showConfirmationDialog();
     if (!confirmed) return;
 
@@ -756,17 +754,6 @@ class _LostItemFormState extends State<LostItemForm> {
                   validator: ValidationService.validateDetail,
                 ),
                 const SizedBox(height: 20),
-                CheckboxListTile(
-                  title: const Text('ยอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว *'),
-                  value: agreedToTerms,
-                  onChanged:
-                      isLoading
-                          ? null
-                          : (value) =>
-                              setState(() => agreedToTerms = value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: Column(
@@ -1036,12 +1023,9 @@ class _FindItemFormState extends State<FindItemForm> {
       _showError('กรุณาเลือกประเภทสิ่งของ');
       return;
     }
-    if (!agreedToTerms) {
-      _showError('กรุณายอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว');
-      return;
-    }
+
     final confirmed = await _showConfirmationDialog();
-    if (!confirmed) return;
+    if (!confirmed || !mounted) return; // ✅ เพิ่มการตรวจสอบ mounted
 
     setState(() {
       isLoading = true;
@@ -1049,26 +1033,34 @@ class _FindItemFormState extends State<FindItemForm> {
     });
 
     try {
+      if (!mounted) return; // ✅ ตรวจสอบก่อน AuthService
       await AuthService.requireAuth(context);
 
       String? imageUrl;
       if (_imageFile != null) {
+        if (!mounted) return; // ✅ ตรวจสอบก่อน setState
         setState(() {
           uploadProgress = 0.1;
         });
+
         imageUrl = await ImageService.uploadImageToFirebase(
           _imageFile!,
-          'found_items',
+          'lost_items',
           onProgress: (progress) {
-            setState(() {
-              // ปรับ progress จาก 0.1-0.8 สำหรับการอัพโหลด
-              uploadProgress = 0.1 + (progress * 0.7);
-            });
+            if (mounted) {
+              // ✅ ตรวจสอบใน callback
+              setState(() {
+                uploadProgress = 0.1 + (progress * 0.7);
+              });
+            }
           },
         );
+
         if (imageUrl == null) {
           throw Exception('ไม่สามารถอัพโหลดรูปภาพได้');
         }
+
+        if (!mounted) return; // ✅ ตรวจสอบหลัง async
         setState(() => uploadProgress = 0.85);
       }
 
@@ -1084,7 +1076,7 @@ class _FindItemFormState extends State<FindItemForm> {
         'time': timeController.text,
         'contact': contactController.text.trim(),
         'detail': detailController.text.trim(),
-        'isLostItem': false,
+        'isLostItem': true,
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -1093,27 +1085,33 @@ class _FindItemFormState extends State<FindItemForm> {
       };
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
-
-      // เรียก Smart Matching Service สำหรับโพสต์เจอของ
       await SmartMatchingService.processNewPost(post);
-
-      // อัพเดทจำนวนโพสต์ของผู้ใช้
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
-        false, // isLostItem = false สำหรับ found item
+        true,
       );
 
+      if (!mounted) return; // ✅ ตรวจสอบก่อน setState
       setState(() => uploadProgress = 1.0);
 
       if (mounted) {
+        // ✅ ตรวจสอบก่อนแสดง success
         _showSuccess('บันทึกข้อมูลสำเร็จ');
-        Navigator.pop(context, true);
+        // เพิ่ม delay เล็กน้อยก่อน pop เพื่อให้ user เห็น success message
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       debugPrint('Submit error: $e');
-      _showError('เกิดข้อผิดพลาด: ${e.toString()}');
+      if (mounted) {
+        // ✅ ตรวจสอบก่อนแสดง error
+        _showError('เกิดข้อผิดพลาด: ${e.toString()}');
+      }
     } finally {
       if (mounted) {
+        // ✅ ตรวจสอบใน finally
         setState(() {
           isLoading = false;
           uploadProgress = 0.0;
@@ -1157,28 +1155,27 @@ class _FindItemFormState extends State<FindItemForm> {
         false;
   }
 
+  // ✅ แก้ไขฟังก์ชัน _showError และ _showSuccess
   void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
+    if (!mounted) return; // เพิ่มการตรวจสอบก่อน context
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   void _showSuccess(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    if (!mounted) return; // เพิ่มการตรวจสอบก่อน context
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -1337,17 +1334,6 @@ class _FindItemFormState extends State<FindItemForm> {
                     prefixIcon: Icon(Icons.description),
                   ),
                   validator: ValidationService.validateDetail,
-                ),
-                const SizedBox(height: 20),
-                CheckboxListTile(
-                  title: const Text('ยอมรับเงื่อนไขและนโยบายความเป็นส่วนตัว *'),
-                  value: agreedToTerms,
-                  onChanged:
-                      isLoading
-                          ? null
-                          : (value) =>
-                              setState(() => agreedToTerms = value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
                 ),
                 const SizedBox(height: 20),
                 SizedBox(

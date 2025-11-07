@@ -5,10 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/Screen/dashboard.dart'; // หน้าหลักหลังล็อกอิน
 import 'package:project01/Screen/login.dart'; // เพิ่ม import
 import 'package:project01/Screen/page/profile/profile_page.dart';
-import 'package:provider/provider.dart';
 import 'package:project01/providers/theme_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:project01/firebase_options.dart';
 import 'dart:async';
+// ignore: unused_import
 import 'package:project01/services/auth_service.dart';
 
 Future<void> main() async {
@@ -48,7 +49,7 @@ Future<void> main() async {
       ]);
 
       runApp(
-        ChangeNotifierProvider(
+        ChangeNotifierProvider<ThemeProvider>(
           create: (_) => ThemeProvider(),
           child: MyApp(
             firebaseInitialized: firebaseInitialized,
@@ -77,20 +78,16 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Your App Name',
           debugShowCheckedModeBanner: false,
+          theme: themeProvider.theme,
           home: Builder(
             builder: (context) {
               if (!firebaseInitialized) {
-                // Show actionable error screen if Firebase failed to initialize
                 return ErrorInitScreen(error: initError);
               }
 
               return StreamBuilder<User?>(
                 stream: FirebaseAuth.instance.authStateChanges(),
                 builder: (context, snapshot) {
-                  print('Auth state changed: ${snapshot.connectionState}');
-                  print('Has user: ${snapshot.hasData}');
-                  print('User: ${snapshot.data?.email}');
-
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Scaffold(
                       body: Center(
@@ -107,11 +104,9 @@ class MyApp extends StatelessWidget {
                   }
 
                   if (snapshot.hasData && snapshot.data != null) {
-                    print('User is signed in, navigating to dashboard');
                     return const DashboardPage();
                   }
 
-                  print('No user found, showing login page');
                   return const LoginPage();
                 },
               );
@@ -121,16 +116,6 @@ class MyApp extends StatelessWidget {
             '/login': (context) => const LoginPage(),
             '/dashboard': (context) => const DashboardPage(),
             '/profile': (context) => const ProfilePage(),
-          },
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          themeMode: themeProvider.themeMode,
-          builder: (context, child) {
-            // avoid forcing child! — provide a safe fallback
-            return ScrollConfiguration(
-              behavior: const ScrollBehavior(),
-              child: child ?? const SizedBox.shrink(),
-            );
           },
           onUnknownRoute: (settings) {
             return MaterialPageRoute(
@@ -170,29 +155,6 @@ MaterialColor createMaterialColor(Color color) {
   return MaterialColor(color.toARGB32(), swatch);
 }
 
-class ThemeSwitcher extends StatelessWidget {
-  const ThemeSwitcher({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, _) {
-        // themeProvider.themeMode is non-nullable; derive boolean directly
-        final bool isDark = themeProvider.themeMode == ThemeMode.dark;
-        return Switch(
-          value: isDark,
-          onChanged: (value) {
-            // onChanged will always provide non-null bool for standard Switch
-            themeProvider.setThemeMode(
-              value ? ThemeMode.dark : ThemeMode.light,
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
 
@@ -201,8 +163,7 @@ class CustomDrawer extends StatelessWidget {
     return Drawer(
       child: ListView(
         children: [
-          // ...other items...
-          ListTile(title: const Text('เปลี่ยนธีม'), trailing: ThemeSwitcher()),
+          // Theme switching removed — app uses a single global theme
         ],
       ),
     );

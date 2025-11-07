@@ -70,8 +70,9 @@ class _DashboardPageState extends State<DashboardPage> {
         if (screenWidth < 600) {
           // Mobile - ใช้ BottomNavigationBar ปกติ
           return BottomNavigationBar(
+            backgroundColor: const Color(0xFF171717),
             currentIndex: _selectedIndex,
-            selectedItemColor: Theme.of(context).primaryColor,
+            selectedItemColor: const Color(0xFFEDEDED),
             unselectedItemColor: Colors.grey,
             type: BottomNavigationBarType.fixed,
             items: const [
