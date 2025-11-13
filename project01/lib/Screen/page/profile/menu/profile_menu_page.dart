@@ -46,119 +46,12 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.onPrimary,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: isLegendExpanded,
-          leading: Icon(Icons.info_outline, color: Colors.blue[600]),
-          title: Text(
-            'คำอธิบาย',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue[600],
-            ),
-          ),
-          trailing: SizedBox.shrink(),
-          children: [
-            AnimatedOpacity(
-              opacity: isLegendExpanded ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 400),
-                curve: Curves.easeInOutCubic,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Column(
-                    children: [
-                      _buildLegendItem(
-                        color: Colors.red[100]!,
-                        text: 'ของหาย',
-                        description: 'ห้องที่มีการแจ้งของหาย',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildLegendItem(
-                        color: Colors.green[100]!,
-                        text: 'เจอของ',
-                        description: 'ห้องที่มีการแจ้งเจอของ',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildLegendItem(
-                        color: Colors.orange[100]!,
-                        text: 'ทั้งสอง',
-                        description: 'ห้องที่มีทั้งของหายและเจอของ',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildLegendItem(
-                        color: Colors.grey[200]!,
-                        text: 'ไม่มีโพสต์',
-                        description: 'ห้องที่ยังไม่มีโพสต์ใดๆ',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildLegendItem({
-    required Color color,
-    required String text,
-    required String description,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      child: Row(
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildLogoutButton(BuildContext context) {
     return Container(
