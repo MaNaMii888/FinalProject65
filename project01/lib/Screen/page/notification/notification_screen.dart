@@ -99,12 +99,17 @@ class _NotificationBottomSheetState extends State<NotificationBottomSheet> {
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationScreen(),
-                          ),
-                        );
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const NotificationScreen(),
+                              ),
+                            );
+                          }
+                        });
                       },
                       child: const Text('ดูทั้งหมด'),
                     ),
@@ -201,35 +206,41 @@ class _NotificationBottomSheetState extends State<NotificationBottomSheet> {
   }
 
   void _handleMatchNotification(NotificationModel notification) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'เปิดรายละเอียดการจับคู่: ${notification.data['newItemTitle']}',
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'เปิดรายละเอียดการจับคู่: ${notification.data['newItemTitle']}',
+          ),
+          action: SnackBarAction(
+            label: 'ดูรายละเอียด',
+            onPressed: () {
+              // TODO: Navigate to item details
+            },
+          ),
         ),
-        action: SnackBarAction(
-          label: 'ดูรายละเอียด',
-          onPressed: () {
-            // TODO: Navigate to item details
-          },
-        ),
-      ),
-    );
+      );
+    }
   }
 
   void _handleItemClaimedNotification(NotificationModel notification) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${notification.data['claimerName']} ต้องการรับสิ่งของของคุณ',
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '${notification.data['claimerName']} ต้องการรับสิ่งของของคุณ',
+          ),
+          action: SnackBarAction(
+            label: 'ดูรายละเอียด',
+            onPressed: () {
+              // TODO: Navigate to claim details
+            },
+          ),
         ),
-        action: SnackBarAction(
-          label: 'ดูรายละเอียด',
-          onPressed: () {
-            // TODO: Navigate to claim details
-          },
-        ),
-      ),
-    );
+      );
+    }
   }
 
   void _showNotificationDetails(NotificationModel notification) {
@@ -254,12 +265,15 @@ class _NotificationBottomSheetState extends State<NotificationBottomSheet> {
     if (currentUser == null) return;
     final success = await NotificationService.markAllAsRead(currentUser.uid);
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('อ่านทั้งหมดแล้ว'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger != null) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('อ่านทั้งหมดแล้ว'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 }
@@ -643,12 +657,15 @@ class _NotificationScreenState extends State<NotificationScreen>
                   final success =
                       await NotificationService.deleteAllNotifications(userId);
                   if (success && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('ลบการแจ้งเตือนทั้งหมดแล้ว'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    final messenger = ScaffoldMessenger.maybeOf(context);
+                    if (messenger != null) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('ลบการแจ้งเตือนทั้งหมดแล้ว'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
                   }
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -716,12 +733,15 @@ class _NotificationScreenState extends State<NotificationScreen>
       notificationId,
     );
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('ลบการแจ้งเตือนแล้ว'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger != null) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('ลบการแจ้งเตือนแล้ว'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 }

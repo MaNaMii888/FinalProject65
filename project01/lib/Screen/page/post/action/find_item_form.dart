@@ -33,9 +33,12 @@ class _FindItemFormState extends State<FindItemForm> {
       appBar: AppBar(
         title: Text(
           'แจ้งพบของ',
-          style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
+        backgroundColor: Colors.green,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(
@@ -256,43 +259,48 @@ class _FindItemFormState extends State<FindItemForm> {
                         value?.isEmpty ?? true ? 'กรุณากรอกรายละเอียด' : null,
               ),
               const SizedBox(height: 20),
-
               // Submit button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+              ElevatedButton.icon(
+                onPressed: isLoading ? null : _submitForm,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 18,
+                    horizontal: 32,
                   ),
-                  child:
-                      isLoading
-                          ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(width: 10),
-                              Text(
-                                'กำลังบันทึก...',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          )
-                          : const Text(
-                            'บันทึกการแจ้งพบของ',
-                            style: TextStyle(color: Colors.white),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 3,
+                  shadowColor: Theme.of(
+                    context,
+                  ).colorScheme.surface.withOpacity(0.4),
+                  minimumSize: const Size(double.infinity, 56),
+                ),
+                icon:
+                    isLoading
+                        ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
+                        )
+                        : const Icon(
+                          Icons.check_circle_outline,
+                          size: 24,
+                        ), // ✅ ไอคอนเช็ค
+                label: Text(
+                  isLoading ? 'กำลังบันทึก...' : 'บันทึกการแจ้งของหาย',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
             ],

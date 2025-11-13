@@ -219,9 +219,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('ไม่สามารถเลือกรูปภาพได้: $e')));
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('ไม่สามารถเลือกรูปภาพได้: $e')),
+        );
+      }
     }
   }
 
@@ -309,12 +312,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('บันทึกข้อมูลสำเร็จ'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger != null) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('บันทึกข้อมูลสำเร็จ'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
         Navigator.pop(context);
       }
     } catch (e) {
@@ -334,24 +340,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'เกิดปัญหาชั่วคราวกับระบบเชื่อมต่อ (Pigeon). กรุณาออกจากระบบ แล้วเข้าสู่ระบบใหม่ แล้วลองอัพเดตรูปอีกครั้ง',
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          if (messenger != null) {
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'เกิดปัญหาชั่วคราวกับระบบเชื่อมต่อ (Pigeon). กรุณาออกจากระบบ แล้วเข้าสู่ระบบใหม่ แล้วลองอัพเดตรูปอีกครั้ง',
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 5),
               ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 5),
-            ),
-          );
+            );
+          }
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('เกิดข้อผิดพลาด: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          if (messenger != null) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('เกิดข้อผิดพลาด: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       }
     } finally {

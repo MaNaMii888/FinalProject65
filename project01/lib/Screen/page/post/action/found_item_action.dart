@@ -596,6 +596,10 @@ class _LostItemFormState extends State<LostItemForm> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.onPrimary;
+    final secondaryColor = Theme.of(context).colorScheme.secondary;
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+
     return WillPopScope(
       onWillPop: () async {
         if (isLoading) {
@@ -605,23 +609,57 @@ class _LostItemFormState extends State<LostItemForm> {
         return true;
       },
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.primary,
         appBar: AppBar(
           title: Text(
             'แจ้งของหาย',
-            style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+            style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: surfaceColor,
+          iconTheme: IconThemeData(color: primaryColor),
           elevation: 0,
         ),
-        body: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              color: Colors.white,
+        body: Theme(
+          data: Theme.of(context).copyWith(
+            // ✅ ตั้งค่า TextField ทั้งหมด
+            inputDecorationTheme: InputDecorationTheme(
+              labelStyle: TextStyle(color: primaryColor),
+              hintStyle: TextStyle(color: primaryColor.withOpacity(0.6)),
+              prefixIconColor: primaryColor,
+              suffixIconColor: primaryColor,
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: primaryColor, width: 1.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: primaryColor, width: 2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderSide: const BorderSide(color: Colors.red, width: 2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              errorStyle: const TextStyle(color: Colors.red),
+            ),
+            // ✅ ตั้งค่าสีเคอร์เซอร์
+            textSelectionTheme: TextSelectionThemeData(
+              cursorColor: primaryColor,
+              selectionColor: primaryColor.withOpacity(0.3),
+              selectionHandleColor: primaryColor,
+            ),
+          ),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ✅ กรอบเพิ่มรูป
                   Center(
                     child: GestureDetector(
                       onTap: isLoading ? null : _pickImage,
@@ -629,31 +667,48 @@ class _LostItemFormState extends State<LostItemForm> {
                         width: 150,
                         height: 150,
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
+                          color: secondaryColor.withOpacity(
+                            0.5,
+                          ), // ✅ พื้นหลัง secondary opacity 0.5
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color:
-                                _imageFile != null ? Colors.green : Colors.grey,
+                            color: primaryColor, // ✅ กรอบสี onPrimary
                             width: 2,
                           ),
                         ),
                         child:
                             _imageFile != null
                                 ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                   child: Image.file(
                                     _imageFile!,
                                     fit: BoxFit.cover,
                                   ),
                                 )
-                                : const Column(
+                                : Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.add_photo_alternate, size: 50),
-                                    Text('เพิ่มรูปภาพ'),
+                                    Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 50,
+                                      color:
+                                          surfaceColor, // ✅ ไอคอนสีตามพื้นหลัง
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'เพิ่มรูปภาพ',
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                     Text(
                                       '(ไม่เกิน 5MB)',
-                                      style: TextStyle(fontSize: 12),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: primaryColor.withOpacity(0.7),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -661,38 +716,57 @@ class _LostItemFormState extends State<LostItemForm> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  // ✅ ชื่อสิ่งของ
                   TextFormField(
                     controller: titleController,
                     enabled: !isLoading,
+                    style: TextStyle(color: primaryColor, fontSize: 16),
                     decoration: const InputDecoration(
                       labelText: 'ชื่อสิ่งของที่หาย *',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.inventory),
                     ),
                     validator: ValidationService.validateTitle,
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+
+                  // ✅ ประเภทสิ่งของ
+                  Text(
                     'ประเภทสิ่งของ *',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                      fontSize: 16,
+                    ),
                   ),
+                  const SizedBox(height: 8),
                   _buildCategoryRadios(),
                   const SizedBox(height: 20),
+
+                  // ✅ อาคารและห้อง
                   Row(
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           decoration: const InputDecoration(
                             labelText: 'อาคารที่หาย *',
-                            border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.business),
+                          ),
+                          style: TextStyle(color: primaryColor, fontSize: 16),
+                          dropdownColor: Theme.of(context).colorScheme.primary,
+                          icon: Icon(
+                            Icons.arrow_drop_down,
+                            color: primaryColor,
                           ),
                           items:
                               buildings
                                   .map(
                                     (building) => DropdownMenuItem(
                                       value: building,
-                                      child: Text(building),
+                                      child: Text(
+                                        building,
+                                        style: TextStyle(color: primaryColor),
+                                      ),
                                     ),
                                   )
                                   .toList(),
@@ -712,10 +786,10 @@ class _LostItemFormState extends State<LostItemForm> {
                         child: TextFormField(
                           controller: roomController,
                           enabled: !isLoading,
+                          style: TextStyle(color: primaryColor, fontSize: 16),
                           decoration: const InputDecoration(
                             labelText: 'ห้องที่หาย *',
                             hintText: '2102',
-                            border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.room),
                           ),
                           validator: ValidationService.validateRoom,
@@ -724,18 +798,22 @@ class _LostItemFormState extends State<LostItemForm> {
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  // ✅ ช่องทางติดต่อ
                   TextFormField(
                     controller: contactController,
                     enabled: !isLoading,
+                    style: TextStyle(color: primaryColor, fontSize: 16),
                     decoration: const InputDecoration(
                       labelText: 'ช่องทางการติดต่อ *',
                       hintText: 'เบอร์โทร 10 หลัก หรือ @lineID',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.contact_phone),
                     ),
                     validator: ValidationService.validateContact,
                   ),
                   const SizedBox(height: 20),
+
+                  // ✅ วันที่และเวลา
                   Row(
                     children: [
                       Expanded(child: _buildDateField()),
@@ -744,20 +822,25 @@ class _LostItemFormState extends State<LostItemForm> {
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  // ✅ รายละเอียด
                   TextFormField(
                     controller: detailController,
                     enabled: !isLoading,
                     maxLines: 3,
+                    style: TextStyle(color: primaryColor, fontSize: 16),
                     decoration: const InputDecoration(
                       labelText: 'รายละเอียดเพิ่มเติม *',
                       hintText:
                           'ระบุลักษณะเฉพาะของสิ่งของ (อย่างน้อย 10 ตัวอักษร)',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.description),
+                      alignLabelWithHint: true,
                     ),
                     validator: ValidationService.validateDetail,
                   ),
                   const SizedBox(height: 20),
+
+                  // ✅ ปุ่มบันทึก
                   SizedBox(
                     width: double.infinity,
                     child: Column(
@@ -769,41 +852,52 @@ class _LostItemFormState extends State<LostItemForm> {
                               value: uploadProgress,
                               backgroundColor: Colors.grey[300],
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.red[400]!,
+                                surfaceColor,
                               ),
                             ),
                           ),
-                        ElevatedButton(
+                        ElevatedButton.icon(
                           onPressed: isLoading ? null : _submitForm,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red[400],
+                            backgroundColor: surfaceColor,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                              horizontal: 32,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 3,
+                            shadowColor: surfaceColor.withOpacity(0.4),
+                            minimumSize: const Size(double.infinity, 56),
+                          ),
+                          icon:
+                              isLoading
+                                  ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                  : const Icon(
+                                    Icons.check_circle_outline,
+                                    size: 24,
+                                  ),
+                          label: Text(
+                            isLoading
+                                ? 'กำลังบันทึก...'
+                                : 'บันทึกการแจ้งของหาย',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
                             ),
                           ),
-                          child:
-                              isLoading
-                                  ? const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text('กำลังบันทึก...'),
-                                    ],
-                                  )
-                                  : const Text('บันทึกการแจ้งของหาย'),
                         ),
                       ],
                     ),
@@ -1181,9 +1275,18 @@ class _FindItemFormState extends State<FindItemForm> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('แจ้งเจอของ'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          elevation: 0,
+          title: const Text(
+            'แจ้งเจอของ',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: const Color(0xFF4CAF50), // เขียวสด Material Design
+          elevation: 2,
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
         body: Form(
           key: _formKey,
@@ -1342,37 +1445,46 @@ class _FindItemFormState extends State<FindItemForm> {
                             ),
                           ),
                         ),
-                      ElevatedButton(
+                      ElevatedButton.icon(
                         onPressed: isLoading ? null : _submitForm,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[400],
+                          backgroundColor: Colors.green[600],
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                            horizontal: 32,
+                          ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 3,
+                          shadowColor: Colors.green.withOpacity(0.4),
+                          minimumSize: const Size(double.infinity, 56),
+                        ),
+                        icon:
+                            isLoading
+                                ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                                : const Icon(
+                                  Icons.check_circle_outline,
+                                  size: 24,
+                                ), // ✅ ไอคอนเช็ค
+                        label: Text(
+                          isLoading ? 'กำลังบันทึก...' : 'บันทึกการแจ้งเจอของ',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
                           ),
                         ),
-                        child:
-                            isLoading
-                                ? const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text('กำลังบันทึก...'),
-                                  ],
-                                )
-                                : const Text('บันทึกการแจ้งเจอของ'),
                       ),
                     ],
                   ),

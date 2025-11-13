@@ -1,10 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:project01/Screen/login.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
-import 'package:project01/Screen/page/profile/menu/profile_menu_page.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
-// theme provider removed from this page per request
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
@@ -40,11 +40,11 @@ class _ProfilePageState extends State<ProfilePage>
     // เช็คว่ามีการล็อกอินหรือไม่
     if (user == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFEFFFFF),
+        backgroundColor: Theme.of(context).primaryColor,
         appBar: AppBar(
           title: const Text('โปรไฟล์'),
           centerTitle: true,
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).primaryColor,
           elevation: 1,
         ),
         body: Center(
@@ -84,47 +84,47 @@ class _ProfilePageState extends State<ProfilePage>
         if (lastBackPressed == null ||
             now.difference(lastBackPressed!) > const Duration(seconds: 2)) {
           lastBackPressed = now;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('กดย้อนกลับอีกครั้งเพื่อออกจากแอป'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          if (messenger != null) {
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('กดย้อนกลับอีกครั้งเพื่อออกจากแอป'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
           return false;
         }
         return true;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFEFFFFF),
+        backgroundColor: Theme.of(context).primaryColor,
         appBar: AppBar(
-          // Theme selector removed per request
-          title: const Text('โปรไฟล์'),
+          title: Text(
+            'โปรไฟล์',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimary, // สีตัวอักษร
+              fontSize: 20, // สามารถกำหนดขนาดและ font
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           centerTitle: true,
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).primaryColor,
           elevation: 1,
           actions: [
             // Menu button styled as circular button (instead of square with border)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: InkWell(
-                borderRadius: BorderRadius.circular(24),
                 onTap:
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfileMenuPage(),
-                      ),
-                    ),
+                    () =>
+                        _showMenuBottomSheet(context), // เรียก Bottom Sheet เลย
                 child: Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Theme.of(context).primaryColor.withOpacity(0.08),
-                  ),
                   child: Icon(
                     Icons.menu,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
               ),
@@ -139,6 +139,186 @@ class _ProfilePageState extends State<ProfilePage>
         ),
       ),
     );
+  }
+
+  // เพิ่มฟังก์ชันนี้ใน State class
+  void _showMenuBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
+      isScrollControlled: true,
+      builder:
+          (context) => BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1F1F1F),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[600],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+
+                    // แก้ไขโปรไฟล์
+                    _buildMenuItem(
+                      icon: Icons.edit_outlined,
+                      title: 'แก้ไขโปรไฟล์',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) =>
+                                    const EditProfilePage(), // 👈 แก้ไขตรงนี้
+                          ),
+                        );
+                      },
+                    ),
+
+                    // ออกจากระบบ
+                    _buildMenuItem(
+                      icon: Icons.logout,
+                      title: 'ออกจากระบบ',
+                      textColor: Colors.red[400],
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showLogoutDialog(context);
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? textColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Icon(icon, color: textColor ?? Colors.white, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: textColor ?? Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('ยืนยันการออกจากระบบ'),
+            content: const Text('คุณต้องการออกจากระบบใช่หรือไม่?'),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('ยกเลิก'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('ยืนยัน', style: TextStyle(color: Colors.red[600])),
+              ),
+            ],
+          ),
+    ).then((confirm) {
+      if (confirm == true) {
+        // ส่ง context ตรงนี้
+        _performLogout();
+      }
+    });
+  }
+
+  Future<void> _performLogout() async {
+    // ใช้ context จาก State แทน parameter
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // แสดง loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext loadingContext) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: const Center(
+            child: AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('กำลังออกจากระบบ...'),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    try {
+      // Sign out จาก Firebase
+      await FirebaseAuth.instance.signOut();
+      // เช็คว่ายัง mounted อยู่ไหม
+      if (!mounted) return;
+      // ปิด loading dialog
+      navigator.pop();
+      // Navigate ไป Login โดยลบ stack ทั้งหมด
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (BuildContext context) => const LoginPage()),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // ปิด loading
+      Navigator.of(context, rootNavigator: true).pop();
+      // แสดง error
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('เกิดข้อผิดพลาด: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildUserContent(User user) {
@@ -306,66 +486,79 @@ class _ProfilePageState extends State<ProfilePage>
       builder: (context, constraints) {
         return Column(
           children: [
-            Stack(
-              alignment: Alignment.center,
+            // ชื่อผู้ใช้ - ตรงกลางพอดี
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ชื่ออยู่ตรงกลาง
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth:
-                          constraints.maxWidth * 0.8, // ใช้ 80% ของความกว้าง
-                    ),
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                // ปุ่มแก้ไขอยู่ด้านขวา
-                Positioned(
-                  right:
-                      constraints.maxWidth * 0.1, // ใช้ 10% ของความกว้างจากขวา
-                  child: GestureDetector(
-                    onTap: () async {
-                      // ใช้ push ธรรมดาและรอรับข้อมูลที่ส่งกลับมา
-                      final result = await Navigator.push<Map<String, dynamic>>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const EditProfilePage(),
-                        ),
-                      );
-
-                      // ถ้ามีการอัพเดทข้อมูล (result ไม่เป็น null) ให้รีเฟรชหน้า Profile
-                      if (result != null) {
-                        setState(() {
-                          // ข้อมูลจะถูกอัพเดทผ่าน StreamBuilder อัตโนมัติ
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(
-                        Icons.edit,
-                        size: 18,
-                        color: Theme.of(context).primaryColor,
-                      ),
+                Flexible(
+                  child: Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    maxLines: 2, // ให้ขึ้นบรรทัดใหม่ได้ถ้ายาวเกิน
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 2),
+            // ปุ่มแก้ไข - แยกบรรทัดเพื่อให้อยู่ตรงกลางเสมอ
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push<Map<String, dynamic>>(
+                  context,
+                  MaterialPageRoute(builder: (context) => EditProfilePage()),
+                );
+
+                if (result != null) {
+                  setState(() {
+                    // ข้อมูลจะถูกอัพเดทผ่าน StreamBuilder อัตโนมัติ
+                  });
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onPrimary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.edit,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'แก้ไขโปรไฟล์',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
               email,
               style: TextStyle(color: Colors.grey[600], fontSize: 16),
@@ -629,25 +822,29 @@ class _ProfilePageState extends State<ProfilePage>
                                           .collection('lost_found_items')
                                           .doc(post.id)
                                           .delete();
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('ลบโพสต์เรียบร้อย'),
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'ไม่สามารถลบโพสต์ได้: $e',
+                                      final messenger =
+                                          ScaffoldMessenger.maybeOf(context);
+                                      if (messenger != null) {
+                                        messenger.showSnackBar(
+                                          const SnackBar(
+                                            content: Text('ลบโพสต์เรียบร้อย'),
+                                            duration: Duration(seconds: 2),
                                           ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
+                                        );
+                                      }
+                                    } catch (e) {
+                                      final messenger =
+                                          ScaffoldMessenger.maybeOf(context);
+                                      if (messenger != null) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'ไม่สามารถลบโพสต์ได้: $e',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
                                     }
                                   }
                                 }

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 // ignore: unused_import
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/Screen/login.dart';
+import 'package:project01/Screen/page/profile/edit_profile_page.dart';
 import 'package:project01/services/auth_service.dart';
+import 'dart:ui';
 
 class ProfileMenuPage extends StatefulWidget {
   const ProfileMenuPage({super.key});
@@ -27,6 +29,13 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          // ปุ่มเปิด Bottom Sheet Menu
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => _showMenuBottomSheet(context),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -42,16 +51,233 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
     );
   }
 
-  Widget _buildColorLegendSection() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onPrimary,
-        borderRadius: BorderRadius.circular(12),
+  // Bottom Sheet Menu แบบ TikTok
+  void _showMenuBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5), // พื้นหลังมืดลง 50%
+      isScrollControlled: true,
+      builder:
+          (sheetContext) => BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5), // เบลอพื้นหลัง
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1F1F1F), // สีเทาเข้มแบบ TikTok
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[600],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+
+                    // Menu Items
+                    _buildMenuItem(
+                      icon: Icons.edit_outlined,
+                      title: 'แก้ไขโปรไฟล์',
+                      onTap: () {
+                        // Close bottom sheet first, then navigate on next frame using
+                        // the page context to avoid deactivated widget errors.
+                        Navigator.pop(sheetContext);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfilePage(),
+                            ),
+                          );
+                        });
+                      },
+                    ),
+
+                    _buildMenuItem(
+                      icon: Icons.logout,
+                      title: 'ออกจากระบบ',
+                      textColor: Colors.red[400],
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          _showLogoutDialog(context);
+                        });
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? textColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Icon(icon, color: textColor ?? Colors.white, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: textColor ?? Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  Widget _buildColorLegendSection() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: isLegendExpanded,
+          onExpansionChanged: (expanded) {
+            setState(() {
+              isLegendExpanded = expanded;
+            });
+          },
+          leading: Icon(Icons.info_outline, color: Colors.blue[600]),
+          title: Text(
+            'คำอธิบาย',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[600],
+            ),
+          ),
+          trailing: const SizedBox.shrink(),
+          children: [
+            AnimatedOpacity(
+              opacity: isLegendExpanded ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOutCubic,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    children: [
+                      _buildLegendItem(
+                        color: Colors.red[100]!,
+                        text: 'ของหาย',
+                        description: 'ห้องที่มีการแจ้งของหาย',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildLegendItem(
+                        color: Colors.green[100]!,
+                        text: 'เจอของ',
+                        description: 'ห้องที่มีการแจ้งเจอของ',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildLegendItem(
+                        color: Colors.orange[100]!,
+                        text: 'ทั้งสอง',
+                        description: 'ห้องที่มีทั้งของหายและเจอของ',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildLegendItem(
+                        color: Colors.grey[200]!,
+                        text: 'ไม่มีโพสต์',
+                        description: 'ห้องที่ยังไม่มีโพสต์ใดๆ',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem({
+    required Color color,
+    required String text,
+    required String description,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildLogoutButton(BuildContext context) {
     return Container(
@@ -122,7 +348,6 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
           ),
     ).then((confirm) async {
       if (confirm == true && context.mounted) {
-        // แสดง loading dialog
         showDialog(
           context: context,
           barrierDismissible: true,
@@ -146,17 +371,14 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
         );
 
         try {
-          // ใช้ AuthService สำหรับ sign out แทน FirebaseAuth โดยตรง
           final authService = AuthService();
           await authService.signOut();
 
           if (context.mounted) {
-            // ปิด loading dialog
             if (Navigator.canPop(context)) {
               Navigator.of(context).pop();
             }
 
-            // กลับไปหน้า login และ clear navigation stack
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -166,18 +388,19 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
           }
         } catch (e) {
           if (context.mounted) {
-            // ปิด loading dialog ในกรณี error
             if (Navigator.canPop(context)) {
               Navigator.of(context).pop();
             }
 
-            // แสดง error message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('เกิดข้อผิดพลาดในการออกจากระบบ: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            if (messenger != null) {
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text('เกิดข้อผิดพลาดในการออกจากระบบ: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           }
         }
       }
