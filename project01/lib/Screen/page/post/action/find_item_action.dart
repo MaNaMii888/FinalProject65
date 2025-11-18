@@ -364,685 +364,6 @@ class ImageService {
   }
 }
 
-// ----------------- LostItemForm -----------------
-class LostItemForm extends StatefulWidget {
-  const LostItemForm({super.key});
-
-  @override
-  State<LostItemForm> createState() => _LostItemFormState();
-}
-
-class _LostItemFormState extends State<LostItemForm> {
-  final _formKey = GlobalKey<FormState>();
-  File? _imageFile;
-  int? selectedCategory;
-  String? selectedBuilding;
-  final TextEditingController dateController = TextEditingController();
-  final TextEditingController timeController = TextEditingController();
-  final TextEditingController detailController = TextEditingController();
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController contactController = TextEditingController();
-  final TextEditingController roomController = TextEditingController();
-  bool isLoading = false;
-  bool agreedToTerms = false;
-  double uploadProgress = 0.0;
-
-  static const List<String> buildings = [
-    'อาคาร 1',
-    'อาคาร 2',
-    'อาคาร 3',
-    'อาคาร 4',
-    'อาคาร 5',
-    'อาคาร 6',
-    'อาคาร 7',
-    'อาคาร 8',
-    'อาคาร 9',
-    'อาคาร 10',
-    'อาคาร 11',
-    'อาคาร 12',
-    'อาคาร 15',
-    'อาคาร 16',
-    'อาคาร 17',
-    'อาคาร 18',
-    'อาคาร 19',
-    'อาคาร 20',
-    'อาคาร 22',
-    'อาคาร 24',
-    'อาคาร 26',
-    'อาคาร 27',
-    'อาคาร 28',
-    'อาคาร 29',
-    'อาคาร 30',
-    'อาคาร 31',
-    'อาคาร 33',
-    'โรงอาหาร',
-    'ห้องสมุด',
-    'สำนักงาน',
-    'สนาม',
-  ];
-  static const Map<int, String> categories = {
-    1: "ของใช้ส่วนตัว",
-    2: "เอกสาร/บัตร",
-    3: "อุปกรณ์การเรียน",
-    4: "ของมีค่าอื่นๆ",
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await AuthService.requireAuth(context);
-      } catch (e) {
-        return;
-      }
-    });
-  }
-
-  Future<void> _pickImage() async {
-    final image = await ImageService.pickAndValidateImage(context);
-    if (image != null) {
-      setState(() {
-        _imageFile = image;
-      });
-    }
-  }
-
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) {
-      _showError('กรุณากรอกข้อมูลให้ครบถ้วน');
-      return;
-    }
-    if (selectedCategory == null) {
-      _showError('กรุณาเลือกประเภทสิ่งของ');
-      return;
-    }
-    final confirmed = await _showConfirmationDialog();
-    if (!confirmed) return;
-
-    setState(() {
-      isLoading = true;
-      uploadProgress = 0.0;
-    });
-
-    try {
-      await AuthService.requireAuth(context);
-
-      String? imageUrl;
-      if (_imageFile != null) {
-        setState(() {
-          uploadProgress = 0.1;
-        });
-        imageUrl = await ImageService.uploadImageToFirebase(
-          _imageFile!,
-          'lost_items',
-          onProgress: (progress) {
-            setState(() {
-              // ปรับ progress จาก 0.1-0.8 สำหรับการอัพโหลด
-              uploadProgress = 0.1 + (progress * 0.7);
-            });
-          },
-        );
-        if (imageUrl == null) {
-          throw Exception('ไม่สามารถอัพโหลดรูปภาพได้');
-        }
-        setState(() => uploadProgress = 0.85);
-      }
-
-      final post = {
-        'userId': AuthService.currentUser!.uid,
-        'userEmail': AuthService.currentUser!.email,
-        'title': titleController.text.trim(),
-        'category': selectedCategory.toString(),
-        'categoryName': categories[selectedCategory!],
-        'building': selectedBuilding,
-        'room': roomController.text.trim(),
-        'date': dateController.text,
-        'time': timeController.text,
-        'contact': contactController.text.trim(),
-        'detail': detailController.text.trim(),
-        'isLostItem': false,
-        'status': 'active',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'imageUrl': imageUrl ?? '',
-        'searchKeywords': _generateSearchKeywords(),
-      };
-
-      await FirebaseFirestore.instance.collection('lost_found_items').add(post);
-
-      // เรียก Smart Matching Service สำหรับโพสต์หาของ
-      await SmartMatchingService.processNewPost(post);
-
-      // อัพเดทจำนวนโพสต์ของผู้ใช้
-      await PostCountService.updatePostCount(
-        AuthService.currentUser!.uid,
-        false, // isLostItem = true สำหรับ lost item
-      );
-
-      setState(() => uploadProgress = 1.0);
-
-      if (mounted) {
-        _showSuccess('บันทึกข้อมูลสำเร็จ');
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      debugPrint('Submit error: $e');
-      _showError('เกิดข้อผิดพลาด: ${e.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          uploadProgress = 0.0;
-        });
-      }
-    }
-  }
-
-  List<String> _generateSearchKeywords() {
-    final keywords = <String>[];
-    keywords.add(titleController.text.trim().toLowerCase());
-    keywords.add(categories[selectedCategory!]!.toLowerCase());
-    keywords.add(selectedBuilding!.toLowerCase());
-    keywords.add(roomController.text.trim().toLowerCase());
-    final detailWords = detailController.text.trim().toLowerCase().split(' ');
-    keywords.addAll(detailWords.where((word) => word.length > 2));
-    return keywords.toSet().toList();
-  }
-
-  Future<bool> _showConfirmationDialog() async {
-    return await showDialog<bool>(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text('ยืนยันการบันทึก'),
-                content: const Text(
-                  'คุณต้องการบันทึกข้อมูลการแจ้งของหายนี้หรือไม่?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('ยกเลิก'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('ยืนยัน'),
-                  ),
-                ],
-              ),
-        ) ??
-        false;
-  }
-
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  void _showSuccess(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.onPrimary;
-    final surfaceColor = Theme.of(context).colorScheme.surface;
-
-    return WillPopScope(
-      onWillPop: () async {
-        if (isLoading) {
-          _showError('กรุณารอให้การอัปโหลดเสร็จสิ้น');
-          return false;
-        }
-        return true;
-      },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        appBar: AppBar(
-          title: Text(
-            'แจ้งของหาย',
-            style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: surfaceColor,
-          iconTheme: IconThemeData(color: primaryColor),
-          elevation: 0,
-        ),
-        body: Theme(
-          data: Theme.of(context).copyWith(
-            // ✅ ตั้งค่า TextField ทั้งหมด
-            inputDecorationTheme: InputDecorationTheme(
-              labelStyle: TextStyle(color: primaryColor),
-              hintStyle: TextStyle(color: primaryColor.withOpacity(0.6)),
-              prefixIconColor: surfaceColor,
-              suffixIconColor: surfaceColor,
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: primaryColor, width: 1.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: primaryColor, width: 2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderSide: const BorderSide(color: Colors.red, width: 1.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderSide: const BorderSide(color: Colors.red, width: 2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              errorStyle: const TextStyle(color: Colors.red),
-            ),
-            // ✅ ตั้งค่าสีเคอร์เซอร์
-            textSelectionTheme: TextSelectionThemeData(
-              cursorColor: surfaceColor,
-              selectionColor: surfaceColor.withOpacity(0.3),
-              selectionHandleColor: surfaceColor,
-            ),
-          ),
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ✅ กรอบเพิ่มรูป
-                  Center(
-                    child: GestureDetector(
-                      onTap: isLoading ? null : _pickImage,
-                      child: Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: surfaceColor.withOpacity(
-                            0.3,
-                          ), // ✅ พื้นหลัง secondary opacity 0.5
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: surfaceColor, // ✅ กรอบสี onPrimary
-                            width: 2,
-                          ),
-                        ),
-                        child:
-                            _imageFile != null
-                                ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(
-                                    _imageFile!,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                                : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.add_photo_alternate,
-                                      size: 50,
-                                      color:
-                                          surfaceColor, // ✅ ไอคอนสีตามพื้นหลัง
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'เพิ่มรูปภาพ',
-                                      style: TextStyle(
-                                        color: primaryColor,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      '(ไม่เกิน 5MB)',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: primaryColor.withOpacity(0.7),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✅ ชื่อสิ่งของ
-                  TextFormField(
-                    controller: titleController,
-                    enabled: !isLoading,
-                    style: TextStyle(color: primaryColor, fontSize: 16),
-                    decoration: const InputDecoration(
-                      labelText: 'ชื่อสิ่งของที่หาย',
-                      prefixIcon: Icon(Icons.inventory),
-                    ),
-                    validator: ValidationService.validateTitle,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✅ ประเภทสิ่งของ
-                  Text(
-                    'ประเภทสิ่งของ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: primaryColor,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildCategoryRadios(),
-                  const SizedBox(height: 20),
-
-                  // ✅ อาคารและห้อง
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(
-                            labelText: 'อาคารที่หาย',
-                            prefixIcon: Icon(Icons.business),
-                          ),
-                          style: TextStyle(color: primaryColor, fontSize: 16),
-                          dropdownColor: Theme.of(context).colorScheme.primary,
-                          icon: Icon(
-                            Icons.arrow_drop_down,
-                            color: primaryColor,
-                          ),
-                          items:
-                              buildings
-                                  .map(
-                                    (building) => DropdownMenuItem(
-                                      value: building,
-                                      child: Text(
-                                        building,
-                                        style: TextStyle(color: primaryColor),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                          value: selectedBuilding,
-                          validator:
-                              (value) =>
-                                  value == null ? 'กรุณาเลือกอาคาร' : null,
-                          onChanged:
-                              isLoading
-                                  ? null
-                                  : (value) =>
-                                      setState(() => selectedBuilding = value),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          controller: roomController,
-                          enabled: !isLoading,
-                          style: TextStyle(color: primaryColor, fontSize: 16),
-                          decoration: const InputDecoration(
-                            labelText: 'ห้องที่หาย *',
-                            hintText: '2102',
-                            prefixIcon: Icon(Icons.room),
-                          ),
-                          validator: ValidationService.validateRoom,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✅ ช่องทางติดต่อ
-                  TextFormField(
-                    controller: contactController,
-                    enabled: !isLoading,
-                    style: TextStyle(color: primaryColor, fontSize: 16),
-                    decoration: const InputDecoration(
-                      labelText: 'ช่องทางการติดต่อ *',
-                      hintText: 'เบอร์โทร 10 หลัก หรือ @lineID',
-                      prefixIcon: Icon(Icons.contact_phone),
-                    ),
-                    validator: ValidationService.validateContact,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✅ วันที่และเวลา
-                  Row(
-                    children: [
-                      Expanded(child: _buildDateField()),
-                      const SizedBox(width: 10),
-                      Expanded(child: _buildTimeField()),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✅ รายละเอียด
-                  TextFormField(
-                    controller: detailController,
-                    enabled: !isLoading,
-                    maxLines: 3,
-                    style: TextStyle(color: primaryColor, fontSize: 16),
-                    decoration: const InputDecoration(
-                      labelText: 'รายละเอียดเพิ่มเติม *',
-                      hintText:
-                          'ระบุลักษณะเฉพาะของสิ่งของ (อย่างน้อย 10 ตัวอักษร)',
-                      prefixIcon: Icon(Icons.description),
-                      alignLabelWithHint: true,
-                    ),
-                    validator: ValidationService.validateDetail,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✅ ปุ่มบันทึก
-                  SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      children: [
-                        if (isLoading && uploadProgress > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: LinearProgressIndicator(
-                              value: uploadProgress,
-                              backgroundColor: Colors.grey[300],
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                surfaceColor,
-                              ),
-                            ),
-                          ),
-                        ElevatedButton.icon(
-                          onPressed: isLoading ? null : _submitForm,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: surfaceColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 18,
-                              horizontal: 32,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 3,
-                            shadowColor: surfaceColor.withOpacity(0.4),
-                            minimumSize: const Size(double.infinity, 56),
-                          ),
-                          icon:
-                              isLoading
-                                  ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white,
-                                      ),
-                                    ),
-                                  )
-                                  : const Icon(
-                                    Icons.check_circle_outline,
-                                    size: 24,
-                                  ),
-                          label: Text(
-                            isLoading
-                                ? 'กำลังบันทึก...'
-                                : 'บันทึกการแจ้งของหาย',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateField() {
-    return TextFormField(
-      controller: dateController,
-      enabled: !isLoading,
-      readOnly: true,
-      onTap: () async {
-        DateTime? picked = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime.now().subtract(const Duration(days: 30)),
-          lastDate: DateTime.now(),
-        );
-        if (picked != null) {
-          setState(() {
-            dateController.text = DateFormat('dd/MM/yyyy').format(picked);
-          });
-        }
-      },
-      decoration: const InputDecoration(
-        labelText: 'วันที่หาย *',
-        hintText: 'เลือกวันที่',
-        border: OutlineInputBorder(),
-        suffixIcon: Icon(Icons.calendar_today),
-      ),
-      validator: (value) => value?.isEmpty ?? true ? 'กรุณาเลือกวันที่' : null,
-    );
-  }
-
-  Widget _buildTimeField() {
-    return TextFormField(
-      controller: timeController,
-      enabled: !isLoading,
-      readOnly: true,
-      onTap: () async {
-        TimeOfDay? picked = await showTimePicker(
-          context: context,
-          initialTime: TimeOfDay.now(),
-        );
-        if (picked != null) {
-          setState(() {
-            timeController.text = picked.format(context);
-          });
-        }
-      },
-      decoration: const InputDecoration(
-        labelText: 'เวลาที่หาย *',
-        hintText: 'เลือกเวลา',
-        border: OutlineInputBorder(),
-        suffixIcon: Icon(Icons.access_time),
-      ),
-      validator: (value) => value?.isEmpty ?? true ? 'กรุณาเลือกเวลา' : null,
-    );
-  }
-
-  Widget _buildCategoryRadios() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            _buildRadioTile("ของใช้ส่วนตัว", 1),
-            _buildRadioTile("เอกสาร/บัตร", 2),
-          ],
-        ),
-        Row(
-          children: [
-            _buildRadioTile("อุปกรณ์การเรียน", 3),
-            _buildRadioTile("ของมีค่าอื่นๆ", 4),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRadioTile(String title, int value) {
-    final primaryColor = Theme.of(context).colorScheme.onPrimary;
-
-    return Expanded(
-      child: RadioListTile<int>(
-        title: Text(
-          title,
-          style: TextStyle(
-            color: primaryColor,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        value: value,
-        groupValue: selectedCategory,
-        activeColor: primaryColor,
-        fillColor: WidgetStateProperty.all(primaryColor),
-        onChanged:
-            isLoading ? null : (val) => setState(() => selectedCategory = val),
-        contentPadding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    titleController.dispose();
-    dateController.dispose();
-    timeController.dispose();
-    detailController.dispose();
-    contactController.dispose();
-    roomController.dispose();
-    super.dispose();
-  }
-}
-
-// ----------------- FindItemActionPage (UI) -----------------
-class FindItemActionPage extends StatelessWidget {
-  final VoidCallback? onLostPress;
-  final VoidCallback? onFoundPress;
-
-  const FindItemActionPage({super.key, this.onLostPress, this.onFoundPress});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        ElevatedButton(onPressed: onLostPress, child: const Text('Lost')),
-        ElevatedButton(onPressed: onFoundPress, child: const Text('Found')),
-      ],
-    );
-  }
-}
-
 // ----------------- FindItemForm (แจ้งเจอของ) -----------------
 class FindItemForm extends StatefulWidget {
   const FindItemForm({super.key});
@@ -1448,11 +769,11 @@ class _FindItemFormState extends State<FindItemForm> {
                             labelText: 'อาคารที่พบ',
                             prefixIcon: Icon(Icons.business),
                           ),
-                          style: const TextStyle(
-                            color: Colors.black87,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
                             fontSize: 16,
                           ),
-                          dropdownColor: Colors.white,
+                          dropdownColor: Theme.of(context).colorScheme.primary,
                           icon: const Icon(
                             Icons.arrow_drop_down,
                             color: greenPrimary,
@@ -1464,8 +785,12 @@ class _FindItemFormState extends State<FindItemForm> {
                                       value: building,
                                       child: Text(
                                         building,
-                                        style: const TextStyle(
-                                          color: Colors.black87,
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                          fontSize: 16,
                                         ),
                                       ),
                                     ),
@@ -1487,8 +812,8 @@ class _FindItemFormState extends State<FindItemForm> {
                         child: TextFormField(
                           controller: roomController,
                           enabled: !isLoading,
-                          style: const TextStyle(
-                            color: Colors.black87,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
                             fontSize: 16,
                           ),
                           decoration: const InputDecoration(
@@ -1507,7 +832,10 @@ class _FindItemFormState extends State<FindItemForm> {
                   TextFormField(
                     controller: contactController,
                     enabled: !isLoading,
-                    style: const TextStyle(color: Colors.black87, fontSize: 16),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontSize: 16,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'ช่องทางการติดต่อ *',
                       hintText: 'เบอร์โทร 10 หลัก หรือ @lineID',
@@ -1532,8 +860,11 @@ class _FindItemFormState extends State<FindItemForm> {
                     controller: detailController,
                     enabled: !isLoading,
                     maxLines: 3,
-                    style: const TextStyle(color: Colors.black87, fontSize: 16),
-                    decoration: const InputDecoration(
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontSize: 16,
+                    ),
+                    decoration: InputDecoration(
                       labelText: 'รายละเอียดเพิ่มเติม *',
                       hintText:
                           'ระบุลักษณะเฉพาะของสิ่งของ (อย่างน้อย 10 ตัวอักษร)',
@@ -1616,6 +947,8 @@ class _FindItemFormState extends State<FindItemForm> {
   }
 
   Widget _buildDateField() {
+    const greenPrimary = Color(0xFF4CAF50); // ดึงค่าสีเขียวหลักมาใช้
+
     return TextFormField(
       controller: dateController,
       enabled: !isLoading,
@@ -1626,6 +959,24 @@ class _FindItemFormState extends State<FindItemForm> {
           initialDate: DateTime.now(),
           firstDate: DateTime.now().subtract(const Duration(days: 30)),
           lastDate: DateTime.now(),
+          // 💡 จุดที่เพิ่ม: กำหนด Theme ให้กับ DatePicker
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: greenPrimary, // ✅ สี Header และวงกลมวันที่เลือก
+                  onPrimary: Colors.white, // ✅ สีตัวอักษรบน Header
+                  onSurface: Colors.black87, // ✅ สีของตัวอักษรวันที่
+                ),
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: greenPrimary, // ✅ สีปุ่ม 'ยกเลิก', 'ตกลง'
+                  ),
+                ),
+              ),
+              child: child!,
+            );
+          },
         );
         if (picked != null) {
           setState(() {
@@ -1644,6 +995,8 @@ class _FindItemFormState extends State<FindItemForm> {
   }
 
   Widget _buildTimeField() {
+    const greenPrimary = Color(0xFF4CAF50); // ดึงค่าสีเขียวหลักมาใช้
+
     return TextFormField(
       controller: timeController,
       enabled: !isLoading,
@@ -1652,6 +1005,24 @@ class _FindItemFormState extends State<FindItemForm> {
         TimeOfDay? picked = await showTimePicker(
           context: context,
           initialTime: TimeOfDay.now(),
+          // 💡 จุดที่เพิ่ม: กำหนด Theme ให้กับ TimePicker
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: greenPrimary, // ✅ สี Header และวงกลมเวลาที่เลือก
+                  onPrimary: Colors.white, // ✅ สีตัวอักษรบน Header
+                  onSurface: Colors.black87, // ✅ สีของตัวอักษรเวลา
+                ),
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    foregroundColor: greenPrimary, // ✅ สีปุ่ม 'ยกเลิก', 'ตกลง'
+                  ),
+                ),
+              ),
+              child: child!,
+            );
+          },
         );
         if (picked != null) {
           setState(() {
