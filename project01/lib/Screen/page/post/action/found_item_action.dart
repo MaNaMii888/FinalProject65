@@ -925,6 +925,7 @@ class _LostItemFormState extends State<LostItemForm> {
           initialDate: DateTime.now(),
           firstDate: DateTime.now().subtract(const Duration(days: 30)),
           lastDate: DateTime.now(),
+
           // 💡 จุดที่เพิ่ม: กำหนด Theme ให้กับ DatePicker
           builder: (context, child) {
             return Theme(
@@ -956,8 +957,9 @@ class _LostItemFormState extends State<LostItemForm> {
           });
         }
       },
-      decoration: const InputDecoration(
-        labelText: 'วันที่พบ *',
+      style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+      decoration: InputDecoration(
+        labelText: 'วันที่หาย *',
         hintText: 'เลือกวันที่',
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.calendar_today),
@@ -1006,8 +1008,9 @@ class _LostItemFormState extends State<LostItemForm> {
           });
         }
       },
+      style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
       decoration: const InputDecoration(
-        labelText: 'เวลาที่พบ *',
+        labelText: 'เวลาที่หาย *',
         hintText: 'เลือกเวลา',
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.access_time),

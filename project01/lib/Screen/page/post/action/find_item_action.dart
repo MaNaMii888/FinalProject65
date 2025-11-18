@@ -984,6 +984,7 @@ class _FindItemFormState extends State<FindItemForm> {
           });
         }
       },
+      style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
       decoration: const InputDecoration(
         labelText: 'วันที่พบ *',
         hintText: 'เลือกวันที่',
@@ -1030,6 +1031,8 @@ class _FindItemFormState extends State<FindItemForm> {
           });
         }
       },
+      style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+
       decoration: const InputDecoration(
         labelText: 'เวลาที่พบ *',
         hintText: 'เลือกเวลา',

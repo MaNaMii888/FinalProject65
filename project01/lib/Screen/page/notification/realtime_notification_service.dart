@@ -239,6 +239,15 @@ class RealtimeNotificationService {
         .toList();
   }
 
+static String _getCategoryName(String categoryId) {
+    switch (categoryId) {
+      case '1': return 'ของใช้ส่วนตัว';
+      case '2': return 'เอกสาร/บัตร';
+      case '3': return 'อุปกรณ์การเรียน';
+      case '4': return 'ของมีค่าอื่นๆ';
+      default: return categoryId.isEmpty ? 'ไม่ระบุ' : categoryId;
+    }
+}
   static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
     List<String> reasons = [];
 
@@ -260,6 +269,9 @@ class RealtimeNotificationService {
       if (userPost.location.toLowerCase() == otherPost.location.toLowerCase()) {
         reasons.add('สถานที่เดียวกัน: ${otherPost.location}');
       }
+    }
+    if (userPost.category == otherPost.category) {
+      reasons.add('หมวดหมู่เดียวกัน: ${_getCategoryName(otherPost.category)}'); 
     }
 
     return reasons;
