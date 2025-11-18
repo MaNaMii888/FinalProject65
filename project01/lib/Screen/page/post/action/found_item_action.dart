@@ -497,7 +497,7 @@ class _LostItemFormState extends State<LostItemForm> {
         'time': timeController.text,
         'contact': contactController.text.trim(),
         'detail': detailController.text.trim(),
-        'isLostItem': true,
+        'isLostItem': false,
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),

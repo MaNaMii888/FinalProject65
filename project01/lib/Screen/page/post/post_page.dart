@@ -322,13 +322,25 @@ class _PostPageState extends State<PostPage>
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const LostItemForm()),
-              ).then((_) => _loadPosts());
+              ).then((_) {
+                // After returning from Lost form, switch to the "ของหาย" tab and reload
+                if (mounted) {
+                  _tabController.animateTo(0);
+                  _loadPosts();
+                }
+              });
             },
             onFoundPress: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const FindItemForm()),
-              ).then((_) => _loadPosts());
+              ).then((_) {
+                // After returning from Found form, switch to the "เจอของ" tab and reload
+                if (mounted) {
+                  _tabController.animateTo(1);
+                  _loadPosts();
+                }
+              });
             },
           ),
         ),

@@ -119,7 +119,7 @@ class _ProfilePageState extends State<ProfilePage>
                 onTap:
                     () =>
                         _showMenuBottomSheet(context), // เรียก Bottom Sheet เลย
-                child: Container(
+                child: SizedBox(
                   width: 40,
                   height: 40,
                   child: Icon(

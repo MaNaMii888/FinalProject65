@@ -295,7 +295,7 @@ class _FindItemFormState extends State<FindItemForm> {
                           size: 24,
                         ), // ✅ ไอคอนเช็ค
                 label: Text(
-                  isLoading ? 'กำลังบันทึก...' : 'บันทึกการแจ้งของหาย',
+                  isLoading ? 'กำลังบันทึก...' : 'บันทึกการแจ้งเจอของ',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

@@ -501,7 +501,7 @@ class _LostItemFormState extends State<LostItemForm> {
         'time': timeController.text,
         'contact': contactController.text.trim(),
         'detail': detailController.text.trim(),
-        'isLostItem': true,
+        'isLostItem': false,
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -517,7 +517,7 @@ class _LostItemFormState extends State<LostItemForm> {
       // อัพเดทจำนวนโพสต์ของผู้ใช้
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
-        true, // isLostItem = true สำหรับ lost item
+        false, // isLostItem = true สำหรับ lost item
       );
 
       setState(() => uploadProgress = 1.0);
@@ -1189,7 +1189,7 @@ class _FindItemFormState extends State<FindItemForm> {
         'time': timeController.text,
         'contact': contactController.text.trim(),
         'detail': detailController.text.trim(),
-        'isLostItem': true,
+        'isLostItem': false,
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -1201,7 +1201,7 @@ class _FindItemFormState extends State<FindItemForm> {
       await SmartMatchingService.processNewPost(post);
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
-        true,
+        false,
       );
 
       if (!mounted) return; // ✅ ตรวจสอบก่อน setState
