@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
-import 'package:project01/Screen/app.dart';
 import 'package:project01/models/profile.dart' show Profile;
 import 'package:project01/Screen/login.dart';
 import 'package:project01/services/auth_service.dart';
@@ -34,7 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.lightBlue[100],
+      backgroundColor: Theme.of(context).primaryColor,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -43,16 +42,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Welcome to', style: TextStyle(fontSize: 22)),
-                const Text(
-                  'Sign Up!',
-                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                Text(
+                  'ยินดีตอนรับ',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 22,
+                  ),
+                ),
+                Text(
+                  'สมัครสมาชิก',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -96,7 +105,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[700],
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
@@ -166,13 +176,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             }
                                             _formKey.currentState!.reset();
                                             if (!mounted) return;
-                                            Navigator.pushReplacement(
+                                            Navigator.pushReplacementNamed(
                                               context,
-                                              MaterialPageRoute(
-                                                builder: (context) {
-                                                  return const NavigationBarApp();
-                                                },
-                                              ),
+                                              '/dashboard',
                                             );
                                           },
                                           child: const Text('ตกลง'),
@@ -215,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             }
                           },
                           child: const Text(
-                            'SIGN UP',
+                            'สมัครสมาชิก',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -231,7 +237,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             'assets/img/google.jpg',
                             height: 24.0,
                           ),
-                          label: const Text('Sign up with Google'),
+                          label: const Text('สมัครด้วย Google'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
@@ -290,13 +296,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                               Navigator.of(context).pop();
                                             }
                                             if (!mounted) return;
-                                            Navigator.pushReplacement(
+                                            Navigator.pushReplacementNamed(
                                               context,
-                                              MaterialPageRoute(
-                                                builder:
-                                                    (context) =>
-                                                        const NavigationBarApp(),
-                                              ),
+                                              '/dashboard',
                                             );
                                           },
                                           child: const Text('ตกลง'),
@@ -342,7 +344,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text("Already have an account?"),
+                          Text(
+                            'มีบัญชีแล้ว?',
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
                           TextButton(
                             onPressed: () {
                               Navigator.pushReplacement(
@@ -353,7 +358,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               );
                             },
                             child: const Text(
-                              "SIGN IN ",
+                              'เข้าสู่ระบบ',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),

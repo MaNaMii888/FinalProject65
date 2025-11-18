@@ -58,7 +58,7 @@ class RealtimeNotificationService {
     }
 
     // ถ้าพบความคล้ายกันมากกว่า 70% แจ้งเตือน
-    if (bestMatch > 0.7 && matchingUserPost != null) {
+    if (bestMatch >= 0.7 && matchingUserPost != null) {
       // บันทึกการแจ้งเตือนลง Firestore
       await _saveNotificationToFirestore(
         userId: userId,
@@ -134,7 +134,7 @@ class RealtimeNotificationService {
             ),
           ],
         ),
-        backgroundColor: matchScore >= 0.8 ? Colors.green : Colors.orange,
+        backgroundColor: matchScore >= 0.7 ? Colors.green : Colors.orange,
         duration: const Duration(seconds: 5),
         action: SnackBarAction(
           label: 'ดู',

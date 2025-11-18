@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:project01/Screen/register.dart'; // unused — kept commented in case needed later
+import 'package:project01/Screen/register.dart'; // unused — kept commented in case needed later
 // import 'package:project01/Screen/app.dart'; // not used anymore; keep commented in case needed
 import 'package:project01/Screen/forgot_password.dart';
 import 'dart:async';
@@ -46,23 +46,33 @@ class _LoginScreenState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.lightBlue[100],
+      backgroundColor: Theme.of(context).primaryColor,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: EdgeInsets.symmetric(horizontal: 24.0),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                const Text('Welcome to', style: TextStyle(fontSize: 22)),
-                const Text(
-                  'Sign In!',
-                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                Text(
+                  'ยินดีตอนรับ',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 22,
+                  ),
+                ),
+                Text(
+                  'เข้าสู่ะบบ',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
@@ -72,8 +82,11 @@ class _LoginScreenState extends State<LoginPage> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Gmail',
+                          labelStyle: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                          ),
                           border: UnderlineInputBorder(),
                         ),
                         validator: (value) {
@@ -90,8 +103,11 @@ class _LoginScreenState extends State<LoginPage> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: true,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Password',
+                          labelStyle: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                          ),
                           border: UnderlineInputBorder(),
                         ),
                         validator: (value) {
@@ -117,9 +133,10 @@ class _LoginScreenState extends State<LoginPage> {
                               ),
                             );
                           },
-                          child: const Text(
+                          child: Text(
                             'ลืมรหัสผ่าน?',
                             style: TextStyle(
+                              color: Theme.of(context).colorScheme.surface,
                               decoration: TextDecoration.underline,
                               fontWeight: FontWeight.w600,
                             ),
@@ -131,7 +148,8 @@ class _LoginScreenState extends State<LoginPage> {
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[700],
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
@@ -358,7 +376,7 @@ class _LoginScreenState extends State<LoginPage> {
                             }
                           },
                           child: const Text(
-                            'SIGN IN',
+                            'เข้าสู่ระบบ',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -374,7 +392,7 @@ class _LoginScreenState extends State<LoginPage> {
                             'assets/img/google.jpg',
                             height: 24.0,
                           ),
-                          label: const Text('Sign in with Google'),
+                          label: const Text('เข้าสูระบบด้วย Google'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
@@ -495,6 +513,27 @@ class _LoginScreenState extends State<LoginPage> {
                             }
                           },
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'ยังไม่มีการลงทะเบียน?',
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RegisterScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text('ลงทะเบียน'),
+                          ),
+                        ],
                       ),
                     ],
                   ),

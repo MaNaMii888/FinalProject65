@@ -54,7 +54,7 @@ class ThemeProvider extends ChangeNotifier {
         surface: _surface,
         onPrimary: const Color(0xFFEDEDED),
         onSecondary: Colors.black87,
-        onSurface: Colors.black87,
+        onSurface: const Color(0x0014ffec),
         error: Colors.red,
         onError: Colors.white,
       ),
