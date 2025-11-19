@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:project01/models/post.dart';
+import 'package:project01/services/notifications_service.dart';
 
 class SmartNotificationPopup extends StatefulWidget {
   const SmartNotificationPopup({super.key});
@@ -12,82 +11,6 @@ class SmartNotificationPopup extends StatefulWidget {
 
 class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
-  List<SmartNotificationItem> smartNotifications = [];
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSmartNotifications();
-  }
-
-  Future<void> _loadSmartNotifications() async {
-    if (currentUserId == null) return;
-
-    setState(() => isLoading = true);
-
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('smart_notifications')
-              .where('userId', isEqualTo: currentUserId)
-              .orderBy('createdAt', descending: true)
-              .limit(50)
-              .get();
-
-      List<SmartNotificationItem> notifications = [];
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final postDoc =
-            await FirebaseFirestore.instance
-                .collection('lost_found_items')
-                .doc(data['postId'])
-                .get();
-
-        if (postDoc.exists) {
-          final post = Post.fromJson({...postDoc.data()!, 'id': postDoc.id});
-          Post? relatedUserPost;
-          if (data['relatedPostId'] != null) {
-            final relatedDoc =
-                await FirebaseFirestore.instance
-                    .collection('lost_found_items')
-                    .doc(data['relatedPostId'])
-                    .get();
-
-            if (relatedDoc.exists) {
-              relatedUserPost = Post.fromJson({
-                ...relatedDoc.data()!,
-                'id': relatedDoc.id,
-              });
-            }
-          }
-
-          notifications.add(
-            SmartNotificationItem(
-              post: post,
-              matchScore: (data['matchScore'] as num).toDouble(),
-              matchReasons: List<String>.from(data['matchReasons'] ?? []),
-              createdAt: (data['createdAt'] as Timestamp).toDate(),
-              relatedUserPost: relatedUserPost,
-              notificationId: doc.id,
-              isRead: data['isRead'] ?? false,
-            ),
-          );
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          smartNotifications = notifications;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading smart notifications: $e');
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,16 +75,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
           Divider(height: 1, color: onPrimaryColor.withOpacity(0.2)),
 
           // Content
-          Expanded(
-            child:
-                isLoading
-                    ? Center(
-                      child: CircularProgressIndicator(color: onPrimaryColor),
-                    )
-                    : smartNotifications.isEmpty
-                    ? _buildEmptyState(onPrimaryColor)
-                    : _buildNotificationList(),
-          ),
+          Expanded(child: _buildNotificationList(onPrimaryColor)),
         ],
       ),
     );
@@ -195,31 +109,55 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     );
   }
 
-  Widget _buildNotificationList() {
-    return ListView.builder(
-      padding: EdgeInsets.zero, // ✅ ลบ Padding เพื่อให้ชิดขอบ
-      itemCount: smartNotifications.length,
-      itemBuilder: (context, index) {
-        final notification = smartNotifications[index];
-        return _buildNotificationCard(notification);
+  Widget _buildNotificationList(Color onPrimaryColor) {
+    if (currentUserId == null) {
+      return _buildEmptyState(onPrimaryColor);
+    }
+
+    return StreamBuilder<List<NotificationModel>>(
+      stream: NotificationService.getUserNotifications(currentUserId!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(color: onPrimaryColor),
+          );
+        }
+
+        final notifications =
+            snapshot.data
+                ?.where((item) => item.type == 'smart_match')
+                .toList() ??
+            [];
+
+        if (notifications.isEmpty) {
+          return _buildEmptyState(onPrimaryColor);
+        }
+
+        return ListView.builder(
+          padding: EdgeInsets.zero,
+          itemCount: notifications.length,
+          itemBuilder: (context, index) {
+            return _buildNotificationCard(notifications[index]);
+          },
+        );
       },
     );
   }
 
   // ✅✅✅ ดีไซน์ใหม่: แบบ X (Feed) เต็มจอ ไม่มี Card
-  Widget _buildNotificationCard(SmartNotificationItem notification) {
-    final post = notification.post;
-    final matchPercentage = (notification.matchScore * 100).round();
+  Widget _buildNotificationCard(NotificationModel notification) {
+    final matchScore = notification.matchScore ?? 0;
+    final matchPercentage = (matchScore * 100).round();
 
     final primaryColor = Theme.of(context).colorScheme.primary;
     final onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
 
     return InkWell(
       onTap: () async {
-        if (notification.notificationId != null && !notification.isRead) {
-          await _markNotificationAsRead(notification.notificationId!);
+        if (!notification.isRead) {
+          await NotificationService.markAsRead(notification.id);
         }
-        _viewPostDetails(post);
+        _viewPostDetails(notification);
       },
       child: Container(
         // ✅ พื้นหลังสี Primary + เส้นคั่นด้านล่าง
@@ -246,7 +184,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: _getMatchColor(notification.matchScore),
+                    color: _getMatchColor(matchScore),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -280,14 +218,17 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                     height: 50,
                     color: onPrimaryColor.withOpacity(0.1),
                     child:
-                        post.imageUrl.isNotEmpty
-                            ? Image.network(post.imageUrl, fit: BoxFit.cover)
+                        (notification.postImageUrl ?? '').isNotEmpty
+                            ? Image.network(
+                              notification.postImageUrl!,
+                              fit: BoxFit.cover,
+                            )
                             : Icon(
-                              post.isLostItem
+                              notification.postType == 'lost'
                                   ? Icons.search
                                   : Icons.find_in_page,
                               color:
-                                  post.isLostItem
+                                  notification.postType == 'lost'
                                       ? Colors.red[300]
                                       : Colors.green[300],
                             ),
@@ -299,7 +240,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        post.title,
+                        notification.postTitle ?? notification.title,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -310,7 +251,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        post.description,
+                        notification.message,
                         style: TextStyle(
                           fontSize: 14,
                           color: onPrimaryColor.withOpacity(0.8),
@@ -318,11 +259,11 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (notification.relatedUserPost != null)
+                      if (notification.matchReasons.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            'ตรงกับ: ${notification.relatedUserPost!.title}',
+                            '• ${notification.matchReasons.first}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.blue[300],
@@ -396,7 +337,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _handleMatchConfirmed(post),
+                      onPressed: () => _handleMatchConfirmed(notification),
                       icon: const Icon(Icons.chat_bubble_outline, size: 16),
                       label: const Text(
                         'ติดต่อ',
@@ -434,19 +375,8 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     return '${diff.inMinutes} นาทีที่แล้ว';
   }
 
-  Future<void> _markNotificationAsRead(String notificationId) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('smart_notifications')
-          .doc(notificationId)
-          .update({'isRead': true});
-    } catch (e) {
-      debugPrint('Error marking notification as read: $e');
-    }
-  }
-
   // ฟังก์ชันจัดการเมื่อกด "ไม่ใช่" (ลบการแจ้งเตือนออก)
-  void _handleNotMatch(SmartNotificationItem notification) async {
+  void _handleNotMatch(NotificationModel notification) async {
     // ดึงสีจาก Theme
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -569,30 +499,15 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
 
     // Logic การลบข้อมูล (เหมือนเดิม)
     if (confirm == true) {
-      // ลบออกจาก List ในหน้าจอทันทีเพื่อให้ UI ลื่นไหล
-      setState(() {
-        smartNotifications.remove(notification);
-      });
-
-      // ลบออกจาก Firebase
-      if (notification.notificationId != null) {
-        try {
-          await FirebaseFirestore.instance
-              .collection('smart_notifications')
-              .doc(notification.notificationId)
-              .delete();
-        } catch (e) {
-          debugPrint('Error deleting notification: $e');
-        }
-      }
+      await NotificationService.deleteNotification(notification.id);
     }
   }
 
-  void _handleMatchConfirmed(Post post) {
-    _contactOwner(post);
+  void _handleMatchConfirmed(NotificationModel notification) {
+    _contactOwner(notification);
   }
 
-  void _contactOwner(Post post) {
+  void _contactOwner(NotificationModel notification) {
     showDialog(
       context: context,
       builder:
@@ -605,13 +520,15 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                 ListTile(
                   leading: const Icon(Icons.person),
                   title: Text(
-                    post.userName.isEmpty ? 'ไม่ระบุชื่อ' : post.userName,
+                    (notification.data['userName'] ?? '').isEmpty
+                        ? 'ไม่ระบุชื่อ'
+                        : notification.data['userName'],
                   ),
                   subtitle: const Text('ผู้โพสต์'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.phone),
-                  title: Text(post.contact),
+                  title: Text(notification.data['contact'] ?? '-'),
                   subtitle: const Text('เบอร์โทร / Line'),
                 ),
               ],
@@ -626,15 +543,13 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     );
   }
 
-  void _viewPostDetails(Post post) {
-    // คุณสามารถใส่โค้ดเปิดหน้า PostDetailSheet ที่นี่ได้
-    // หรือใช้ Dialog ง่ายๆ แบบนี้ไปก่อน
+  void _viewPostDetails(NotificationModel notification) {
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text(post.title),
-            content: Text(post.description),
+            title: Text(notification.postTitle ?? notification.title),
+            content: Text(notification.message),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -644,25 +559,4 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
           ),
     );
   }
-}
-
-// Model Class
-class SmartNotificationItem {
-  final Post post;
-  final double matchScore;
-  final List<String> matchReasons;
-  final DateTime createdAt;
-  final Post? relatedUserPost;
-  final String? notificationId;
-  final bool isRead;
-
-  SmartNotificationItem({
-    required this.post,
-    required this.matchScore,
-    required this.matchReasons,
-    required this.createdAt,
-    this.relatedUserPost,
-    this.notificationId,
-    this.isRead = false,
-  });
 }

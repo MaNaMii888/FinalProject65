@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 24.0),
@@ -82,10 +82,13 @@ class _LoginScreenState extends State<LoginPage> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.surface,
+                        ),
                         decoration: InputDecoration(
                           labelText: 'Gmail',
                           labelStyle: TextStyle(
-                            color: Theme.of(context).primaryColor,
+                            color: Theme.of(context).colorScheme.surface,
                           ),
                           border: UnderlineInputBorder(),
                         ),
@@ -102,11 +105,14 @@ class _LoginScreenState extends State<LoginPage> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordController,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.surface,
+                        ),
                         obscureText: true,
                         decoration: InputDecoration(
                           labelText: 'Password',
                           labelStyle: TextStyle(
-                            color: Theme.of(context).primaryColor,
+                            color: Theme.of(context).colorScheme.surface,
                           ),
                           border: UnderlineInputBorder(),
                         ),
@@ -149,7 +155,7 @@ class _LoginScreenState extends State<LoginPage> {
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                Theme.of(context).colorScheme.primary,
+                                Theme.of(context).colorScheme.surface,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),

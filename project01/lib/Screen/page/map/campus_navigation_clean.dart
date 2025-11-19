@@ -8,7 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 import 'package:project01/Screen/page/map/feature/floor_plan_a.dart';
 import 'package:project01/Screen/page/map/feature/floor_plan_b.dart';
-import 'package:project01/Screen/page/notification/smart_notification_popup.dart';
+import 'package:project01/Screen/page/notification/smart_notification_screen.dart';
 import 'package:project01/services/smart_matching_service.dart';
 
 class CampusNavigation extends StatefulWidget {

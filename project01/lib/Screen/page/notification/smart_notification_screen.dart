@@ -1,196 +1,165 @@
-import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
 
-class SmartNotificationScreen extends StatefulWidget {
-  const SmartNotificationScreen({super.key});
+class SmartNotificationPopup extends StatefulWidget {
+  const SmartNotificationPopup({super.key});
 
   @override
-  State<SmartNotificationScreen> createState() =>
-      _SmartNotificationScreenState();
+  State<SmartNotificationPopup> createState() => _SmartNotificationPopupState();
 }
 
-class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
+class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
   List<SmartNotificationItem> smartNotifications = [];
   bool isLoading = true;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subscription;
 
   @override
   void initState() {
     super.initState();
-    _setupRealtimeNotifications();
+    _loadSmartNotifications();
   }
 
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
+  Future<void> _loadSmartNotifications() async {
+    if (currentUserId == null) return;
 
-  void _setupRealtimeNotifications() {
-    if (currentUserId == null) {
-      debugPrint('SmartNotification: currentUserId is null');
-      setState(() => isLoading = false);
-      return;
-    }
+    setState(() => isLoading = true);
 
     try {
-      _subscription = FirebaseFirestore.instance
-          .collection('smart_notifications')
-          .where('userId', isEqualTo: currentUserId)
-          .orderBy('createdAt', descending: true)
-          .limit(50)
-          .snapshots()
-          .listen(
-            (snapshot) async {
-              if (snapshot.docs.isEmpty) {
-                if (mounted) {
-                  setState(() {
-                    smartNotifications = [];
-                    isLoading = false;
-                  });
-                }
-                return;
-              }
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('smart_notifications')
+              .where('userId', isEqualTo: currentUserId)
+              .orderBy('createdAt', descending: true)
+              .limit(50)
+              .get();
 
-              final List<SmartNotificationItem> temp = [];
+      List<SmartNotificationItem> notifications = [];
 
-              for (final doc in snapshot.docs) {
-                final data = doc.data();
-                try {
-                  final postDoc =
-                      await FirebaseFirestore.instance
-                          .collection('lost_found_items')
-                          .doc(data['postId'])
-                          .get();
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final postDoc =
+            await FirebaseFirestore.instance
+                .collection('lost_found_items')
+                .doc(data['postId'])
+                .get();
 
-                  if (!postDoc.exists) continue;
+        if (postDoc.exists) {
+          final post = Post.fromJson({...postDoc.data()!, 'id': postDoc.id});
+          Post? relatedUserPost;
+          if (data['relatedPostId'] != null) {
+            final relatedDoc =
+                await FirebaseFirestore.instance
+                    .collection('lost_found_items')
+                    .doc(data['relatedPostId'])
+                    .get();
 
-                  final post = Post.fromJson({
-                    ...postDoc.data()!,
-                    'id': postDoc.id,
-                  });
+            if (relatedDoc.exists) {
+              relatedUserPost = Post.fromJson({
+                ...relatedDoc.data()!,
+                'id': relatedDoc.id,
+              });
+            }
+          }
 
-                  Post? related;
-                  if (data['relatedPostId'] != null) {
-                    final relatedDoc =
-                        await FirebaseFirestore.instance
-                            .collection('lost_found_items')
-                            .doc(data['relatedPostId'])
-                            .get();
-                    if (relatedDoc.exists) {
-                      related = Post.fromJson({
-                        ...relatedDoc.data()!,
-                        'id': relatedDoc.id,
-                      });
-                    }
-                  }
-
-                  temp.add(
-                    SmartNotificationItem(
-                      post: post,
-                      matchScore:
-                          (data['matchScore'] as num?)?.toDouble() ?? 0.0,
-                      matchReasons: List<String>.from(
-                        data['matchReasons'] ?? [],
-                      ),
-                      createdAt:
-                          (data['createdAt'] as Timestamp?)?.toDate() ??
-                          DateTime.now(),
-                      relatedUserPost: related,
-                      notificationId: doc.id,
-                      isRead: data['isRead'] ?? false,
-                    ),
-                  );
-                } catch (e) {
-                  debugPrint('Error processing smart notification doc: $e');
-                }
-              }
-
-              if (mounted) {
-                setState(() {
-                  smartNotifications = temp;
-                  isLoading = false;
-                });
-              }
-            },
-            onError: (error) {
-              debugPrint('Firestore listen error: $error');
-              if (mounted) setState(() => isLoading = false);
-            },
+          notifications.add(
+            SmartNotificationItem(
+              post: post,
+              matchScore: (data['matchScore'] as num).toDouble(),
+              matchReasons: List<String>.from(data['matchReasons'] ?? []),
+              createdAt: (data['createdAt'] as Timestamp).toDate(),
+              relatedUserPost: relatedUserPost,
+              notificationId: doc.id,
+              isRead: data['isRead'] ?? false,
+            ),
           );
-    } catch (e) {
-      debugPrint('Error setting up smart notification listener: $e');
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
+        }
+      }
 
-  Future<void> _removeNotification(String notificationId) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('smart_notifications')
-          .doc(notificationId)
-          .delete();
+      if (mounted) {
+        setState(() {
+          smartNotifications = notifications;
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      debugPrint('Error removing notification $notificationId: $e');
+      debugPrint('Error loading smart notifications: $e');
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusBarHeight = MediaQuery.of(context).padding.top;
-    final topPadding = (statusBarHeight * 0.3).clamp(8.0, 20.0);
+    // ดึงสีจาก Theme
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: Column(
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: BoxDecoration(
+        color: primaryColor, // ✅ พื้นหลัง Popup เป็นสี Primary (เข้ม)
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
         children: [
-          SizedBox(height: topPadding),
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: onPrimaryColor.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(
-                    Icons.arrow_back,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
-                const SizedBox(width: 8),
                 Icon(
                   Icons.notifications_active,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: onPrimaryColor,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'แจ้งเตือน',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'การแจ้งเตือน',
+                    style: TextStyle(
+                      color: onPrimaryColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Prompt',
+                    ),
                   ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: onPrimaryColor),
                 ),
               ],
             ),
           ),
 
+          // Divider
+          Divider(height: 1, color: onPrimaryColor.withOpacity(0.2)),
+
+          // Content
           Expanded(
             child:
                 isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(
+                      child: CircularProgressIndicator(color: onPrimaryColor),
+                    )
                     : smartNotifications.isEmpty
-                    ? _buildEmptyState()
+                    ? _buildEmptyState(onPrimaryColor)
                     : _buildNotificationList(),
           ),
         ],
@@ -198,71 +167,27 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(Color textColor) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.notifications_none, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'ไม่มีรายการแจ้งเตือน',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: smartNotifications.length,
-      itemBuilder:
-          (context, index) => _buildNotificationCard(smartNotifications[index]),
-    );
-  }
-
-  Widget _buildNotificationCard(SmartNotificationItem notification) {
-    final post = notification.post;
-    final matchPercentage = (notification.matchScore * 100).round();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(32),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'พบความตรงกัน (${matchPercentage}%): ${post.title}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            Icon(
+              Icons.notifications_none,
+              size: 80,
+              color: textColor.withOpacity(0.5),
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      if (notification.notificationId != null) {
-                        setState(() => smartNotifications.remove(notification));
-                        _removeNotification(notification.notificationId!);
-                      }
-                    },
-                    child: const Text('ไม่ใช่'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _contactOwner(post),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('ใช่ (ติดต่อ)'),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 16),
+            Text(
+              'ยังไม่มีการแจ้งเตือนที่ตรงกับความสนใจของคุณ',
+              style: TextStyle(
+                fontSize: 18,
+                color: textColor.withOpacity(0.7),
+                fontFamily: 'Prompt',
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -270,7 +195,292 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
     );
   }
 
-  // (Optional) view details helper removed — not currently used
+  Widget _buildNotificationList() {
+    return ListView.builder(
+      padding: EdgeInsets.zero, // ✅ ลบ Padding เพื่อให้ชิดขอบ
+      itemCount: smartNotifications.length,
+      itemBuilder: (context, index) {
+        final notification = smartNotifications[index];
+        return _buildNotificationCard(notification);
+      },
+    );
+  }
+
+  // ✅✅✅ ดีไซน์ใหม่: แบบ X (Feed) เต็มจอ ไม่มี Card
+  Widget _buildNotificationCard(SmartNotificationItem notification) {
+    final post = notification.post;
+    final matchPercentage = (notification.matchScore * 100).round();
+
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
+
+    return InkWell(
+      onTap: () async {
+        if (notification.notificationId != null && !notification.isRead) {
+          await _markNotificationAsRead(notification.notificationId!);
+        }
+        _viewPostDetails(post);
+      },
+      child: Container(
+        // ✅ พื้นหลังสี Primary + เส้นคั่นด้านล่าง
+        decoration: BoxDecoration(
+          color: primaryColor,
+          border: Border(
+            bottom: BorderSide(
+              color: onPrimaryColor.withOpacity(0.2), // เส้นสีจางๆ
+              width: 0.5,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: คะแนน + เวลา
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getMatchColor(notification.matchScore),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$matchPercentage% ตรงกัน',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                Text(
+                  _getTimeAgo(notification.createdAt),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: onPrimaryColor.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Content: Avatar + Text
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    color: onPrimaryColor.withOpacity(0.1),
+                    child:
+                        post.imageUrl.isNotEmpty
+                            ? Image.network(post.imageUrl, fit: BoxFit.cover)
+                            : Icon(
+                              post.isLostItem
+                                  ? Icons.search
+                                  : Icons.find_in_page,
+                              color:
+                                  post.isLostItem
+                                      ? Colors.red[300]
+                                      : Colors.green[300],
+                            ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: onPrimaryColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        post.description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: onPrimaryColor.withOpacity(0.8),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (notification.relatedUserPost != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'ตรงกับ: ${notification.relatedUserPost!.title}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[300],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Reasons
+            if (notification.matchReasons.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 12, left: 66),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: onPrimaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: onPrimaryColor.withOpacity(0.1)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'เหตุผลที่แจ้งเตือน:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: onPrimaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...notification.matchReasons.map(
+                      (r) => Text(
+                        '• $r',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: onPrimaryColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Actions
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 66),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _handleNotMatch(notification),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: onPrimaryColor,
+                        side: BorderSide(
+                          color: onPrimaryColor.withOpacity(0.5),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      child: const Text(
+                        'ไม่ใช่',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _handleMatchConfirmed(post),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                      label: const Text(
+                        'ติดต่อ',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Helper Functions ---
+
+  Color _getMatchColor(double score) {
+    if (score >= 0.8) return Colors.green;
+    if (score >= 0.7) return Colors.orange;
+    return Colors.blue;
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 0) return '${diff.inDays} วันที่แล้ว';
+    if (diff.inHours > 0) return '${diff.inHours} ชม. ที่แล้ว';
+    return '${diff.inMinutes} นาทีที่แล้ว';
+  }
+
+  Future<void> _markNotificationAsRead(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('smart_notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+    } catch (e) {
+      debugPrint('Error marking notification as read: $e');
+    }
+  }
+
+  void _handleNotMatch(SmartNotificationItem notification) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('ลบการแจ้งเตือน'),
+            content: const Text('คุณต้องการลบการแจ้งเตือนนี้ใช่หรือไม่?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('ยกเลิก'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('ยืนยัน'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        smartNotifications.remove(notification);
+      });
+      if (notification.notificationId != null) {
+        await FirebaseFirestore.instance
+            .collection('smart_notifications')
+            .doc(notification.notificationId)
+            .delete();
+      }
+    }
+  }
+
+  void _handleMatchConfirmed(Post post) {
+    _contactOwner(post);
+  }
 
   void _contactOwner(Post post) {
     showDialog(
@@ -280,20 +490,20 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
             title: const Text('ติดต่อเจ้าของ'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Text('ชื่อ: '),
-                    Text(
-                      post.userName.trim().isEmpty
-                          ? 'ไม่ระบุผู้โพสต์'
-                          : post.userName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(
+                    post.userName.isEmpty ? 'ไม่ระบุชื่อ' : post.userName,
+                  ),
+                  subtitle: const Text('ผู้โพสต์'),
                 ),
-                const SizedBox(height: 8),
-                Row(children: [const Text('ติดต่อ: '), Text(post.contact)]),
+                ListTile(
+                  leading: const Icon(Icons.phone),
+                  title: Text(post.contact),
+                  subtitle: const Text('เบอร์โทร / Line'),
+                ),
               ],
             ),
             actions: [
@@ -306,9 +516,27 @@ class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
     );
   }
 
-  // helper functions removed if unused
+  void _viewPostDetails(Post post) {
+    // คุณสามารถใส่โค้ดเปิดหน้า PostDetailSheet ที่นี่ได้
+    // หรือใช้ Dialog ง่ายๆ แบบนี้ไปก่อน
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(post.title),
+            content: Text(post.description),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('ปิด'),
+              ),
+            ],
+          ),
+    );
+  }
 }
 
+// Model Class
 class SmartNotificationItem {
   final Post post;
   final double matchScore;

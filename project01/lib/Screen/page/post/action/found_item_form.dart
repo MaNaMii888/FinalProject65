@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
+import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/services/post_count_service.dart';
 
 class FindItemForm extends StatefulWidget {
@@ -411,6 +412,10 @@ class _FindItemFormState extends State<FindItemForm> {
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
 
+  if (mounted) {
+        // สั่งให้ระบบแจ้งเตือนทำงานทันที เพื่อจับคู่โพสต์นี้กับคนอื่น
+        await RealtimeNotificationService.refreshCheck(context);
+      }
       // อัปเดทจำนวนโพสต์
       if (FirebaseAuth.instance.currentUser?.uid != null) {
         await PostCountService.updatePostCount(

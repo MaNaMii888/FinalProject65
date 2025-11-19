@@ -9,8 +9,6 @@ import 'package:project01/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:project01/firebase_options.dart';
 import 'dart:async';
-// ignore: unused_import
-import 'package:project01/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

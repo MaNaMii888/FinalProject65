@@ -344,49 +344,27 @@ class SmartMatchingService {
     required double matchScore,
   }) async {
     try {
-      final matchPercentage = (matchScore * 100).round();
+      (matchScore * 100).round();
 
       // กำหนดข้อความตามประเภทของการแมช
-      String title, message;
 
       if (newPost.isLostItem && !matchingPost.isLostItem) {
         // โพสต์ใหม่ = หาของ, โพสต์เดิม = พบของ
-        title = '🔍 มีคนหาสิ่งของที่คุณพบ!';
-        message =
-            'คน${newPost.userName}หา "${newPost.title}" ซึ่งคล้ายกับที่คุณพบ - ความตรง $matchPercentage%';
       } else if (!newPost.isLostItem && matchingPost.isLostItem) {
         // โพสต์ใหม่ = พบของ, โพสต์เดิม = หาของ
-        title = '🎯 มีคนพบสิ่งของที่คุณหา!';
-        message =
-            'คน${newPost.userName}พบ "${newPost.title}" ซึ่งคล้ายกับที่คุณหา - ความตรง $matchPercentage%';
       } else {
         // กรณีอื่นๆ (ไม่น่าจะเกิดขึ้น)
-        title = '🎯 พบสิ่งของที่อาจเกี่ยวข้อง';
-        message = '${newPost.title} - ความตรง $matchPercentage%';
       }
 
       // สร้างเหตุผลการจับคู่เพื่อช่วยผู้ใช้เข้าใจ
       final reasons = _getPostMatchReasons(matchingPost, newPost);
 
-      // บันทึกลง collection 'smart_notifications' ให้สอดคล้องกับหน้ากล่องแจ้งเตือน
-      await _firestore.collection('smart_notifications').add({
-        'userId': userId,
-        'postId': newPost.id, // โพสต์ของคนอื่นที่เกี่ยวข้องกับผู้ใช้
-        'relatedPostId': matchingPost.id, // โพสต์ของผู้ใช้เองที่ตรงกัน
-        'postTitle': newPost.title,
-        'postType': newPost.isLostItem ? 'lost' : 'found',
-        'matchScore': matchScore,
-        'matchReasons': reasons,
-        'isRead': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // ส่ง local notification เพื่อแสดงทันทีภายในแอพ
-      await NotificationService.showLocalNotification(
-        id: DateTime.now().millisecondsSinceEpoch,
-        title: title,
-        body: message,
-        payload: 'smart_match_${newPost.id}',
+      await NotificationService.createSmartMatchNotification(
+        targetUserId: userId,
+        matchedPost: newPost,
+        relatedPost: matchingPost,
+        matchScore: matchScore,
+        matchReasons: reasons,
       );
 
       debugPrint('✅ Sent smart match notification to user $userId');
@@ -405,7 +383,8 @@ class SmartMatchingService {
     if (userPost.category == otherPost.category) {
       reasons.add('หมวดหมู่เดียวกัน');
     }
-    if (userPost.building == otherPost.building && userPost.building.isNotEmpty) {
+    if (userPost.building == otherPost.building &&
+        userPost.building.isNotEmpty) {
       reasons.add('อาคารเดียวกัน: อาคาร ${otherPost.building}');
     }
 

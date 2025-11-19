@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
+import 'package:project01/services/notifications_service.dart';
 import 'dart:async';
 
 class RealtimeNotificationService {
@@ -161,14 +162,14 @@ class RealtimeNotificationService {
               newPost: matchingPost,
               matchScore: bestMatch,
               matchReasons: matchReasons,
-              relatedPostId: userPost.id,
+              relatedPost: userPost,
             );
             await _saveNotificationToFirestore(
               userId: matchingPost.userId, // แจ้งเขา (เจ้าของโพสต์ที่เราไปเจอ)
               newPost: userPost, // ส่งโพสต์ของเราไปให้เขาดู
               matchScore: bestMatch,
               matchReasons: matchReasons,
-              relatedPostId: matchingPost.id, // อ้างอิงโพสต์ของเขา
+              relatedPost: matchingPost, // อ้างอิงโพสต์ของเขา
             );
 
             // แสดง snackbar ถ้า context ยังใช้งานได้
@@ -199,8 +200,9 @@ class RealtimeNotificationService {
     try {
       final snapshot =
           await _firestore
-              .collection('smart_notifications')
+              .collection('notifications')
               .where('userId', isEqualTo: userId)
+              .where('type', isEqualTo: 'smart_match')
               .where('postId', isEqualTo: postId)
               .where('relatedPostId', isEqualTo: relatedPostId)
               .limit(1)
@@ -265,7 +267,7 @@ class RealtimeNotificationService {
           newPost: newPost,
           matchScore: bestMatch,
           matchReasons: matchReasons,
-          relatedPostId: matchingUserPost.id,
+          relatedPost: matchingUserPost,
         );
 
         if (context.mounted) {
@@ -282,22 +284,18 @@ class RealtimeNotificationService {
   static Future<void> _saveNotificationToFirestore({
     required String userId,
     required Post newPost,
+    required Post relatedPost,
     required double matchScore,
     required List<String> matchReasons,
-    required String relatedPostId,
   }) async {
     try {
-      await _firestore.collection('smart_notifications').add({
-        'userId': userId,
-        'postId': newPost.id,
-        'postTitle': newPost.title,
-        'postType': newPost.isLostItem ? 'lost' : 'found',
-        'matchScore': matchScore,
-        'matchReasons': matchReasons,
-        'relatedPostId': relatedPostId,
-        'isRead': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await NotificationService.createSmartMatchNotification(
+        targetUserId: userId,
+        matchedPost: newPost,
+        relatedPost: relatedPost,
+        matchScore: matchScore,
+        matchReasons: matchReasons,
+      );
       debugPrint('💾 Notification saved to Firestore');
     } catch (e) {
       debugPrint('❌ Error saving notification: $e');

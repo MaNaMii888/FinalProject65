@@ -2,16 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:project01/models/post.dart';
 
 class NotificationModel {
   final String id;
   final String userId;
   final String title;
   final String message;
-  final String type; // 'match_found', 'item_claimed', 'general'
+  final String type; // 'smart_match', 'match_found', 'item_claimed', 'general'
   final Map<String, dynamic> data;
   final DateTime createdAt;
   final bool isRead;
+  final String? postId;
+  final String? relatedPostId;
+  final double? matchScore;
+  final List<String> matchReasons;
+  final String? postTitle;
+  final String? postType;
+  final String? postImageUrl;
 
   NotificationModel({
     required this.id,
@@ -22,7 +30,14 @@ class NotificationModel {
     required this.data,
     required this.createdAt,
     this.isRead = false,
-  });
+    this.postId,
+    this.relatedPostId,
+    this.matchScore,
+    List<String>? matchReasons,
+    this.postTitle,
+    this.postType,
+    this.postImageUrl,
+  }) : matchReasons = matchReasons ?? const [];
 
   factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -35,6 +50,13 @@ class NotificationModel {
       data: Map<String, dynamic>.from(data['data'] ?? {}),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isRead: data['isRead'] ?? false,
+      postId: data['postId'],
+      relatedPostId: data['relatedPostId'],
+      matchScore: (data['matchScore'] as num?)?.toDouble(),
+      matchReasons: List<String>.from(data['matchReasons'] ?? const []),
+      postTitle: data['postTitle'],
+      postType: data['postType'],
+      postImageUrl: data['postImageUrl'],
     );
   }
 
@@ -47,7 +69,14 @@ class NotificationModel {
       'data': data,
       'createdAt': FieldValue.serverTimestamp(),
       'isRead': isRead,
-    };
+      'postId': postId,
+      'relatedPostId': relatedPostId,
+      'matchScore': matchScore,
+      'matchReasons': matchReasons,
+      'postTitle': postTitle,
+      'postType': postType,
+      'postImageUrl': postImageUrl,
+    }..removeWhere((key, value) => value == null);
   }
 }
 
@@ -125,6 +154,76 @@ class NotificationService {
       await _notifications.show(id, title, body, details, payload: payload);
     } catch (e) {
       debugPrint('Error showing local notification: $e');
+    }
+  }
+
+  static Future<String?> createSmartMatchNotification({
+    required String targetUserId,
+    required Post matchedPost,
+    required Post relatedPost,
+    required double matchScore,
+    required List<String> matchReasons,
+    bool showLocal = true,
+  }) async {
+    try {
+      final matchPercentage = (matchScore * 100).round();
+      final bool matchedIsLost = matchedPost.isLostItem;
+      final bool relatedIsLost = relatedPost.isLostItem;
+
+      String title;
+      String message;
+
+      if (matchedIsLost && !relatedIsLost) {
+        title = '🔍 มีคนหาสิ่งของที่คุณพบ!';
+        message =
+            'ผู้ใช้ ${matchedPost.userName} กำลังหา "${matchedPost.title}" ที่คล้ายกับที่คุณพบ (${matchPercentage}%)';
+      } else if (!matchedIsLost && relatedIsLost) {
+        title = '🎯 มีคนพบสิ่งของที่คุณหา!';
+        message =
+            'ผู้ใช้ ${matchedPost.userName} พบ "${matchedPost.title}" ที่คล้ายกับที่คุณหา (${matchPercentage}%)';
+      } else {
+        title = '🎯 พบสิ่งของที่อาจเกี่ยวข้อง';
+        message = '${matchedPost.title} - ความตรง ${matchPercentage}%';
+      }
+
+      final notification = NotificationModel(
+        id: '',
+        userId: targetUserId,
+        title: title,
+        message: message,
+        type: 'smart_match',
+        data: {
+          'matchedPostId': matchedPost.id,
+          'relatedPostId': relatedPost.id,
+          'matchPercentage': matchPercentage,
+          'contact': matchedPost.contact,
+          'userName': matchedPost.userName,
+        },
+        createdAt: DateTime.now(),
+        postId: matchedPost.id,
+        relatedPostId: relatedPost.id,
+        matchScore: matchScore,
+        matchReasons: matchReasons,
+        postTitle: matchedPost.title,
+        postType: matchedPost.isLostItem ? 'lost' : 'found',
+        postImageUrl: matchedPost.imageUrl.isEmpty ? null : matchedPost.imageUrl,
+      );
+
+      final notificationId = await saveNotificationToFirestore(notification);
+
+      if (notificationId != null && showLocal) {
+        await showLocalNotification(
+          id: DateTime.now().millisecondsSinceEpoch % 2147483647,
+          title: title,
+          body: message,
+          payload: 'smart_match:${matchedPost.id}',
+        );
+      }
+
+      return notificationId;
+    } catch (e) {
+      debugPrint('Error creating smart match notification: $e');
+      return null;
     }
   }
 
@@ -283,7 +382,7 @@ class NotificationService {
       final notificationId = await saveNotificationToFirestore(notification);
       if (notificationId != null) {
         await showLocalNotification(
-          id: DateTime.now().millisecondsSinceEpoch,
+          id: DateTime.now().millisecondsSinceEpoch % 2147483647,
           title: notification.title,
           body: notification.message,
           payload: 'match_found:$existingItemId',
@@ -379,7 +478,7 @@ class NotificationService {
       final notificationId = await saveNotificationToFirestore(notification);
       if (notificationId != null && showLocal) {
         await showLocalNotification(
-          id: DateTime.now().millisecondsSinceEpoch,
+          id: DateTime.now().millisecondsSinceEpoch % 2147483647,
           title: title,
           body: message,
         );
@@ -415,7 +514,7 @@ class NotificationService {
     final success = await saveNotificationToFirestore(notification);
     if (success != null) {
       await showLocalNotification(
-        id: DateTime.now().millisecondsSinceEpoch,
+        id: DateTime.now().millisecondsSinceEpoch % 2147483647,
         title: notification.title,
         body: notification.message,
         payload: 'item_claimed:$itemId',
