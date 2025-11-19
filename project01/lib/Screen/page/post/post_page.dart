@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:project01/Screen/page/post/action/find_item_action.dart';
 import 'package:project01/Screen/page/post/action/found_item_action.dart';
+import 'package:project01/Screen/page/post/action/lost_item_action.dart';
 import 'package:project01/Screen/page/post/action/post_actions_buttons.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
@@ -80,30 +80,43 @@ class _PostPageState extends State<PostPage>
     if (!mounted) return;
     setState(() => isLoading = true);
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('lost_found_items')
-          .orderBy('createdAt', descending: true)
-          .limit(pageSize)
-          .get()
-          .timeout(const Duration(seconds: 10));
+      // ลอง comment บรรทัด orderBy ออกชั่วคราว เพื่อเทสว่าเกี่ยวกับ Index ไหม
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('lost_found_items')
+              .orderBy('createdAt', descending: true)
+              .limit(pageSize)
+              .get();
+
+      debugPrint("🔥 เจอข้อมูลจำนวน: ${snapshot.docs.length} รายการ");
 
       if (snapshot.docs.isNotEmpty) {
         lastDocument = snapshot.docs.last;
       }
 
       if (!mounted) return;
+
+      // ลองแปลงข้อมูลดูว่าพังตรง Model หรือไม่
+      final List<Post> loadedPosts = [];
+      for (var doc in snapshot.docs) {
+        try {
+          loadedPosts.add(Post.fromJson({...doc.data(), 'id': doc.id}));
+        } catch (e) {
+          debugPrint("💥 Error แปลงข้อมูล ID ${doc.id}: $e");
+          // อาจจะเกิดจากชื่อตัวแปรไม่ตรงกัน (detail vs description)
+        }
+      }
+
       setState(() {
-        posts =
-            snapshot.docs
-                .map((doc) => Post.fromJson({...doc.data(), 'id': doc.id}))
-                .toList();
+        posts = loadedPosts;
         isLoading = false;
         hasMore = snapshot.docs.length == pageSize;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() => isLoading = false);
-      _showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: $e');
+      debugPrint("❌ Error โหลดข้อมูล: $e");
+      _showError('เกิดข้อผิดพลาด: $e');
     }
   }
 
@@ -231,8 +244,7 @@ class _PostPageState extends State<PostPage>
     return Stack(
       children: [
         Scaffold(
-          // Use theme primary as page background
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           appBar: AppBar(
             title: const SizedBox.shrink(),
             toolbarHeight: 0,
@@ -298,7 +310,7 @@ class _PostPageState extends State<PostPage>
                   ),
                 ),
               ],
-              indicatorColor: Theme.of(context).colorScheme.primary,
+              indicatorColor: Theme.of(context).colorScheme.surface,
               dividerColor: Colors.transparent,
             ),
             elevation: 0,
@@ -359,7 +371,7 @@ class _PostPageState extends State<PostPage>
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    color: Theme.of(context).colorScheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(25.0),
                     boxShadow: [
                       BoxShadow(
@@ -379,11 +391,11 @@ class _PostPageState extends State<PostPage>
                     decoration: InputDecoration(
                       hintText: 'ค้นหา...',
                       hintStyle: TextStyle(
-                        color: Theme.of(context).colorScheme.secondary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       prefixIcon: Icon(
                         Icons.search,
-                        color: Theme.of(context).colorScheme.secondary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(
@@ -403,9 +415,9 @@ class _PostPageState extends State<PostPage>
               PopupMenuButton<String?>(
                 icon: Icon(
                   Icons.filter_list,
-                  color: Theme.of(context).colorScheme.surface,
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
-                color: Theme.of(context).colorScheme.secondary,
+                color: Theme.of(context).colorScheme.primary,
                 elevation: 3, // ✅ ความสูงของเงา
                 shadowColor: Colors.white, // ✅ สีเงา
                 offset: const Offset(0, 60),
@@ -415,26 +427,66 @@ class _PostPageState extends State<PostPage>
                   });
                 },
                 itemBuilder:
-                    (context) => const [
+                    (context) => [
                       PopupMenuItem<String?>(
                         value: null,
-                        child: Text('ทั้งหมด'),
+                        child: Text(
+                          'ทั้งหมด',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context)
+                                    .colorScheme
+                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
                       ),
                       PopupMenuItem<String?>(
                         value: '1',
-                        child: Text('ของใช้ส่วนตัว'),
+                        child: Text(
+                          'ของใช้ส่วนตัว',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context)
+                                    .colorScheme
+                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
                       ),
                       PopupMenuItem<String?>(
                         value: '2',
-                        child: Text('เอกสาร/บัตร'),
+                        child: Text(
+                          'เอกสาร/บัตร',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context)
+                                    .colorScheme
+                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
                       ),
                       PopupMenuItem<String?>(
                         value: '3',
-                        child: Text('อุปกรณ์การเรียน'),
+                        child: Text(
+                          'อุปกรณ์การเรียน',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context)
+                                    .colorScheme
+                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
                       ),
                       PopupMenuItem<String?>(
                         value: '4',
-                        child: Text('ของมีค่าอื่นๆ'),
+                        child: Text(
+                          'ของมีค่าอื่นๆ',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context)
+                                    .colorScheme
+                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
+                          ),
+                        ),
                       ),
                     ],
               ),
@@ -452,7 +504,7 @@ class _PostPageState extends State<PostPage>
                 color: Theme.of(context).colorScheme.secondary,
                 borderRadius: BorderRadius.circular(8.0),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Theme.of(context).colorScheme.surface,
                 ),
               ),
               child: Row(
@@ -460,7 +512,7 @@ class _PostPageState extends State<PostPage>
                   Icon(
                     Icons.filter_alt,
                     size: 16,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: Theme.of(context).colorScheme.surface,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -593,322 +645,249 @@ class _PostPageState extends State<PostPage>
   }
 
   Widget _buildPostItem(Post post, {required bool isMobile}) {
+    // ดึงสีจาก Theme ให้ตรงกับหน้าแจ้งเตือน
+    final onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
+
     if (isMobile) {
-      return Card(
-        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-        color: Theme.of(context).colorScheme.primary, // ✅ เพิ่มสีพื้นหลัง
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.onPrimary, // สีของกรอบ
-            width: 0.5, // ความหนาของกรอบ
-          ),
-        ),
-        child: InkWell(
-          onTap: () => _showPostDetail(post),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor:
-                          post.isLostItem ? Colors.red[100] : Colors.green[100],
-                      child: Icon(
-                        post.isLostItem
-                            ? Icons.help_outline
-                            : Icons.check_circle_outline,
-                        color: post.isLostItem ? Colors.red : Colors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          post.userName.trim().isEmpty
-                              ? FutureBuilder<String>(
-                                future: _getUserName(post.userId),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return Text(
-                                      'กำลังโหลด...',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color:
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .surface, // เปลี่ยนสีข้อความ
-                                      ),
-                                    );
-                                  }
-                                  final name =
-                                      (snapshot.data ?? 'ไม่ระบุผู้โพสต์');
-                                  return Text(
-                                    name,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(context)
-                                              .colorScheme
-                                              .surface, // เปลี่ยนสีข้อความ
-                                    ),
-                                  );
-                                },
-                              )
-                              : Text(
-                                post.userName,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(
-                                        context,
-                                      ).colorScheme.primary, // เปลี่ยนสีข้อความ
-                                ),
-                              ),
-                          Text(
-                            '${post.isLostItem ? "แจ้งของหาย" : "แจ้งเจอของ"} • ${_getTimeAgo(post.createdAt)}',
-                            style: TextStyle(
-                              color:
-                                  Theme.of(context)
-                                      .colorScheme
-                                      .onPrimary, // สีเทาสำหรับรายละเอียด
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (post.status == 'closed')
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'ปิดการค้นหา',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${post.building} • ${post.location}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                  ],
-                ),
-                if (post.imageUrl.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: post.imageUrl,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder:
-                          (context, url) =>
-                              const Center(child: CircularProgressIndicator()),
-                      errorWidget:
-                          (context, url, error) => const Icon(Icons.error),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Text(
-                  post.title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color:
-                        Theme.of(
-                          context,
-                        ).colorScheme.onPrimaryContainer, // สีข้อความหัวเรื่อง
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  post.description,
-                  style: TextStyle(color: Colors.grey[700]),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+      return InkWell(
+        onTap: () => _showPostDetail(post),
+        child: Container(
+          // ✅ 1. ดีไซน์แบบ Feed: เต็มจอ + เส้นคั่นล่าง
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface, // พื้นหลังสี Primary
+            border: Border(
+              bottom: BorderSide(
+                color: onPrimaryColor.withOpacity(0.2), // เส้นคั่นบางๆ
+                width: 0.5,
+              ),
             ),
           ),
-        ),
-      );
-    } else {
-      // Desktop/Tablet layout
-      return Card(
-        elevation: 4,
-        color: Theme.of(context).colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Colors.grey[300]!, // สีของกรอบ
-            width: 1.5, // ความหนาของกรอบ
-          ),
-        ),
-        child: InkWell(
-          onTap: () => _showPostDetail(post),
-          borderRadius: BorderRadius.circular(16),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (post.imageUrl.isNotEmpty)
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
+              // ส่วนหัว: รูปโปรไฟล์ + ชื่อ + เวลา
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // รูปโปรไฟล์ (Avatar)
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: onPrimaryColor.withOpacity(0.1),
+                    child: Icon(
+                      post.isLostItem
+                          ? Icons.help_outline
+                          : Icons.check_circle_outline,
+                      color:
+                          post.isLostItem ? Colors.red[300] : Colors.green[300],
+                      size: 20,
+                    ),
                   ),
-                  child: CachedNetworkImage(
-                    imageUrl: post.imageUrl,
-                    width: double.infinity,
-                    height: 180,
-                    fit: BoxFit.cover,
-                    placeholder:
-                        (context, url) =>
-                            const Center(child: CircularProgressIndicator()),
-                    errorWidget:
-                        (context, url, error) => const Icon(Icons.error),
+                  const SizedBox(width: 12),
+
+                  // ชื่อและเวลา
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            // ชื่อผู้ใช้
+                            Flexible(
+                              child:
+                                  post.userName.trim().isEmpty
+                                      ? FutureBuilder<String>(
+                                        future: _getUserName(post.userId),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return Text(
+                                              'กำลังโหลด...',
+                                              style: TextStyle(
+                                                color: onPrimaryColor
+                                                    .withOpacity(0.5),
+                                                fontSize: 14,
+                                              ),
+                                            );
+                                          }
+                                          return Text(
+                                            snapshot.data ?? 'ไม่ระบุชื่อ',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color:
+                                                  onPrimaryColor, // ✅ สีชื่อ (onPrimary)
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          );
+                                        },
+                                      )
+                                      : Text(
+                                        post.userName,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: onPrimaryColor, // ✅ สีชื่อ
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                            ),
+                            // เวลา (แสดงแบบ • 5 นาทีที่แล้ว)
+                            Text(
+                              ' • ${_getTimeAgo(post.createdAt)}',
+                              style: TextStyle(
+                                color: onPrimaryColor.withOpacity(
+                                  0.6,
+                                ), // ✅ สีเวลาจางๆ
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // ประเภทโพสต์ (แจ้งของหาย/เจอของ)
+                        Text(
+                          post.isLostItem ? '@แจ้งของหาย' : '@แจ้งเจอของ',
+                          style: TextStyle(
+                            color: onPrimaryColor.withOpacity(
+                              0.5,
+                            ), // สไตล์ Handle name
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+
+                  // ปุ่มปิดสถานะ (ถ้ามี)
+                  if (post.status == 'closed')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: onPrimaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'ปิดแล้ว',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: onPrimaryColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // ส่วนเนื้อหา (เยื้องขวานิดหน่อย หรือชิดซ้ายตามดีไซน์ X)
+              // ผมจัดให้ตรงกับแนวชื่อเพื่อความสวยงาม (padding left = Avatar size + space)
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.only(
+                  left: 52,
+                ), // 40(avatar) + 12(gap)
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor:
-                              post.isLostItem
-                                  ? Colors.red[100]
-                                  : Colors.green[100],
-                          child: Icon(
-                            post.isLostItem
-                                ? Icons.help_outline
-                                : Icons.check_circle_outline,
-                            size: 16,
-                            color: post.isLostItem ? Colors.red : Colors.green,
+                    // หัวข้อ
+                    if (post.title.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          post.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: onPrimaryColor, // ✅ สีหัวข้อ
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child:
-                              post.userName.trim().isEmpty
-                                  ? FutureBuilder<String>(
-                                    future: _getUserName(post.userId),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const Text(
-                                          'กำลังโหลด...',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            color: Colors.black87,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        );
-                                      }
-                                      final name =
-                                          (snapshot.data ?? 'ไม่ระบุผู้โพสต์');
-                                      return Text(
-                                        name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.black87,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      );
-                                    },
-                                  )
-                                  : Text(
-                                    post.userName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Colors.black87,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                        ),
-                        if (post.status == 'closed')
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'ปิด',
-                              style: TextStyle(fontSize: 10),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      post.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 14,
-                          color: Colors.grey[600],
+
+                    // รายละเอียด
+                    if (post.description.isNotEmpty)
+                      Text(
+                        post.description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: onPrimaryColor.withOpacity(0.9), // ✅ สีเนื้อหา
+                          height: 1.4,
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            '${post.building} • ${post.location}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                    const SizedBox(height: 8),
+
+                    // สถานที่ (Location Tag)
+                    if (post.building.isNotEmpty || post.location.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 14,
+                              color: onPrimaryColor.withOpacity(0.5),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                '${post.building} ${post.location.isNotEmpty ? "• ${post.location}" : ""}',
+                                style: TextStyle(
+                                  color: onPrimaryColor.withOpacity(0.5),
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // รูปภาพ (ถ้ามี) - ปรับขอบมนเล็กน้อย
+                    if (post.imageUrl.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: onPrimaryColor.withOpacity(0.1),
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: CachedNetworkImage(
+                              imageUrl: post.imageUrl,
+                              width: double.infinity,
+                              // height: 200, // ปล่อย auto height หรือกำหนด max
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) => Container(
+                                    height: 150,
+                                    color: onPrimaryColor.withOpacity(0.05),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                              errorWidget:
+                                  (context, url, error) => Container(
+                                    height: 100,
+                                    color: onPrimaryColor.withOpacity(0.05),
+                                    child: Icon(
+                                      Icons.broken_image,
+                                      color: onPrimaryColor.withOpacity(0.3),
+                                    ),
+                                  ),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _getTimeAgo(post.createdAt),
-                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                    ),
+                      ),
                   ],
                 ),
               ),
@@ -916,6 +895,8 @@ class _PostPageState extends State<PostPage>
           ),
         ),
       );
+    } else {
+      return const SizedBox(); // ละไว้ฐานที่เข้าใจ
     }
   }
 
@@ -923,6 +904,7 @@ class _PostPageState extends State<PostPage>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => PostDetailSheet(post: post),
     );
   }

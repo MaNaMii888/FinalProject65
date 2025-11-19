@@ -169,7 +169,7 @@ class _CampusNavigationState extends State<CampusNavigation>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor, // สีแดง Crimson
+      backgroundColor: Theme.of(context).colorScheme.surface, // สีแดง Crimson
       body: Stack(
         children: [
           // Fullscreen content
@@ -212,12 +212,12 @@ class _CampusNavigationState extends State<CampusNavigation>
             child: IconButton(
               onPressed: _showNotifications,
               icon: const Icon(Icons.notifications),
-              color: Theme.of(context).primaryColor, // สีของไอคอน
+              color: Theme.of(context).colorScheme.surface, // สีของไอคอน
               iconSize: 40, // ขนาดของไอคอน
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.all(Colors.transparent),
                 overlayColor: WidgetStateProperty.all(
-                  Colors.white24,
+                  Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
                 ), // ตอนกดให้ดูมีเอฟเฟกต์
               ),
             ),

@@ -160,8 +160,8 @@ class SmartMatchingService {
         '🎯 Match score between "${newPost.title}" and "${existingPost.title}": ${(matchScore * 100).round()}%',
       );
 
-      // ส่งการแจ้งเตือนหากคะแนนสูงพอ
-      if (matchScore > 0.7) {
+      // ส่งการแจ้งเตือนหากคะแนนสูงพอ (เกณฑ์ 60%)
+      if (matchScore >= 0.6) {
         // แจ้งเตือนไปยังเจ้าของโพสต์เดิม
         await _sendMatchNotification(
           userId: existingPost.userId,
@@ -228,8 +228,8 @@ class SmartMatchingService {
         }
       }
 
-      // ส่ง notification หากคะแนนสูงกว่า threshold
-      if (bestMatchScore > 0.7 && bestMatchPost != null) {
+      // ส่ง notification หากคะแนนสูงกว่า threshold (เกณฑ์ 60%)
+      if (bestMatchScore >= 0.6 && bestMatchPost != null) {
         await _sendMatchNotification(
           userId: userId,
           newPost: newPost,
@@ -365,34 +365,27 @@ class SmartMatchingService {
         message = '${newPost.title} - ความตรง $matchPercentage%';
       }
 
-      final notification = NotificationModel(
-        id: '',
-        userId: userId,
-        title: title,
-        message: message,
-        type: 'smart_match',
-        data: {
-          'newPostId': newPost.id,
-          'matchingPostId': matchingPost.id,
-          'matchScore': matchScore,
-          'newPostTitle': newPost.title,
-          'matchingPostTitle': matchingPost.title,
-          'newPostType': newPost.isLostItem ? 'lost' : 'found',
-          'matchingPostType': matchingPost.isLostItem ? 'lost' : 'found',
-          'newPostUserName': newPost.userName,
-          'newPostContact': newPost.contact,
-        },
-        createdAt: DateTime.now(),
-      );
+      // สร้างเหตุผลการจับคู่เพื่อช่วยผู้ใช้เข้าใจ
+      final reasons = _getPostMatchReasons(matchingPost, newPost);
 
-      // บันทึกลง Firebase
-      await NotificationService.saveNotificationToFirestore(notification);
+      // บันทึกลง collection 'smart_notifications' ให้สอดคล้องกับหน้ากล่องแจ้งเตือน
+      await _firestore.collection('smart_notifications').add({
+        'userId': userId,
+        'postId': newPost.id, // โพสต์ของคนอื่นที่เกี่ยวข้องกับผู้ใช้
+        'relatedPostId': matchingPost.id, // โพสต์ของผู้ใช้เองที่ตรงกัน
+        'postTitle': newPost.title,
+        'postType': newPost.isLostItem ? 'lost' : 'found',
+        'matchScore': matchScore,
+        'matchReasons': reasons,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-      // ส่ง local notification ถ้าผู้ใช้อยู่ในแอพ
+      // ส่ง local notification เพื่อแสดงทันทีภายในแอพ
       await NotificationService.showLocalNotification(
         id: DateTime.now().millisecondsSinceEpoch,
-        title: notification.title,
-        body: notification.message,
+        title: title,
+        body: message,
         payload: 'smart_match_${newPost.id}',
       );
 
@@ -400,6 +393,31 @@ class SmartMatchingService {
     } catch (e) {
       debugPrint('❌ Error sending notification: $e');
     }
+  }
+
+  /// อธิบายเหตุผลการจับคู่แบบย่อเพื่อแสดงใน UI
+  static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
+    final List<String> reasons = [];
+
+    if (userPost.isLostItem != otherPost.isLostItem) {
+      reasons.add('ประเภทตรงข้าม (หาของ/เจอของ)');
+    }
+    if (userPost.category == otherPost.category) {
+      reasons.add('หมวดหมู่เดียวกัน');
+    }
+    if (userPost.building == otherPost.building && userPost.building.isNotEmpty) {
+      reasons.add('อาคารเดียวกัน: อาคาร ${otherPost.building}');
+    }
+
+    final textSim = _calculateTextSimilarity(
+      '${userPost.title} ${userPost.description}',
+      '${otherPost.title} ${otherPost.description}',
+    );
+    if (textSim >= 0.3) {
+      reasons.add('ข้อความคล้ายกัน');
+    }
+
+    return reasons;
   }
 
   /// อัพเดท user activity (เรียกเมื่อเปิดแอพ)

@@ -31,6 +31,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return WillPopScope(
       onWillPop: () async => !isLoading,
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.primary,
         appBar: AppBar(
           title: const Text('แก้ไขโปรไฟล์'),
           centerTitle: true,
@@ -40,14 +41,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           actions: [
             if (!isLoading)
-              TextButton(onPressed: _saveProfile, child: const Text('บันทึก'))
+              TextButton(
+                onPressed: _saveProfile,
+                // ✅ เพิ่ม style เพื่อกำหนดสีตัวอักษร
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      Theme.of(context)
+                          .colorScheme
+                          .onPrimary, // สีขาว (หรือสีที่ตัดกับพื้นหลัง)
+                ),
+                child: const Text(
+                  'บันทึก',
+                  style: TextStyle(
+                    fontWeight:
+                        FontWeight.bold, // ตัวหนาขึ้นเล็กน้อยเพื่อความสวยงาม
+                  ),
+                ),
+              )
             else
               const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    // ✅ ปรับสี Loading ให้เป็นสีเดียวกับตัวอักษรด้วย
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
                 ),
               ),
           ],

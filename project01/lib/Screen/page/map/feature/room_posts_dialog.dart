@@ -51,7 +51,7 @@ class RoomPostsDialog extends StatelessWidget {
               children: [
                 Icon(
                   Icons.room,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: Theme.of(context).colorScheme.onPrimary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -63,7 +63,7 @@ class RoomPostsDialog extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
                       Text(
@@ -72,7 +72,7 @@ class RoomPostsDialog extends StatelessWidget {
                           fontSize: 14,
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.7),
+                          ).colorScheme.onPrimary.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -81,7 +81,7 @@ class RoomPostsDialog extends StatelessWidget {
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close),
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: Theme.of(context).colorScheme.onPrimary,
                 ),
               ],
             ),
@@ -136,7 +136,7 @@ class RoomPostsDialog extends StatelessWidget {
             'ไม่มีรายการของหาย/เจอของ',
             style: TextStyle(
               fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 8),
@@ -144,7 +144,7 @@ class RoomPostsDialog extends StatelessWidget {
             'ในอาคาร $roomName',
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
             ),
           ),
         ],
@@ -185,7 +185,7 @@ class RoomPostsDialog extends StatelessWidget {
                               ).colorScheme.error.withOpacity(0.15)
                               : Theme.of(
                                 context,
-                              ).colorScheme.primary.withOpacity(0.15),
+                              ).colorScheme.secondary.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -195,7 +195,7 @@ class RoomPostsDialog extends StatelessWidget {
                       color:
                           post.isLostItem
                               ? Theme.of(context).colorScheme.error
-                              : Theme.of(context).colorScheme.primary,
+                              : Theme.of(context).colorScheme.secondary,
                       size: 24,
                     ),
                   ),
@@ -211,7 +211,7 @@ class RoomPostsDialog extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -222,7 +222,7 @@ class RoomPostsDialog extends StatelessWidget {
                           style: TextStyle(
                             color: Theme.of(
                               context,
-                            ).colorScheme.onSurface.withOpacity(0.7),
+                            ).colorScheme.primary.withOpacity(0.7),
                             fontSize: 14,
                           ),
                           maxLines: 2,
@@ -236,7 +236,7 @@ class RoomPostsDialog extends StatelessWidget {
                               size: 16,
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onSurface.withOpacity(0.5),
+                              ).colorScheme.surface.withOpacity(0.5),
                             ),
                             const SizedBox(width: 4),
                             _posterNameWidget(context, post),
@@ -246,7 +246,7 @@ class RoomPostsDialog extends StatelessWidget {
                               size: 16,
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onSurface.withOpacity(0.5),
+                              ).colorScheme.surface.withOpacity(0.5),
                             ),
                             const SizedBox(width: 4),
                             Flexible(
@@ -256,7 +256,7 @@ class RoomPostsDialog extends StatelessWidget {
                                 style: TextStyle(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.onSurface.withOpacity(0.5),
+                                  ).colorScheme.surface.withOpacity(0.5),
                                   fontSize: 12,
                                 ),
                               ),
@@ -299,7 +299,7 @@ class RoomPostsDialog extends StatelessWidget {
   Widget _posterNameWidget(BuildContext context, Post post) {
     final raw = post.userName.trim();
     final textStyle = TextStyle(
-      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+      color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
       fontSize: 12,
       fontWeight: FontWeight.bold,
     );

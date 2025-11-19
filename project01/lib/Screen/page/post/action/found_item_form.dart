@@ -190,7 +190,9 @@ class _FindItemFormState extends State<FindItemForm> {
                   );
                   if (picked != null) {
                     setState(() {
-                      timeController.text = picked.format(context);
+                      timeController.text = MaterialLocalizations.of(
+                        context,
+                      ).formatTimeOfDay(picked, alwaysUse24HourFormat: true);
                     });
                   }
                 },
@@ -334,7 +336,6 @@ class _FindItemFormState extends State<FindItemForm> {
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
-
     // ยืนยันก่อนบันทึก
     final confirm = await showDialog<bool>(
       context: context,

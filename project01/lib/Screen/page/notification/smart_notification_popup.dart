@@ -22,34 +22,23 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   }
 
   Future<void> _loadSmartNotifications() async {
-    if (currentUserId == null) {
-      setState(() {
-        smartNotifications = [];
-        isLoading = false;
-      });
-      return;
-    }
+    if (currentUserId == null) return;
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
-      // อ่านจาก Firestore แทนการคำนวณใหม่ทุกครั้ง
       final snapshot =
           await FirebaseFirestore.instance
               .collection('smart_notifications')
               .where('userId', isEqualTo: currentUserId)
               .orderBy('createdAt', descending: true)
-              .limit(20)
+              .limit(50)
               .get();
 
       List<SmartNotificationItem> notifications = [];
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
-
-        // ดึงข้อมูลโพสต์ที่เกี่ยวข้อง
         final postDoc =
             await FirebaseFirestore.instance
                 .collection('lost_found_items')
@@ -58,8 +47,6 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
 
         if (postDoc.exists) {
           final post = Post.fromJson({...postDoc.data()!, 'id': postDoc.id});
-
-          // ดึงข้อมูลโพสต์ของผู้ใช้ที่เกี่ยวข้อง
           Post? relatedUserPost;
           if (data['relatedPostId'] != null) {
             final relatedDoc =
@@ -90,28 +77,29 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
         }
       }
 
-      if (!mounted) return;
-      setState(() {
-        smartNotifications = notifications;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          smartNotifications = notifications;
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      debugPrint('Error loading notifications from Firestore: $e');
-      if (!mounted) return;
-      setState(() {
-        smartNotifications = [];
-        isLoading = false;
-      });
+      debugPrint('Error loading smart notifications: $e');
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ดึงสีจาก Theme
+    final primaryColor = Theme.of(context).colorScheme.surface;
+    final onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85, // 85% ของหน้าจอ
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: BoxDecoration(
+        color: primaryColor, // ✅ พื้นหลัง Popup เป็นสี Primary (เข้ม)
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
@@ -124,7 +112,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: onPrimaryColor.withOpacity(0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -137,7 +125,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
               children: [
                 Icon(
                   Icons.notifications_active,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: onPrimaryColor,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
@@ -145,7 +133,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   child: Text(
                     'การแจ้งเตือน',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
+                      color: onPrimaryColor,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Prompt',
@@ -154,22 +142,24 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: Colors.grey[600]),
+                  icon: Icon(Icons.close, color: onPrimaryColor),
                 ),
               ],
             ),
           ),
 
           // Divider
-          Divider(height: 1, color: Colors.grey[300]),
+          Divider(height: 1, color: onPrimaryColor.withOpacity(0.2)),
 
           // Content
           Expanded(
             child:
                 isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(
+                      child: CircularProgressIndicator(color: onPrimaryColor),
+                    )
                     : smartNotifications.isEmpty
-                    ? _buildEmptyState()
+                    ? _buildEmptyState(onPrimaryColor)
                     : _buildNotificationList(),
           ),
         ],
@@ -177,30 +167,24 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(Color textColor) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notifications_none, size: 80, color: Colors.grey[400]),
+            Icon(
+              Icons.notifications_none,
+              size: 80,
+              color: textColor.withOpacity(0.5),
+            ),
             const SizedBox(height: 16),
             Text(
               'ยังไม่มีการแจ้งเตือนที่ตรงกับความสนใจของคุณ',
               style: TextStyle(
                 fontSize: 18,
-                color: Colors.grey[600],
-                fontFamily: 'Prompt',
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'ระบบจะแจ้งเตือนเมื่อมีสิ่งของที่เข้าข่ายความสนใจของคุณ',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
+                color: textColor.withOpacity(0.7),
                 fontFamily: 'Prompt',
               ),
               textAlign: TextAlign.center,
@@ -213,13 +197,241 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
 
   Widget _buildNotificationList() {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.zero, // ✅ ลบ Padding เพื่อให้ชิดขอบ
       itemCount: smartNotifications.length,
       itemBuilder: (context, index) {
         final notification = smartNotifications[index];
         return _buildNotificationCard(notification);
       },
     );
+  }
+
+  // ✅✅✅ ดีไซน์ใหม่: แบบ X (Feed) เต็มจอ ไม่มี Card
+  Widget _buildNotificationCard(SmartNotificationItem notification) {
+    final post = notification.post;
+    final matchPercentage = (notification.matchScore * 100).round();
+
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
+
+    return InkWell(
+      onTap: () async {
+        if (notification.notificationId != null && !notification.isRead) {
+          await _markNotificationAsRead(notification.notificationId!);
+        }
+        _viewPostDetails(post);
+      },
+      child: Container(
+        // ✅ พื้นหลังสี Primary + เส้นคั่นด้านล่าง
+        decoration: BoxDecoration(
+          color: primaryColor,
+          border: Border(
+            bottom: BorderSide(
+              color: onPrimaryColor.withOpacity(0.2), // เส้นสีจางๆ
+              width: 0.5,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: คะแนน + เวลา
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getMatchColor(notification.matchScore),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$matchPercentage% ตรงกัน',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                Text(
+                  _getTimeAgo(notification.createdAt),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: onPrimaryColor.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Content: Avatar + Text
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    color: onPrimaryColor.withOpacity(0.1),
+                    child:
+                        post.imageUrl.isNotEmpty
+                            ? Image.network(post.imageUrl, fit: BoxFit.cover)
+                            : Icon(
+                              post.isLostItem
+                                  ? Icons.search
+                                  : Icons.find_in_page,
+                              color:
+                                  post.isLostItem
+                                      ? Colors.red[300]
+                                      : Colors.green[300],
+                            ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: onPrimaryColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        post.description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: onPrimaryColor.withOpacity(0.8),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (notification.relatedUserPost != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'ตรงกับ: ${notification.relatedUserPost!.title}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[300],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Reasons
+            if (notification.matchReasons.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 12, left: 66),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: onPrimaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: onPrimaryColor.withOpacity(0.1)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'เหตุผลที่แจ้งเตือน:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: onPrimaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...notification.matchReasons.map(
+                      (r) => Text(
+                        '• $r',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: onPrimaryColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Actions
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 66),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _handleNotMatch(notification),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: onPrimaryColor,
+                        side: BorderSide(
+                          color: onPrimaryColor.withOpacity(0.5),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      child: const Text(
+                        'ไม่ใช่',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _handleMatchConfirmed(post),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                      label: const Text(
+                        'ติดต่อ',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Helper Functions ---
+
+  Color _getMatchColor(double score) {
+    if (score >= 0.8) return Colors.green;
+    if (score >= 0.7) return Colors.orange;
+    return Colors.blue;
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 0) return '${diff.inDays} วันที่แล้ว';
+    if (diff.inHours > 0) return '${diff.inHours} ชม. ที่แล้ว';
+    return '${diff.inMinutes} นาทีที่แล้ว';
   }
 
   Future<void> _markNotificationAsRead(String notificationId) async {
@@ -233,281 +445,151 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     }
   }
 
-  Widget _buildNotificationCard(SmartNotificationItem notification) {
-    final post = notification.post;
-    final matchPercentage = (notification.matchScore * 100).round();
+  // ฟังก์ชันจัดการเมื่อกด "ไม่ใช่" (ลบการแจ้งเตือนออก)
+  void _handleNotMatch(SmartNotificationItem notification) async {
+    // ดึงสีจาก Theme
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      color: notification.isRead ? Colors.grey[100] : Colors.white,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () async {
-          if (notification.notificationId != null && !notification.isRead) {
-            await _markNotificationAsRead(notification.notificationId!);
-          }
-          _viewPostDetails(notification.post);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with match score
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getMatchColor(notification.matchScore),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$matchPercentage% ตรง',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      post.isLostItem ? 'มีคนหาของ' : 'มีคนเจอของ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'อาคาร ${post.building}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // Post content
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Icon
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color:
-                          post.isLostItem ? Colors.red[100] : Colors.green[100],
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Icon(
-                      post.isLostItem ? Icons.search : Icons.find_in_page,
-                      color:
-                          post.isLostItem ? Colors.red[600] : Colors.green[600],
-                      size: 24,
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        Text(
-                          post.description,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // Match reasons
-                        if (notification.matchReasons.isNotEmpty) ...[
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'เหตุผลที่แจ้งเตือน:',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue[800],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                ...notification.matchReasons.map(
-                                  (reason) => Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 8,
-                                      top: 2,
-                                    ),
-                                    child: Text(
-                                      '• $reason',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.blue[700],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-
-                        // แสดงโพสต์ที่เกี่ยวข้องของผู้ใช้
-                        if (notification.relatedUserPost != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.green[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.green[200]!),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'โพสต์ของคุณที่เกี่ยวข้อง:',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green[800],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  notification.relatedUserPost!.title,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.green[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // Action buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        _viewPostDetails(post);
-                      },
-                      icon: const Icon(Icons.visibility, size: 16),
-                      label: const Text('ดูรายละเอียด'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        _contactOwner(post);
-                      },
-                      icon: const Icon(Icons.message, size: 16),
-                      label: const Text('ติดต่อ'),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _getMatchColor(double score) {
-    if (score >= 0.8) return Colors.green;
-    if (score >= 0.7) return Colors.orange;
-    return Colors.blue;
-  }
-
-  void _viewPostDetails(Post post) {
-    showDialog(
+    // แสดง Dialog ที่ตกแต่งแล้ว
+    final confirm = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text(post.title),
+            backgroundColor:
+                Colors.white, // หรือใช้ colorScheme.onPrimary ถ้าชอบสีเทาอ่อนๆ
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20), // มุมมนสวยงาม
+            ),
+            contentPadding: EdgeInsets.zero, // จัด Layout เอง
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('รายละเอียด: ${post.description}'),
+                const SizedBox(height: 24),
+                // 1. ไอคอนถังขยะด้านบน (ใช้สีแดงจาก surface)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withOpacity(
+                      0.1,
+                    ), // พื้นหลังสีแดงจางๆ
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.delete_rounded,
+                    size: 32,
+                    color: colorScheme.surface, // ไอคอนสีแดง
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 2. หัวข้อ
+                Text(
+                  'ลบการแจ้งเตือน',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary, // สีดำเข้ม
+                    fontFamily: 'Prompt',
+                  ),
+                ),
+
                 const SizedBox(height: 8),
-                Text('สถานที่: ${post.location}'),
-                Text('อาคาร: ${post.building}'),
-                Text('ประเภท: ${_getCategoryName(post.category)}'),
-                Text('ติดต่อ: ${post.contact}'),
+
+                // 3. ข้อความรายละเอียด
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'คุณต้องการลบการแจ้งเตือนนี้\nใช่หรือไม่?',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colorScheme.secondary, // สีเทาเข้ม
+                      fontSize: 14,
+                      fontFamily: 'Prompt',
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 4. ปุ่มกด (วางแนวนอน)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Row(
+                    children: [
+                      // ปุ่ม "ยกเลิก"
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            foregroundColor: colorScheme.secondary,
+                          ),
+                          child: const Text(
+                            'ยกเลิก',
+                            style: TextStyle(fontFamily: 'Prompt'),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // ปุ่ม "ยืนยัน" (สีแดง)
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colorScheme.surface, // สีแดงตามธีม
+                            foregroundColor: Colors.white, // ตัวหนังสือสีขาว
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'ยืนยัน',
+                            style: TextStyle(
+                              fontFamily: 'Prompt',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
           ),
     );
+
+    // Logic การลบข้อมูล (เหมือนเดิม)
+    if (confirm == true) {
+      // ลบออกจาก List ในหน้าจอทันทีเพื่อให้ UI ลื่นไหล
+      setState(() {
+        smartNotifications.remove(notification);
+      });
+
+      // ลบออกจาก Firebase
+      if (notification.notificationId != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('smart_notifications')
+              .doc(notification.notificationId)
+              .delete();
+        } catch (e) {
+          debugPrint('Error deleting notification: $e');
+        }
+      }
+    }
+  }
+
+  void _handleMatchConfirmed(Post post) {
+    _contactOwner(post);
   }
 
   void _contactOwner(Post post) {
@@ -518,20 +600,20 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
             title: const Text('ติดต่อเจ้าของ'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Text('ชื่อ: '),
-                    Text(
-                      post.userName.trim().isEmpty
-                          ? 'ไม่ระบุผู้โพสต์'
-                          : post.userName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(
+                    post.userName.isEmpty ? 'ไม่ระบุชื่อ' : post.userName,
+                  ),
+                  subtitle: const Text('ผู้โพสต์'),
                 ),
-                const SizedBox(height: 8),
-                Row(children: [const Text('ติดต่อ: '), Text(post.contact)]),
+                ListTile(
+                  leading: const Icon(Icons.phone),
+                  title: Text(post.contact),
+                  subtitle: const Text('เบอร์โทร / Line'),
+                ),
               ],
             ),
             actions: [
@@ -544,32 +626,35 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     );
   }
 
-  // ฟังก์ชันแปลงรหัสหมวดหมู่เป็นชื่อ
-  String _getCategoryName(String categoryId) {
-    switch (categoryId) {
-      case '1':
-        return 'ของใช้ส่วนตัว';
-      case '2':
-        return 'เอกสาร/บัตร';
-      case '3':
-        return 'อุปกรณ์การเรียน';
-      case '4':
-        return 'ของมีค่าอื่นๆ';
-      default:
-        return categoryId.isEmpty ? 'ไม่ระบุ' : categoryId;
-    }
+  void _viewPostDetails(Post post) {
+    // คุณสามารถใส่โค้ดเปิดหน้า PostDetailSheet ที่นี่ได้
+    // หรือใช้ Dialog ง่ายๆ แบบนี้ไปก่อน
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(post.title),
+            content: Text(post.description),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('ปิด'),
+              ),
+            ],
+          ),
+    );
   }
 }
 
-// Data models
+// Model Class
 class SmartNotificationItem {
   final Post post;
   final double matchScore;
   final List<String> matchReasons;
   final DateTime createdAt;
   final Post? relatedUserPost;
-  final String? notificationId; // เพิ่มใหม่
-  final bool isRead; // เพิ่มใหม่
+  final String? notificationId;
+  final bool isRead;
 
   SmartNotificationItem({
     required this.post,

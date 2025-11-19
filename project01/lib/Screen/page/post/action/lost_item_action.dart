@@ -19,14 +19,10 @@ class AuthService {
 
   static Future<void> requireAuth(BuildContext context) async {
     if (!isLoggedIn) {
-      if (context.mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      Navigator.pushReplacementNamed(context, '/login');
       throw Exception('User not authenticated');
     }
   }
-
-  signOut() {}
 }
 
 class ValidationService {
@@ -364,15 +360,15 @@ class ImageService {
   }
 }
 
-// ----------------- FindItemForm (แจ้งเจอของ) -----------------
-class FindItemForm extends StatefulWidget {
-  const FindItemForm({super.key});
+// ----------------- LostItemForm -----------------
+class LostItemForm extends StatefulWidget {
+  const LostItemForm({super.key});
 
   @override
-  State<FindItemForm> createState() => _FindItemFormState();
+  State<LostItemForm> createState() => _LostItemFormState();
 }
 
-class _FindItemFormState extends State<FindItemForm> {
+class _LostItemFormState extends State<LostItemForm> {
   final _formKey = GlobalKey<FormState>();
   File? _imageFile;
   int? selectedCategory;
@@ -457,44 +453,34 @@ class _FindItemFormState extends State<FindItemForm> {
       _showError('กรุณาเลือกประเภทสิ่งของ');
       return;
     }
-
     final confirmed = await _showConfirmationDialog();
-    if (!confirmed || !mounted) return; // ✅ เพิ่มการตรวจสอบ mounted
-
+    if (!confirmed) return;
     setState(() {
       isLoading = true;
       uploadProgress = 0.0;
     });
 
     try {
-      if (!mounted) return; // ✅ ตรวจสอบก่อน AuthService
       await AuthService.requireAuth(context);
 
       String? imageUrl;
       if (_imageFile != null) {
-        if (!mounted) return; // ✅ ตรวจสอบก่อน setState
         setState(() {
           uploadProgress = 0.1;
         });
-
         imageUrl = await ImageService.uploadImageToFirebase(
           _imageFile!,
           'lost_items',
           onProgress: (progress) {
-            if (mounted) {
-              // ✅ ตรวจสอบใน callback
-              setState(() {
-                uploadProgress = 0.1 + (progress * 0.7);
-              });
-            }
+            setState(() {
+              // ปรับ progress จาก 0.1-0.8 สำหรับการอัพโหลด
+              uploadProgress = 0.1 + (progress * 0.7);
+            });
           },
         );
-
         if (imageUrl == null) {
           throw Exception('ไม่สามารถอัพโหลดรูปภาพได้');
         }
-
-        if (!mounted) return; // ✅ ตรวจสอบหลัง async
         setState(() => uploadProgress = 0.85);
       }
 
@@ -510,7 +496,7 @@ class _FindItemFormState extends State<FindItemForm> {
         'time': timeController.text,
         'contact': contactController.text.trim(),
         'detail': detailController.text.trim(),
-        'isLostItem': false,
+        'isLostItem': true,
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -519,33 +505,27 @@ class _FindItemFormState extends State<FindItemForm> {
       };
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+
+      // เรียก Smart Matching Service สำหรับโพสต์หาของ
       await SmartMatchingService.processNewPost(post);
+
+      // อัพเดทจำนวนโพสต์ของผู้ใช้
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
-        false,
+        true, // isLostItem = true สำหรับ lost item
       );
 
-      if (!mounted) return; // ✅ ตรวจสอบก่อน setState
       setState(() => uploadProgress = 1.0);
 
       if (mounted) {
-        // ✅ ตรวจสอบก่อนแสดง success
         _showSuccess('บันทึกข้อมูลสำเร็จ');
-        // เพิ่ม delay เล็กน้อยก่อน pop เพื่อให้ user เห็น success message
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
+        Navigator.pop(context, true);
       }
     } catch (e) {
       debugPrint('Submit error: $e');
-      if (mounted) {
-        // ✅ ตรวจสอบก่อนแสดง error
-        _showError('เกิดข้อผิดพลาด: ${e.toString()}');
-      }
+      _showError('เกิดข้อผิดพลาด: ${e.toString()}');
     } finally {
       if (mounted) {
-        // ✅ ตรวจสอบใน finally
         setState(() {
           isLoading = false;
           uploadProgress = 0.0;
@@ -566,20 +546,59 @@ class _FindItemFormState extends State<FindItemForm> {
   }
 
   Future<bool> _showConfirmationDialog() async {
+    final theme = Theme.of(context);
+
     return await showDialog<bool>(
           context: context,
           builder:
               (context) => AlertDialog(
-                title: const Text('ยืนยันการบันทึก'),
-                content: const Text(
-                  'คุณต้องการบันทึกข้อมูลการแจ้งเจอของนี้หรือไม่?',
+                backgroundColor: theme.colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
+
+                title: Text(
+                  'ยืนยันการบันทึก',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+
+                content: Text(
+                  'คุณต้องการบันทึกข้อมูลการแจ้งของหายนี้หรือไม่?',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withOpacity(0.85),
+                    fontSize: 15,
+                  ),
+                ),
+
+                actionsPadding: const EdgeInsets.only(bottom: 10, right: 15),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
-                    child: const Text('ยกเลิก'),
+                    child: Text(
+                      'ยกเลิก',
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 14,
+                      ),
+                    ),
                   ),
+
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.secondary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                    ),
                     onPressed: () => Navigator.pop(context, true),
                     child: const Text('ยืนยัน'),
                   ),
@@ -589,34 +608,35 @@ class _FindItemFormState extends State<FindItemForm> {
         false;
   }
 
-  // ✅ แก้ไขฟังก์ชัน _showError และ _showSuccess
   void _showError(String message) {
-    if (!mounted) return; // เพิ่มการตรวจสอบก่อน context
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _showSuccess(String message) {
-    if (!mounted) return; // เพิ่มการตรวจสอบก่อน context
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    const greenPrimary = Color(0xFF4CAF50); // สีเขียว Material Design
-    const greenSecondary = Color(0xFF81C784); // สีเขียวอ่อน
-    final primaryColor = Theme.of(context).colorScheme.onPrimary;
+    final secondaryColor = Theme.of(context).colorScheme.secondary;
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final onprimaryColor = Theme.of(context).colorScheme.onPrimary;
 
     return WillPopScope(
       onWillPop: () async {
@@ -627,30 +647,30 @@ class _FindItemFormState extends State<FindItemForm> {
         return true;
       },
       child: Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppBar(
-          title: const Text(
-            'แจ้งเจอของ',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: greenPrimary, // ✅ AppBar สีเขียว
-          iconTheme: const IconThemeData(color: Colors.white),
+          title: Text('แจ้งของหาย', style: TextStyle(color: onprimaryColor)),
+          backgroundColor: secondaryColor,
+          iconTheme: IconThemeData(color: onprimaryColor),
           elevation: 0,
         ),
         body: Theme(
           data: Theme.of(context).copyWith(
             // ✅ ตั้งค่า TextField ทั้งหมด
             inputDecorationTheme: InputDecorationTheme(
-              labelStyle: TextStyle(color: primaryColor),
-              hintStyle: TextStyle(color: primaryColor.withOpacity(0.6)),
-              prefixIconColor: greenPrimary,
-              suffixIconColor: greenPrimary,
+              labelStyle: TextStyle(color: secondaryColor),
+              hintStyle: TextStyle(color: secondaryColor.withOpacity(0.6)),
+              prefixIconColor: Theme.of(context).colorScheme.secondary,
+              suffixIconColor: Theme.of(context).colorScheme.secondary,
               enabledBorder: OutlineInputBorder(
-                borderSide: const BorderSide(color: Colors.grey, width: 1.5),
+                borderSide: BorderSide(color: onprimaryColor, width: 1.5),
                 borderRadius: BorderRadius.circular(8),
               ),
               focusedBorder: OutlineInputBorder(
-                borderSide: const BorderSide(color: greenPrimary, width: 2),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.secondary,
+                  width: 2,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               errorBorder: OutlineInputBorder(
@@ -665,9 +685,9 @@ class _FindItemFormState extends State<FindItemForm> {
             ),
             // ✅ ตั้งค่าสีเคอร์เซอร์
             textSelectionTheme: TextSelectionThemeData(
-              cursorColor: greenPrimary,
-              selectionColor: greenPrimary.withOpacity(0.3),
-              selectionHandleColor: greenPrimary,
+              cursorColor: secondaryColor,
+              selectionColor: secondaryColor.withOpacity(0.3),
+              selectionHandleColor: secondaryColor,
             ),
           ),
           child: Form(
@@ -685,12 +705,12 @@ class _FindItemFormState extends State<FindItemForm> {
                         width: 150,
                         height: 150,
                         decoration: BoxDecoration(
-                          color: greenSecondary.withOpacity(
-                            0.3,
-                          ), // ✅ พื้นหลังสีเขียวอ่อน
+                          color: secondaryColor.withOpacity(
+                            0.5,
+                          ), // ✅ พื้นหลัง secondary opacity 0.5
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: greenPrimary, // ✅ กรอบสีเขียว
+                            color: secondaryColor, // ✅ กรอบสี onPrimary
                             width: 2,
                           ),
                         ),
@@ -709,13 +729,14 @@ class _FindItemFormState extends State<FindItemForm> {
                                     Icon(
                                       Icons.add_photo_alternate,
                                       size: 50,
-                                      color: greenPrimary, // ✅ ไอคอนสีเขียว
+                                      color:
+                                          surfaceColor, // ✅ ไอคอนสีตามพื้นหลัง
                                     ),
                                     const SizedBox(height: 8),
-                                    const Text(
+                                    Text(
                                       'เพิ่มรูปภาพ',
                                       style: TextStyle(
-                                        color: Colors.black87,
+                                        color: surfaceColor,
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -724,7 +745,7 @@ class _FindItemFormState extends State<FindItemForm> {
                                       '(ไม่เกิน 5MB)',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.black87.withOpacity(0.7),
+                                        color: surfaceColor.withOpacity(0.7),
                                       ),
                                     ),
                                   ],
@@ -738,9 +759,9 @@ class _FindItemFormState extends State<FindItemForm> {
                   TextFormField(
                     controller: titleController,
                     enabled: !isLoading,
-                    style: TextStyle(color: primaryColor, fontSize: 16),
+                    style: TextStyle(color: onprimaryColor, fontSize: 16),
                     decoration: const InputDecoration(
-                      labelText: 'ชื่อสิ่งของที่พบ',
+                      labelText: 'ชื่อสิ่งของที่หาย',
                       prefixIcon: Icon(Icons.inventory),
                     ),
                     validator: ValidationService.validateTitle,
@@ -752,7 +773,7 @@ class _FindItemFormState extends State<FindItemForm> {
                     'ประเภทสิ่งของ',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: primaryColor,
+                      color: secondaryColor,
                       fontSize: 16,
                     ),
                   ),
@@ -765,18 +786,15 @@ class _FindItemFormState extends State<FindItemForm> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(
-                            labelText: 'อาคารที่พบ',
+                          decoration: InputDecoration(
+                            labelText: 'อาคารที่หาย',
                             prefixIcon: Icon(Icons.business),
                           ),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontSize: 16,
-                          ),
-                          dropdownColor: Theme.of(context).colorScheme.primary,
-                          icon: const Icon(
+                          style: TextStyle(color: surfaceColor, fontSize: 16),
+                          dropdownColor: Theme.of(context).colorScheme.surface,
+                          icon: Icon(
                             Icons.arrow_drop_down,
-                            color: greenPrimary,
+                            color: Theme.of(context).colorScheme.surface,
                           ),
                           items:
                               buildings
@@ -785,13 +803,7 @@ class _FindItemFormState extends State<FindItemForm> {
                                       value: building,
                                       child: Text(
                                         building,
-                                        style: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onPrimary,
-                                          fontSize: 16,
-                                        ),
+                                        style: TextStyle(color: onprimaryColor),
                                       ),
                                     ),
                                   )
@@ -812,12 +824,9 @@ class _FindItemFormState extends State<FindItemForm> {
                         child: TextFormField(
                           controller: roomController,
                           enabled: !isLoading,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontSize: 16,
-                          ),
+                          style: TextStyle(color: onprimaryColor, fontSize: 16),
                           decoration: const InputDecoration(
-                            labelText: 'ห้องที่พบ',
+                            labelText: 'ห้องที่หาย',
                             hintText: '2102',
                             prefixIcon: Icon(Icons.room),
                           ),
@@ -832,12 +841,9 @@ class _FindItemFormState extends State<FindItemForm> {
                   TextFormField(
                     controller: contactController,
                     enabled: !isLoading,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: onprimaryColor, fontSize: 16),
                     decoration: const InputDecoration(
-                      labelText: 'ช่องทางการติดต่อ *',
+                      labelText: 'ช่องทางการติดต่อ',
                       hintText: 'เบอร์โทร 10 หลัก หรือ @lineID',
                       prefixIcon: Icon(Icons.contact_phone),
                     ),
@@ -860,12 +866,9 @@ class _FindItemFormState extends State<FindItemForm> {
                     controller: detailController,
                     enabled: !isLoading,
                     maxLines: 3,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      fontSize: 16,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'รายละเอียดเพิ่มเติม *',
+                    style: TextStyle(color: onprimaryColor, fontSize: 16),
+                    decoration: const InputDecoration(
+                      labelText: 'รายละเอียดเพิ่มเติม',
                       hintText:
                           'ระบุลักษณะเฉพาะของสิ่งของ (อย่างน้อย 10 ตัวอักษร)',
                       prefixIcon: Icon(Icons.description),
@@ -886,15 +889,15 @@ class _FindItemFormState extends State<FindItemForm> {
                             child: LinearProgressIndicator(
                               value: uploadProgress,
                               backgroundColor: Colors.grey[300],
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                greenPrimary,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                surfaceColor,
                               ),
                             ),
                           ),
                         ElevatedButton.icon(
                           onPressed: isLoading ? null : _submitForm,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: greenPrimary,
+                            backgroundColor: secondaryColor,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                               vertical: 18,
@@ -904,7 +907,7 @@ class _FindItemFormState extends State<FindItemForm> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             elevation: 3,
-                            shadowColor: greenPrimary.withOpacity(0.4),
+                            shadowColor: secondaryColor.withOpacity(0.4),
                             minimumSize: const Size(double.infinity, 56),
                           ),
                           icon:
@@ -926,7 +929,7 @@ class _FindItemFormState extends State<FindItemForm> {
                           label: Text(
                             isLoading
                                 ? 'กำลังบันทึก...'
-                                : 'บันทึกการแจ้งเจอของ',
+                                : 'บันทึกการแจ้งของหาย',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -947,8 +950,6 @@ class _FindItemFormState extends State<FindItemForm> {
   }
 
   Widget _buildDateField() {
-    const greenPrimary = Color(0xFF4CAF50); // ดึงค่าสีเขียวหลักมาใช้
-
     return TextFormField(
       controller: dateController,
       enabled: !isLoading,
@@ -959,18 +960,31 @@ class _FindItemFormState extends State<FindItemForm> {
           initialDate: DateTime.now(),
           firstDate: DateTime.now().subtract(const Duration(days: 30)),
           lastDate: DateTime.now(),
+
           // 💡 จุดที่เพิ่ม: กำหนด Theme ให้กับ DatePicker
           builder: (context, child) {
             return Theme(
               data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: greenPrimary, // ✅ สี Header และวงกลมวันที่เลือก
-                  onPrimary: Colors.white, // ✅ สีตัวอักษรบน Header
-                  onSurface: Colors.black87, // ✅ สีของตัวอักษรวันที่
+                colorScheme: ColorScheme.light(
+                  primary:
+                      Theme.of(context)
+                          .colorScheme
+                          .secondary, // ✅ สี Header และวงกลมวันที่เลือก
+                  onPrimary:
+                      Theme.of(
+                        context,
+                      ).colorScheme.onPrimary, // ✅ สีตัวอักษรบน Header
+                  onSurface:
+                      Theme.of(
+                        context,
+                      ).colorScheme.surface, // ✅ สีของตัวอักษรวันที่
                 ),
                 textButtonTheme: TextButtonThemeData(
                   style: TextButton.styleFrom(
-                    foregroundColor: greenPrimary, // ✅ สีปุ่ม 'ยกเลิก', 'ตกลง'
+                    foregroundColor:
+                        Theme.of(
+                          context,
+                        ).colorScheme.surface, // ✅ สีปุ่ม 'ยกเลิก', 'ตกลง'
                   ),
                 ),
               ),
@@ -985,8 +999,8 @@ class _FindItemFormState extends State<FindItemForm> {
         }
       },
       style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
-      decoration: const InputDecoration(
-        labelText: 'วันที่พบ *',
+      decoration: InputDecoration(
+        labelText: 'วันที่หาย *',
         hintText: 'เลือกวันที่',
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.calendar_today),
@@ -996,8 +1010,6 @@ class _FindItemFormState extends State<FindItemForm> {
   }
 
   Widget _buildTimeField() {
-    const greenPrimary = Color(0xFF4CAF50); // ดึงค่าสีเขียวหลักมาใช้
-
     return TextFormField(
       controller: timeController,
       enabled: !isLoading,
@@ -1008,33 +1020,39 @@ class _FindItemFormState extends State<FindItemForm> {
           initialTime: TimeOfDay.now(),
           // 💡 จุดที่เพิ่ม: กำหนด Theme ให้กับ TimePicker
           builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: greenPrimary, // ✅ สี Header และวงกลมเวลาที่เลือก
-                  onPrimary: Colors.white, // ✅ สีตัวอักษรบน Header
-                  onSurface: Colors.black87, // ✅ สีของตัวอักษรเวลา
-                ),
-                textButtonTheme: TextButtonThemeData(
-                  style: TextButton.styleFrom(
-                    foregroundColor: greenPrimary, // ✅ สีปุ่ม 'ยกเลิก', 'ตกลง'
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(alwaysUse24HourFormat: true),
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: ColorScheme.light(
+                    primary: Theme.of(context).colorScheme.secondary,
+                    onPrimary: Colors.white,
+                    onSurface: Colors.black87,
+                  ),
+                  textButtonTheme: TextButtonThemeData(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.secondary,
+                    ),
                   ),
                 ),
+                child: child!,
               ),
-              child: child!,
             );
           },
         );
         if (picked != null) {
           setState(() {
-            timeController.text = picked.format(context);
+            timeController.text = MaterialLocalizations.of(
+              context,
+            ).formatTimeOfDay(picked, alwaysUse24HourFormat: true);
           });
         }
       },
       style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
-
       decoration: const InputDecoration(
-        labelText: 'เวลาที่พบ *',
+        labelText: 'เวลาที่หาย *',
         hintText: 'เลือกเวลา',
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.access_time),
@@ -1096,5 +1114,24 @@ class _FindItemFormState extends State<FindItemForm> {
     contactController.dispose();
     roomController.dispose();
     super.dispose();
+  }
+}
+
+// ----------------- FindItemActionPage (UI) -----------------
+class FindItemActionPage extends StatelessWidget {
+  final VoidCallback? onLostPress;
+  final VoidCallback? onFoundPress;
+
+  const FindItemActionPage({super.key, this.onLostPress, this.onFoundPress});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(onPressed: onLostPress, child: const Text('Lost')),
+        ElevatedButton(onPressed: onFoundPress, child: const Text('Found')),
+      ],
+    );
   }
 }

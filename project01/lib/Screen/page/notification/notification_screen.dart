@@ -1,705 +1,465 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../services/notifications_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:project01/models/post.dart';
 
-// 1. Notification Popup (Modal Bottom Sheet)
-class NotificationPopup {
-  static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const NotificationBottomSheet(),
-    );
-  }
-}
-
-class NotificationBottomSheet extends StatefulWidget {
-  const NotificationBottomSheet({super.key});
+class SmartNotificationScreen extends StatefulWidget {
+  const SmartNotificationScreen({super.key});
 
   @override
-  State<NotificationBottomSheet> createState() =>
-      _NotificationBottomSheetState();
+  State<SmartNotificationScreen> createState() =>
+      _SmartNotificationScreenState();
 }
 
-class _NotificationBottomSheetState extends State<NotificationBottomSheet> {
-  @override
-  Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'การแจ้งเตือน',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  children: [
-                    StreamBuilder<int>(
-                      stream:
-                          currentUser != null
-                              ? NotificationService.getUnreadCount(
-                                currentUser.uid,
-                              )
-                              : Stream.value(0),
-                      builder: (context, snapshot) {
-                        final unreadCount = snapshot.data ?? 0;
-                        if (unreadCount == 0) return const SizedBox.shrink();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$unreadCount ใหม่',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.mark_email_read),
-                      onPressed: () => _markAllAsRead(),
-                      tooltip: 'อ่านทั้งหมด',
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => const NotificationScreen(),
-                              ),
-                            );
-                          }
-                        });
-                      },
-                      child: const Text('ดูทั้งหมด'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(child: _buildNotificationList(currentUser)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationList(User? currentUser) {
-    if (currentUser == null) {
-      return const Center(child: Text('กรุณาเข้าสู่ระบบเพื่อดูการแจ้งเตือน'));
-    }
-
-    return StreamBuilder<List<NotificationModel>>(
-      stream: NotificationService.getUserNotifications(
-        currentUser.uid,
-        limit: 10,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('เกิดข้อผิดพลาด: ${snapshot.error}'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => setState(() {}),
-                  child: const Text('ลองใหม่'),
-                ),
-              ],
-            ),
-          );
-        }
-        final notifications = snapshot.data ?? [];
-        if (notifications.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'ไม่มีการแจ้งเตือน',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: notifications.length,
-          itemBuilder: (context, index) {
-            final notification = notifications[index];
-            return NotificationCard(
-              notification: notification,
-              onTap: () => _handleNotificationTap(notification),
-              isCompact: true,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _handleNotificationTap(NotificationModel notification) async {
-    if (!notification.isRead) {
-      await NotificationService.markAsRead(notification.id);
-    }
-    Navigator.pop(context);
-    switch (notification.type) {
-      case 'match_found':
-        _handleMatchNotification(notification);
-        break;
-      case 'item_claimed':
-        _handleItemClaimedNotification(notification);
-        break;
-      default:
-        _showNotificationDetails(notification);
-    }
-  }
-
-  void _handleMatchNotification(NotificationModel notification) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger != null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'เปิดรายละเอียดการจับคู่: ${notification.data['newItemTitle']}',
-          ),
-          action: SnackBarAction(
-            label: 'ดูรายละเอียด',
-            onPressed: () {
-              // TODO: Navigate to item details
-            },
-          ),
-        ),
-      );
-    }
-  }
-
-  void _handleItemClaimedNotification(NotificationModel notification) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger != null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${notification.data['claimerName']} ต้องการรับสิ่งของของคุณ',
-          ),
-          action: SnackBarAction(
-            label: 'ดูรายละเอียด',
-            onPressed: () {
-              // TODO: Navigate to claim details
-            },
-          ),
-        ),
-      );
-    }
-  }
-
-  void _showNotificationDetails(NotificationModel notification) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(notification.title),
-            content: Text(notification.message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _markAllAsRead() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-    final success = await NotificationService.markAllAsRead(currentUser.uid);
-    if (success && mounted) {
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      if (messenger != null) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('อ่านทั้งหมดแล้ว'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-  }
-}
-
-// 2. Full Screen Notification Screen
-class NotificationScreen extends StatefulWidget {
-  const NotificationScreen({super.key});
-
-  @override
-  State<NotificationScreen> createState() => _NotificationScreenState();
-}
-
-class _NotificationScreenState extends State<NotificationScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SmartNotificationScreenState extends State<SmartNotificationScreen> {
+  final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  List<SmartNotificationItem> smartNotifications = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _loadSmartNotifications();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  // ✅ 1. เปลี่ยนมาดึงข้อมูลจาก Database โดยตรง (แทนการคำนวณเอง)
+  Future<void> _loadSmartNotifications() async {
+    if (currentUserId == null) return;
+
+    setState(() => isLoading = true);
+
+    try {
+      // ดึงข้อมูลจาก Collection 'smart_notifications' ที่ระบบบันทึกไว้
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('smart_notifications')
+              .where('userId', isEqualTo: currentUserId)
+              .orderBy('createdAt', descending: true)
+              .limit(50)
+              .get();
+
+      List<SmartNotificationItem> notifications = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+
+        // ดึงข้อมูลโพสต์หลัก (ของคนอื่น)
+        final postDoc =
+            await FirebaseFirestore.instance
+                .collection('lost_found_items')
+                .doc(data['postId'])
+                .get();
+
+        if (postDoc.exists) {
+          final post = Post.fromJson({...postDoc.data()!, 'id': postDoc.id});
+
+          // ดึงข้อมูลโพสต์ของเราที่เกี่ยวข้อง (ถ้ามี)
+          Post? relatedUserPost;
+          if (data['relatedPostId'] != null) {
+            final relatedDoc =
+                await FirebaseFirestore.instance
+                    .collection('lost_found_items')
+                    .doc(data['relatedPostId'])
+                    .get();
+
+            if (relatedDoc.exists) {
+              relatedUserPost = Post.fromJson({
+                ...relatedDoc.data()!,
+                'id': relatedDoc.id,
+              });
+            }
+          }
+
+          notifications.add(
+            SmartNotificationItem(
+              post: post,
+              matchScore: (data['matchScore'] as num).toDouble(),
+              matchReasons: List<String>.from(data['matchReasons'] ?? []),
+              createdAt: (data['createdAt'] as Timestamp).toDate(),
+              relatedUserPost: relatedUserPost,
+              notificationId: doc.id, // ✅ เก็บ ID ไว้ลบ
+              isRead: data['isRead'] ?? false,
+            ),
+          );
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          smartNotifications = notifications;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading smart notifications: $e');
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // ฟังก์ชันลบการแจ้งเตือน (เมื่อตอบ "ไม่ใช่")
+  Future<void> _removeNotification(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('smart_notifications')
+          .doc(notificationId)
+          .delete();
+
+      setState(() {
+        smartNotifications.removeWhere(
+          (item) => item.notificationId == notificationId,
+        );
+      });
+    } catch (e) {
+      debugPrint('Error removing notification: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('การแจ้งเตือน')),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.login, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                'กรุณาเข้าสู่ระบบเพื่อดูการแจ้งเตือน',
-                style: TextStyle(fontSize: 16),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    final topPadding = (statusBarHeight * 0.3).clamp(8.0, 20.0);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('การแจ้งเตือน'),
-        actions: [
-          StreamBuilder<Map<String, int>>(
-            stream: _getNotificationStats(currentUser.uid),
-            builder: (context, snapshot) {
-              final stats = snapshot.data ?? {};
-              final unread = stats['unread'] ?? 0;
-              if (unread == 0) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Chip(
-                  label: Text('$unread ใหม่'),
-                  backgroundColor: Colors.red,
-                  labelStyle: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: Column(
+        children: [
+          SizedBox(height: topPadding),
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
-              );
-            },
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.notifications_active,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'รายการที่ตรงกัน',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Prompt',
+                  ),
+                ),
+              ],
+            ),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleMenuAction(value, currentUser.uid),
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'mark_all_read',
-                    child: Row(
-                      children: [
-                        Icon(Icons.mark_email_read),
-                        SizedBox(width: 8),
-                        Text('อ่านทั้งหมด'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete_all',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_sweep, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('ลบทั้งหมด', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'stats',
-                    child: Row(
-                      children: [
-                        Icon(Icons.bar_chart),
-                        SizedBox(width: 8),
-                        Text('สถิติ'),
-                      ],
-                    ),
-                  ),
-                ],
+
+          // Content
+          Expanded(
+            child:
+                isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : smartNotifications.isEmpty
+                    ? _buildEmptyState()
+                    : _buildNotificationList(),
           ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'ทั้งหมด'),
-            Tab(text: 'จับคู่'),
-            Tab(text: 'รับสิ่งของ'),
-            Tab(text: 'ทั่วไป'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildNotificationTab(currentUser.uid, null),
-          _buildNotificationTab(currentUser.uid, 'match_found'),
-          _buildNotificationTab(currentUser.uid, 'item_claimed'),
-          _buildNotificationTab(currentUser.uid, 'general'),
         ],
       ),
     );
   }
 
-  Widget _buildNotificationTab(String userId, String? filterType) {
-    return StreamBuilder<List<NotificationModel>>(
-      stream: NotificationService.getUserNotifications(userId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('เกิดข้อผิดพลาด: ${snapshot.error}'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => setState(() {}),
-                  child: const Text('ลองใหม่'),
-                ),
-              ],
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle_outline, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'ไม่มีรายการที่ตรงกันในขณะนี้',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+              fontFamily: 'Prompt',
             ),
-          );
-        }
-        final allNotifications = snapshot.data ?? [];
-        final notifications =
-            filterType == null
-                ? allNotifications
-                : allNotifications.where((n) => n.type == filterType).toList();
-        if (notifications.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(_getEmptyIcon(filterType), size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  _getEmptyMessage(filterType),
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: notifications.length,
-          itemBuilder: (context, index) {
-            final notification = notifications[index];
-            return NotificationCard(
-              notification: notification,
-              onTap: () => _handleNotificationTap(notification),
-              onDelete: () => _deleteNotification(notification.id),
-            );
-          },
-        );
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: smartNotifications.length,
+      itemBuilder: (context, index) {
+        return _buildNotificationCard(smartNotifications[index]);
       },
     );
   }
 
-  IconData _getEmptyIcon(String? filterType) {
-    switch (filterType) {
-      case 'match_found':
-        return Icons.link_off;
-      case 'item_claimed':
-        return Icons.check_circle_outline;
-      case 'general':
-        return Icons.info_outline;
-      default:
-        return Icons.notifications_none;
-    }
-  }
+  // ✅ 2. ปรับปรุงการ์ดให้มีปุ่ม "ใช่/ไม่ใช่"
+  Widget _buildNotificationCard(SmartNotificationItem notification) {
+    final post = notification.post;
+    final matchPercentage = (notification.matchScore * 100).round();
 
-  String _getEmptyMessage(String? filterType) {
-    switch (filterType) {
-      case 'match_found':
-        return 'ไม่มีการแจ้งเตือนการจับคู่';
-      case 'item_claimed':
-        return 'ไม่มีการแจ้งเตือนการรับสิ่งของ';
-      case 'general':
-        return 'ไม่มีการแจ้งเตือนทั่วไป';
-      default:
-        return 'ไม่มีการแจ้งเตือน';
-    }
-  }
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: คะแนนความตรง + อาคาร
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getMatchColor(notification.matchScore),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$matchPercentage% ตรงกัน',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'อาคาร ${post.building}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  _getTimeAgo(notification.createdAt),
+                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-  Stream<Map<String, int>> _getNotificationStats(String userId) {
-    return NotificationService.getUserNotifications(userId).asyncMap((
-      notifications,
-    ) async {
-      int total = notifications.length;
-      int unread = notifications.where((n) => !n.isRead).length;
-      int matchFound =
-          notifications.where((n) => n.type == 'match_found').length;
-      int itemClaimed =
-          notifications.where((n) => n.type == 'item_claimed').length;
-      int general = notifications.where((n) => n.type == 'general').length;
-      return {
-        'total': total,
-        'unread': unread,
-        'match_found': matchFound,
-        'item_claimed': itemClaimed,
-        'general': general,
-      };
-    });
-  }
-
-  void _handleNotificationTap(NotificationModel notification) async {
-    if (!notification.isRead) {
-      await NotificationService.markAsRead(notification.id);
-    }
-    switch (notification.type) {
-      case 'match_found':
-        _handleMatchNotification(notification);
-        break;
-      case 'item_claimed':
-        _handleItemClaimedNotification(notification);
-        break;
-      default:
-        _showNotificationDetails(notification);
-    }
-  }
-
-  void _handleMatchNotification(NotificationModel notification) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('การจับคู่สิ่งของ'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+            // Content: รูป + ข้อความ
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(notification.message),
-                const SizedBox(height: 16),
-                if (notification.data['matchScore'] != null)
+                // รูปภาพ หรือ Icon
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: post.isLostItem ? Colors.red[50] : Colors.green[50],
+                    borderRadius: BorderRadius.circular(10),
+                    image:
+                        post.imageUrl.isNotEmpty
+                            ? DecorationImage(
+                              image: NetworkImage(post.imageUrl),
+                              fit: BoxFit.cover,
+                            )
+                            : null,
+                  ),
+                  child:
+                      post.imageUrl.isEmpty
+                          ? Icon(
+                            post.isLostItem
+                                ? Icons.help_outline
+                                : Icons.check_circle_outline,
+                            color: post.isLostItem ? Colors.red : Colors.green,
+                            size: 30,
+                          )
+                          : null,
+                ),
+                const SizedBox(width: 12),
+
+                // รายละเอียด
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        post.description,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // แสดงเหตุผลการจับคู่ (ถ้ามี)
+                      if (notification.matchReasons.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '• ${notification.matchReasons.first}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[700],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ✅ 3. ส่วนคำถามยืนยัน "ใช่/ไม่ใช่"
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                ),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'ใช่สิ่งที่คุณตามหาหรือไม่?',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Text('ความแม่นยำ: '),
-                      Text(
-                        '${notification.data['matchScore']}%',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                      // ปุ่ม ไม่ใช่
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _showRejectDialog(notification),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey[700],
+                            side: BorderSide(color: Colors.grey[400]!),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('ไม่ใช่'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // ปุ่ม ใช่
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _showContactDialog(post),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text('ใช่ (ติดต่อ)'),
                         ),
                       ),
                     ],
                   ),
-              ],
+                ],
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // TODO: Navigate to item details
-                },
-                child: const Text('ดูรายละเอียด'),
-              ),
-            ],
-          ),
+          ],
+        ),
+      ),
     );
   }
 
-  void _handleItemClaimedNotification(NotificationModel notification) {
+  Color _getMatchColor(double score) {
+    if (score >= 0.8) return Colors.green;
+    if (score >= 0.7) return Colors.orange;
+    return Colors.blue;
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 0) return '${diff.inDays} วันที่แล้ว';
+    if (diff.inHours > 0) return '${diff.inHours} ชม. ที่แล้ว';
+    return '${diff.inMinutes} นาทีที่แล้ว';
+  }
+
+  // Dialog ยืนยันการปฏิเสธ
+  void _showRejectDialog(SmartNotificationItem notification) {
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('การขอรับสิ่งของ'),
-            content: Text(notification.message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // TODO: Navigate to claim management
-                },
-                child: const Text('จัดการ'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showNotificationDetails(NotificationModel notification) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(notification.title),
-            content: Text(notification.message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _handleMenuAction(String action, String userId) async {
-    switch (action) {
-      case 'mark_all_read':
-        final success = await NotificationService.markAllAsRead(userId);
-        if (success && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('อ่านทั้งหมดแล้ว'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-        break;
-      case 'delete_all':
-        _confirmDeleteAll(userId);
-        break;
-      case 'stats':
-        _showStats(userId);
-        break;
-    }
-  }
-
-  void _confirmDeleteAll(String userId) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('ลบการแจ้งเตือนทั้งหมด'),
-            content: const Text(
-              'คุณแน่ใจหรือไม่ที่จะลบการแจ้งเตือนทั้งหมด? ข้อมูลจะไม่สามารถกู้คืนได้',
-            ),
+            title: const Text('ยืนยัน'),
+            content: const Text('รายการนี้จะถูกลบออกจากการแจ้งเตือน'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('ยกเลิก'),
               ),
-              ElevatedButton(
-                onPressed: () async {
+              TextButton(
+                onPressed: () {
                   Navigator.pop(context);
-                  final success =
-                      await NotificationService.deleteAllNotifications(userId);
-                  if (success && mounted) {
-                    final messenger = ScaffoldMessenger.maybeOf(context);
-                    if (messenger != null) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('ลบการแจ้งเตือนทั้งหมดแล้ว'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
+                  if (notification.notificationId != null) {
+                    _removeNotification(notification.notificationId!);
                   }
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('ลบทั้งหมด'),
+                child: const Text(
+                  'ยืนยัน',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ],
           ),
     );
   }
 
-  void _showStats(String userId) async {
-    final stats = await NotificationService.getNotificationStats(userId);
-    if (!mounted) return;
+  // Dialog ติดต่อ
+  void _showContactDialog(Post post) {
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('สถิติการแจ้งเตือน'),
+            title: const Text('ข้อมูลติดต่อ'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatRow('ทั้งหมด', stats['total'] ?? 0),
-                _buildStatRow('ยังไม่อ่าน', stats['unread'] ?? 0, Colors.red),
-                _buildStatRow(
-                  'การจับคู่',
-                  stats['match_found'] ?? 0,
-                  Colors.green,
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.person, color: Colors.blue),
+                  title: Text(
+                    post.userName.isEmpty ? 'ไม่ระบุชื่อ' : post.userName,
+                  ),
+                  subtitle: const Text('ผู้โพสต์'),
                 ),
-                _buildStatRow(
-                  'การรับสิ่งของ',
-                  stats['item_claimed'] ?? 0,
-                  Colors.orange,
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.phone, color: Colors.green),
+                  title: Text(post.contact),
+                  subtitle: const Text('ช่องทางการติดต่อ'),
+                  onTap: () {
+                    // สามารถเพิ่มโค้ด url_launcher ตรงนี้เพื่อโทรออกได้
+                  },
                 ),
-                _buildStatRow('ทั่วไป', stats['general'] ?? 0, Colors.blue),
               ],
             ),
             actions: [
@@ -711,185 +471,25 @@ class _NotificationScreenState extends State<NotificationScreen>
           ),
     );
   }
-
-  Widget _buildStatRow(String label, int count, [Color? color]) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(
-            '$count',
-            style: TextStyle(fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _deleteNotification(String notificationId) async {
-    final success = await NotificationService.deleteNotification(
-      notificationId,
-    );
-    if (success && mounted) {
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      if (messenger != null) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('ลบการแจ้งเตือนแล้ว'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-  }
 }
 
-// 3. Enhanced NotificationCard
-class NotificationCard extends StatelessWidget {
-  final NotificationModel notification;
-  final VoidCallback onTap;
-  final VoidCallback? onDelete;
-  final bool isCompact;
+// ✅ Model ที่รองรับ ID จาก Firestore (เหมือนเดิมแต่เพิ่ม field)
+class SmartNotificationItem {
+  final Post post;
+  final double matchScore;
+  final List<String> matchReasons;
+  final DateTime createdAt;
+  final Post? relatedUserPost;
+  final String? notificationId; // ใช้สำหรับลบ
+  final bool isRead;
 
-  const NotificationCard({
-    super.key,
-    required this.notification,
-    required this.onTap,
-    this.onDelete,
-    this.isCompact = false,
+  SmartNotificationItem({
+    required this.post,
+    required this.matchScore,
+    required this.matchReasons,
+    required this.createdAt,
+    this.relatedUserPost,
+    this.notificationId,
+    this.isRead = false,
   });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.only(bottom: isCompact ? 4 : 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getNotificationColor(notification.type),
-          child: Icon(
-            _getNotificationIcon(notification.type),
-            color: Colors.white,
-            size: isCompact ? 16 : 20,
-          ),
-        ),
-        title: Text(
-          notification.title,
-          style: TextStyle(
-            fontWeight:
-                notification.isRead ? FontWeight.normal : FontWeight.bold,
-            fontSize: isCompact ? 14 : 16,
-          ),
-          maxLines: isCompact ? 1 : 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              notification.message,
-              maxLines: isCompact ? 1 : 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: isCompact ? 12 : 14),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text(
-                  _formatDateTime(notification.createdAt),
-                  style: TextStyle(
-                    fontSize: isCompact ? 10 : 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                if (notification.type == 'match_found' &&
-                    notification.data['matchScore'] != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${notification.data['matchScore']}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!notification.isRead)
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            if (onDelete != null && !isCompact) ...[
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.delete, size: 16),
-                onPressed: onDelete,
-                color: Colors.red,
-              ),
-            ],
-          ],
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Color _getNotificationColor(String type) {
-    switch (type) {
-      case 'match_found':
-        return Colors.green;
-      case 'item_claimed':
-        return Colors.orange;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  IconData _getNotificationIcon(String type) {
-    switch (type) {
-      case 'match_found':
-        return Icons.link;
-      case 'item_claimed':
-        return Icons.check_circle;
-      default:
-        return Icons.info;
-    }
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} วันที่แล้ว';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชั่วโมงที่แล้ว';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} นาทีที่แล้ว';
-    } else {
-      return 'เมื่อสักครู่';
-    }
-  }
 }

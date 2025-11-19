@@ -156,7 +156,8 @@ class _PostActionButtonState extends State<PostActionButton>
                       child: FloatingActionButton(
                         onPressed: _toggleExpanded,
                         heroTag: "main_btn",
-                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondary,
                         shape: const CircleBorder(),
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),

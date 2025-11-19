@@ -40,11 +40,11 @@ class _ProfilePageState extends State<ProfilePage>
     // เช็คว่ามีการล็อกอินหรือไม่
     if (user == null) {
       return Scaffold(
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppBar(
           title: const Text('โปรไฟล์'),
           centerTitle: true,
-          backgroundColor: Theme.of(context).primaryColor,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           elevation: 1,
         ),
         body: Center(
@@ -61,7 +61,7 @@ class _ProfilePageState extends State<ProfilePage>
               ElevatedButton(
                 onPressed: () => Navigator.pushNamed(context, '/login'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
                     vertical: 12,
@@ -98,7 +98,7 @@ class _ProfilePageState extends State<ProfilePage>
         return true;
       },
       child: Scaffold(
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppBar(
           title: Text(
             'โปรไฟล์',
@@ -109,7 +109,7 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ),
           centerTitle: true,
-          backgroundColor: Theme.of(context).primaryColor,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           elevation: 1,
           actions: [
             // Menu button styled as circular button (instead of square with border)
