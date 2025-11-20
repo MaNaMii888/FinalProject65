@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project01/Screen/register.dart'; // unused — kept commented in case needed later
-// import 'package:project01/Screen/app.dart'; // not used anymore; keep commented in case needed
+import 'package:project01/Screen/register.dart';
 import 'package:project01/Screen/forgot_password.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,115 +17,162 @@ class _LoginScreenState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final AuthService _authService = AuthService(); // Using singleton instance
+  final AuthService _authService = AuthService();
 
+  // --- Logic ส่วนเดิม ---
   Future<UserCredential?> signInWithGoogle() async {
     DebugHelper.log('=== Login.dart: Google Sign-In Starting ===');
-
     try {
-      DebugHelper.logUserState();
-      await DebugHelper.logGoogleSignInState();
-
       final result = await _authService.signInWithGoogle();
-
-      DebugHelper.log('=== Login.dart: Sign-In Result ===');
-      DebugHelper.log('Result: $result');
-      DebugHelper.logUserState();
-
       return result;
     } catch (e, stackTrace) {
       DebugHelper.logError('Login.dart: Google Sign-In Error', e, stackTrace);
-      DebugHelper.logAuthError(e);
       rethrow;
     }
   }
 
-  // Password reset moved to a separate screen: ForgotPasswordPage
+  // Function ช่วยปิด Dialog แบบปลอดภัย
+  void _dismissLoadingDialog() {
+    if (mounted && Navigator.canPop(context)) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  // Function แสดง Dialog แจ้งเตือน
+  Future<void> _showAlertDialog({
+    required String title,
+    required Widget content,
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: content,
+          icon: Icon(
+            isError ? Icons.error : Icons.check_circle,
+            color: isError ? Theme.of(context).colorScheme.error : Colors.green,
+            size: 48,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('ปิด'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context); // เรียกใช้ Theme สั้นๆ
+
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: theme.colorScheme.surface,
       body: Center(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Form(
             key: _formKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'ยินดีตอนรับ',
+                  'ยินดีต้อนรับ',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
+                    color:
+                        theme.colorScheme.onSurface, // ปรับให้เห็นชัดบนพื้นหลัง
                     fontSize: 22,
                   ),
                 ),
                 Text(
-                  'เข้าสู่ะบบ',
+                  'เข้าสู่ระบบ', // แก้คำผิด
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
+                    color: theme.colorScheme.onSurface,
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 32),
+
+                // --- Card Container แบบเดียวกับ Register ---
                 Container(
-                  padding: EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(
+                      0.9,
+                    ), // ใช้ withOpacity เพื่อความชัวร์
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     children: [
+                      // --- Email Input ---
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.surface,
-                        ),
+                          color: Colors.black87,
+                        ), // สีตัวอักษรเวลาพิมพ์
                         decoration: InputDecoration(
-                          labelText: 'Gmail',
+                          labelText: 'Email',
                           labelStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.surface,
+                            color: theme.colorScheme.primary,
                           ),
-                          border: UnderlineInputBorder(),
+                          // ใส่ Icon และกำหนดสีตาม Theme
+                          prefixIcon: Icon(
+                            Icons.email_outlined,
+                            color: theme.colorScheme.primary,
+                          ),
+                          border: const UnderlineInputBorder(),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "กรุณากรอกอีเมลให้ถูกต้อง";
-                          }
-                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                            return "กรุณากรอกอีเมลให้ถูกต้อง";
-                          }
+                          if (value == null || value.isEmpty)
+                            return "กรุณากรอกอีเมล";
+                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
+                            return "รูปแบบอีเมลไม่ถูกต้อง";
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
+
+                      // --- Password Input ---
                       TextFormField(
                         controller: _passwordController,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.surface,
-                        ),
                         obscureText: true,
+                        style: TextStyle(color: Colors.black87),
                         decoration: InputDecoration(
                           labelText: 'Password',
                           labelStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.surface,
+                            color: theme.colorScheme.primary,
                           ),
-                          border: UnderlineInputBorder(),
+                          // ใส่ Icon และกำหนดสีตาม Theme
+                          prefixIcon: Icon(
+                            Icons.lock_outline,
+                            color: theme.colorScheme.primary,
+                          ),
+                          border: const UnderlineInputBorder(),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "กรุณากรอกรหัสผ่านให้ถูกต้อง";
-                          }
-                          if (value.length < 6) {
-                            return "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
-                          }
+                          if (value == null || value.isEmpty)
+                            return "กรุณากรอกรหัสผ่าน";
+                          if (value.length < 6)
+                            return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
                           return null;
                         },
                       ),
-                      const SizedBox(height: 8),
+
+                      // --- Forgot Password Button ---
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
@@ -142,241 +188,87 @@ class _LoginScreenState extends State<LoginPage> {
                           child: Text(
                             'ลืมรหัสผ่าน?',
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.surface,
-                              decoration: TextDecoration.underline,
-                              fontWeight: FontWeight.w600,
+                              color:
+                                  theme
+                                      .colorScheme
+                                      .error, // ใช้สีแดงหรือ secondary ให้เด่น
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(
+                        height: 8,
+                      ), // ลดระยะห่างนิดหน่อยเพราะมีปุ่มลืมรหัสผ่าน
+                      // --- Login Button ---
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                Theme.of(context).colorScheme.surface,
+                                theme
+                                    .colorScheme
+                                    .primary, // ใช้สีหลัก (เทาเข้ม)
+                            foregroundColor:
+                                theme
+                                    .colorScheme
+                                    .onPrimary, // สีตัวหนังสือ (ขาว/เทาอ่อน)
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                              borderRadius: BorderRadius.circular(
+                                30,
+                              ), // ความโค้งเท่ากับหน้า Register
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                           onPressed: () async {
                             if (_formKey.currentState!.validate()) {
+                              // Show Loading
                               showDialog(
                                 context: context,
                                 barrierDismissible: false,
-                                builder: (BuildContext context) {
-                                  return const Center(
-                                    child: AlertDialog(
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          CircularProgressIndicator(),
-                                          SizedBox(height: 16),
-                                          Text("กำลังเข้าสู่ระบบ..."),
-                                        ],
-                                      ),
+                                builder:
+                                    (c) => const Center(
+                                      child: CircularProgressIndicator(),
                                     ),
-                                  );
-                                },
                               );
 
                               try {
-                                DebugHelper.log(
-                                  '=== Email/Password Login Starting ===',
-                                );
-                                DebugHelper.log(
-                                  'Email: ${_emailController.text.trim()}',
-                                );
-                                DebugHelper.log(
-                                  'Password length: ${_passwordController.text.length}',
-                                );
-
-                                // Attempt sign-in with a timeout to avoid hanging spinner
-                                final userCredential = await FirebaseAuth
-                                    .instance
+                                // Logic การ login เดิม
+                                await FirebaseAuth.instance
                                     .signInWithEmailAndPassword(
                                       email: _emailController.text.trim(),
                                       password: _passwordController.text,
                                     )
-                                    .timeout(
-                                      const Duration(seconds: 15),
-                                      onTimeout: () {
-                                        DebugHelper.log(
-                                          'Email/Password sign-in timed out',
-                                        );
-                                        throw TimeoutException(
-                                          'Sign-in timed out',
-                                        );
-                                      },
-                                    );
+                                    .timeout(const Duration(seconds: 15));
 
-                                DebugHelper.log(
-                                  'Login successful: ${userCredential.user?.email}',
-                                );
-
-                                // If the widget was disposed while awaiting, abort further UI work
+                                _dismissLoadingDialog();
                                 if (!mounted) return;
-
-                                // Ensure loading dialog is dismissed
-                                if (mounted && Navigator.canPop(context)) {
-                                  Navigator.of(context).pop();
-                                }
-
-                                // Navigate to dashboard route (consistent with main authStateChanges)
-                                _formKey.currentState?.reset();
-                                if (!mounted) return;
-                                if (Navigator.canPop(context)) {
-                                  Navigator.of(context).pop();
-                                }
                                 Navigator.pushReplacementNamed(
                                   context,
                                   '/dashboard',
                                 );
-                              } on TimeoutException catch (e) {
-                                DebugHelper.logError(
-                                  'Email/Password Timeout',
-                                  e,
-                                  null,
-                                );
-                                if (mounted && Navigator.canPop(context)) {
-                                  Navigator.of(context).pop();
-                                }
-                                if (!mounted) return;
-                                await showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: const Text('เกิดข้อผิดพลาด'),
-                                      content: const Text(
-                                        'การเชื่อมต่อล้มเหลว (หมดเวลาการเชื่อมต่อ). กรุณาลองอีกครั้ง',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.of(context).pop(),
-                                          child: const Text('ปิด'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
                               } on FirebaseAuthException catch (e) {
-                                DebugHelper.logError(
-                                  'FirebaseAuth Error',
-                                  e,
-                                  null,
+                                _dismissLoadingDialog();
+                                String msg = "เข้าสู่ระบบไม่สำเร็จ";
+                                if (e.code == 'user-not-found')
+                                  msg = "ไม่พบผู้ใช้งานนี้";
+                                else if (e.code == 'wrong-password')
+                                  msg = "รหัสผ่านไม่ถูกต้อง";
+                                else if (e.code == 'invalid-credential')
+                                  msg = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+
+                                await _showAlertDialog(
+                                  title: 'เกิดข้อผิดพลาด',
+                                  content: Text(msg),
+                                  isError: true,
                                 );
-
-                                if (mounted && Navigator.canPop(context)) {
-                                  Navigator.of(context).pop();
-                                }
-
-                                if (!mounted) return;
-
-                                String errorMessage = 'ไม่สามารถเข้าสู่ระบบได้';
-
-                                switch (e.code) {
-                                  case 'user-not-found':
-                                    errorMessage =
-                                        'ไม่พบผู้ใช้งานนี้ กรุณาตรวจสอบอีเมลหรือลงทะเบียนใหม่';
-                                    break;
-                                  case 'wrong-password':
-                                    errorMessage =
-                                        'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
-                                    break;
-                                  case 'invalid-email':
-                                    errorMessage = 'รูปแบบอีเมลไม่ถูกต้อง';
-                                    break;
-                                  case 'user-disabled':
-                                    errorMessage = 'บัญชีผู้ใช้ถูกปิดใช้งาน';
-                                    break;
-                                  case 'too-many-requests':
-                                    errorMessage =
-                                        'มีการพยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่แล้วลองใหม่';
-                                    break;
-                                  case 'invalid-credential':
-                                    errorMessage =
-                                        'ข้อมูลการเข้าสู่ระบบไม่ถูกต้อง กรุณาตรวจสอบอีเมลและรหัสผ่าน';
-                                    break;
-                                  default:
-                                    errorMessage =
-                                        e.message ??
-                                        'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
-                                }
-
-                                await showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: const Text('เกิดข้อผิดพลาด'),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(errorMessage),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            'รหัสข้อผิดพลาด: ${e.code}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      icon: const Icon(
-                                        Icons.error,
-                                        color: Colors.red,
-                                        size: 48,
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.of(context).pop(),
-                                          child: const Text('ปิด'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              } catch (e, stack) {
-                                DebugHelper.logError(
-                                  'General Login Error',
-                                  e,
-                                  stack,
-                                );
-
-                                if (mounted && Navigator.canPop(context)) {
-                                  Navigator.of(context).pop();
-                                }
-
-                                if (!mounted) return;
-
-                                await showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: const Text('เกิดข้อผิดพลาด'),
-                                      content: Text(
-                                        'เกิดข้อผิดพลาดที่ไม่คาดคิด: ${e.toString()}',
-                                      ),
-                                      icon: const Icon(
-                                        Icons.error,
-                                        color: Colors.red,
-                                        size: 48,
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.of(context).pop(),
-                                          child: const Text('ปิด'),
-                                        ),
-                                      ],
-                                    );
-                                  },
+                              } catch (e) {
+                                _dismissLoadingDialog();
+                                await _showAlertDialog(
+                                  title: 'เกิดข้อผิดพลาด',
+                                  content: Text(e.toString()),
+                                  isError: true,
                                 );
                               }
                             }
@@ -385,12 +277,14 @@ class _LoginScreenState extends State<LoginPage> {
                             'เข้าสู่ระบบ',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              fontSize: 16,
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // --- Google Login Button ---
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
@@ -398,146 +292,79 @@ class _LoginScreenState extends State<LoginPage> {
                             'assets/img/google.jpg',
                             height: 24.0,
                           ),
-                          label: const Text('เข้าสูระบบด้วย Google'),
+                          label: const Text('เข้าสู่ระบบด้วย Google'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
+                            foregroundColor: Colors.black87,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                              borderRadius: BorderRadius.circular(
+                                30,
+                              ), // ความโค้งเท่ากัน
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 2,
                           ),
                           onPressed: () async {
-                            // แสดง dialog loading ขณะเริ่มกระบวนการ Google Sign-In
-                            showDialog<void>(
+                            showDialog(
                               context: context,
                               barrierDismissible: false,
-                              builder: (BuildContext dialogContext) {
-                                return WillPopScope(
-                                  onWillPop: () async => false,
-                                  child: Center(
-                                    child: AlertDialog(
-                                      backgroundColor:
-                                          Theme.of(
-                                            dialogContext,
-                                          ).scaffoldBackgroundColor,
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          CircularProgressIndicator(),
-                                          SizedBox(height: 16),
-                                          Text(
-                                            "กำลังเข้าสู่ระบบด้วย Google...",
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                              builder:
+                                  (c) => const Center(
+                                    child: CircularProgressIndicator(),
                                   ),
-                                );
-                              },
                             );
 
                             try {
                               final userCredential = await signInWithGoogle();
-
-                              DebugHelper.log(
-                                'Google sign-in finished: $userCredential',
-                              );
-
-                              // ถ้า widget ถูกยกเลิก ให้หยุด
-                              if (!mounted) return;
-
-                              // ปิด loading dialog ถ้ามันยังเปิดอยู่
-                              if (Navigator.canPop(context)) {
-                                Navigator.of(context).pop();
-                              }
+                              _dismissLoadingDialog();
 
                               if (userCredential != null && mounted) {
-                                // นำทางไปยังหน้า dashboard (consistent with main auth state)
                                 Navigator.pushReplacementNamed(
                                   context,
                                   '/dashboard',
                                 );
-                              } else {
-                                // ผู้ใช้ยกเลิกการเลือกบัญชีหรือไม่ได้ล็อกอิน
-                                if (mounted) {
-                                  await showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: const Text(
-                                          'ยกเลิกการเข้าสู่ระบบ',
-                                        ),
-                                        content: const Text(
-                                          'คุณยกเลิกการเข้าสู่ระบบด้วย Google',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed:
-                                                () =>
-                                                    Navigator.of(context).pop(),
-                                            child: const Text('ปิด'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                }
                               }
-                            } catch (e, stack) {
-                              DebugHelper.logError(
-                                'Google Sign-In Error',
-                                e,
-                                stack,
-                              );
-
-                              // ปิด loading dialog ถ้ามันยังเปิดอยู่
-                              if (Navigator.canPop(context)) {
-                                Navigator.of(context).pop();
-                              }
-
+                            } catch (e) {
+                              _dismissLoadingDialog();
                               if (!mounted) return;
-
-                              await showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: const Text('เกิดข้อผิดพลาด'),
-                                    content: Text(
-                                      'ไม่สามารถเข้าสู่ระบบด้วย Google ได้: ${e.toString()}',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed:
-                                            () => Navigator.of(context).pop(),
-                                        child: const Text('ปิด'),
-                                      ),
-                                    ],
-                                  );
-                                },
+                              await _showAlertDialog(
+                                title: 'เกิดข้อผิดพลาด',
+                                content: Text('Google Sign-In Error: $e'),
+                                isError: true,
                               );
                             }
                           },
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
+
+                      // --- Register Link ---
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'ยังไม่มีการลงทะเบียน?',
+                            'ยังไม่มีการลงทะเบียน? ',
                             style: TextStyle(color: Colors.grey[700]),
                           ),
-                          TextButton(
-                            onPressed: () {
+                          GestureDetector(
+                            onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => RegisterScreen(),
+                                  builder: (context) => const RegisterScreen(),
                                 ),
                               );
                             },
-                            child: const Text('ลงทะเบียน'),
+                            child: Text(
+                              'ลงทะเบียน',
+                              style: TextStyle(
+                                color:
+                                    theme
+                                        .colorScheme
+                                        .primary, // ใช้สี Theme ให้ดูเป็นลิงก์
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ),

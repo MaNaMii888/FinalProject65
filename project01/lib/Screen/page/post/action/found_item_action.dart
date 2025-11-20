@@ -583,7 +583,7 @@ class _FindItemFormState extends State<FindItemForm> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: const Color(0xFF4CAF50).withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(

@@ -129,10 +129,12 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
         left: 20,
@@ -148,18 +150,25 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
             children: [
               Text(
                 'แก้ไขโพสต์',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close),
+                icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+
+          const SizedBox(height: 12),
+          Divider(
+            color: theme.colorScheme.onSurface.withOpacity(0.15),
+            thickness: 1,
+          ),
+          const SizedBox(height: 16),
 
           // Form
           Flexible(
@@ -167,21 +176,15 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
               key: _formKey,
               child: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Title
                     TextFormField(
                       controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'หัวข้อ *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.title),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'กรุณาใส่หัวข้อ';
-                        }
-                        return null;
-                      },
+                      decoration: _inputStyle('หัวข้อ *', Icons.title),
+                      validator:
+                          (value) =>
+                              value!.trim().isEmpty ? 'กรุณาใส่หัวข้อ' : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -189,42 +192,29 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                     TextFormField(
                       controller: _descriptionController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'รายละเอียด',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.description),
-                      ),
+                      decoration: _inputStyle('รายละเอียด', Icons.description),
                     ),
                     const SizedBox(height: 16),
 
                     // Category
                     DropdownButtonFormField<String>(
                       value: _selectedCategory,
-                      decoration: const InputDecoration(
-                        labelText: 'ประเภทสิ่งของ *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.category),
+                      decoration: _inputStyle(
+                        'ประเภทสิ่งของ *',
+                        Icons.category,
                       ),
                       items:
                           CategoryUtils.categoryMap.entries
                               .map(
-                                (entry) => DropdownMenuItem<String>(
-                                  value: entry.key,
-                                  child: Text(entry.value),
+                                (e) => DropdownMenuItem(
+                                  value: e.key,
+                                  child: Text(e.value),
                                 ),
                               )
                               .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCategory = value!;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'กรุณาเลือกประเภทสิ่งของ';
-                        }
-                        return null;
-                      },
+                      onChanged: (v) => setState(() => _selectedCategory = v!),
+                      validator:
+                          (v) => v == null ? 'กรุณาเลือกประเภทสิ่งของ' : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -234,65 +224,46 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                           buildings.contains(_buildingController.text)
                               ? _buildingController.text
                               : null,
-                      decoration: const InputDecoration(
-                        labelText: 'อาคาร *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.business),
-                      ),
+                      decoration: _inputStyle('อาคาร *', Icons.business),
                       items:
                           buildings
                               .map(
-                                (building) => DropdownMenuItem<String>(
-                                  value: building,
-                                  child: Text(building),
-                                ),
+                                (b) =>
+                                    DropdownMenuItem(value: b, child: Text(b)),
                               )
                               .toList(),
-                      onChanged: (value) {
-                        _buildingController.text = value ?? '';
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'กรุณาเลือกอาคาร';
-                        }
-                        return null;
-                      },
+                      onChanged: (v) => _buildingController.text = v ?? '',
+                      validator: (v) => v == null ? 'กรุณาเลือกอาคาร' : null,
                     ),
                     const SizedBox(height: 16),
 
                     // Location
                     TextFormField(
                       controller: _locationController,
-                      decoration: const InputDecoration(
-                        labelText: 'สถานที่ *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_on),
-                        hintText: 'เช่น ห้อง 301, ชั้น 2',
+                      decoration: _inputStyle(
+                        'สถานที่ *',
+                        Icons.location_on,
+                        hint: 'เช่น ห้อง 301, ชั้น 2',
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'กรุณาใส่สถานที่';
-                        }
-                        return null;
-                      },
+                      validator:
+                          (value) =>
+                              value!.trim().isEmpty ? 'กรุณาใส่สถานที่' : null,
                     ),
                     const SizedBox(height: 16),
 
                     // Contact
                     TextFormField(
                       controller: _contactController,
-                      decoration: const InputDecoration(
-                        labelText: 'ช่องทางติดต่อ *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.contact_phone),
-                        hintText: 'เบอร์โทร หรือ LINE ID',
+                      decoration: _inputStyle(
+                        'ช่องทางติดต่อ *',
+                        Icons.contact_phone,
+                        hint: 'เบอร์โทร หรือ LINE ID',
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'กรุณาใส่ช่องทางติดต่อ';
-                        }
-                        return null;
-                      },
+                      validator:
+                          (value) =>
+                              value!.trim().isEmpty
+                                  ? 'กรุณาใส่ช่องทางติดต่อ'
+                                  : null,
                     ),
                     const SizedBox(height: 24),
 
@@ -305,16 +276,36 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                                 _isLoading
                                     ? null
                                     : () => Navigator.of(context).pop(),
-                            child: const Text('ยกเลิก'),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: theme.colorScheme.onSurface.withOpacity(
+                                  0.3,
+                                ),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'ยกเลิก',
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _updatePost,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              foregroundColor: Colors.white,
+                              backgroundColor: theme.colorScheme.secondary,
+                              foregroundColor: theme.colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             child:
                                 _isLoading
@@ -323,10 +314,6 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
                                       ),
                                     )
                                     : const Text('บันทึก'),
@@ -340,6 +327,20 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // 🎨 Helper: Field Style
+  InputDecoration _inputStyle(String label, IconData icon, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.blueAccent, width: 1.8),
       ),
     );
   }

@@ -241,27 +241,67 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _showLogoutDialog(BuildContext context) {
+    final theme = Theme.of(context);
+
     showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('ยืนยันการออกจากระบบ'),
-            content: const Text('คุณต้องการออกจากระบบใช่หรือไม่?'),
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+
+            title: Text(
+              'ยืนยันการออกจากระบบ',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+
+            content: Text(
+              'คุณต้องการออกจากระบบใช่หรือไม่?',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withOpacity(0.85),
+                fontSize: 15,
+              ),
+            ),
+
+            actionsPadding: const EdgeInsets.only(bottom: 10, right: 15),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('ยกเลิก'),
+                child: Text(
+                  'ยกเลิก',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 14,
+                  ),
+                ),
               ),
-              TextButton(
+
+              // ปุ่มยืนยัน (เป็นสีแดงตาม Logout)
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.secondary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                ),
                 onPressed: () => Navigator.pop(context, true),
-                child: Text('ยืนยัน', style: TextStyle(color: Colors.red[600])),
+                child: const Text('ยืนยัน'),
               ),
             ],
           ),
     ).then((confirm) {
       if (confirm == true) {
-        // ส่ง context ตรงนี้
         _performLogout();
       }
     });
@@ -779,6 +819,13 @@ class _ProfilePageState extends State<ProfilePage>
                               ),
                             ),
                             PopupMenuButton<String>(
+                              icon: Icon(
+                                Icons.more_vert,
+                                color:
+                                    Theme.of(context)
+                                        .colorScheme
+                                        .onSurface, // หรือ colorScheme.primary ก็ได้
+                              ),
                               onSelected: (value) async {
                                 if (value == 'edit') {
                                   // เปิดหน้าแก้ไขโพสต์
@@ -849,29 +896,53 @@ class _ProfilePageState extends State<ProfilePage>
                                   }
                                 }
                               },
-                              itemBuilder:
-                                  (context) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.edit, color: Colors.black),
-                                          SizedBox(width: 8),
-                                          Text('แก้ไข'),
-                                        ],
-                                      ),
+                              itemBuilder: (context) {
+                                final theme = Theme.of(context);
+
+                                return [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.edit,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'แก้ไข',
+                                          style: TextStyle(
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const PopupMenuItem(
-                                      value: 'delete',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.delete, color: Colors.red),
-                                          SizedBox(width: 8),
-                                          Text('ลบโพสต์'),
-                                        ],
-                                      ),
+                                  ),
+
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.delete,
+                                          color:
+                                              theme
+                                                  .colorScheme
+                                                  .secondary, // ใช้สีแดงจาก Theme
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'ลบโพสต์',
+                                          style: TextStyle(
+                                            color: theme.colorScheme.secondary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
+                                ];
+                              },
                             ),
                           ],
                         ),
