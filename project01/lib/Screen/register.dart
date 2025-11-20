@@ -148,9 +148,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         validator:
-                            RequiredValidator(
-                              errorText: "กรุณากรอกรหัสผ่าน",
-                            ).call,
+                            MultiValidator([
+                              RequiredValidator(errorText: "กรุณากรอกรหัสผ่าน"),
+                              MinLengthValidator(
+                                6,
+                                errorText:
+                                    "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร",
+                              ),
+                              // หากต้องการบังคับตัวอักษรพิเศษหรือตัวใหญ่ สามารถเพิ่ม PatternValidator ได้ที่นี่
+                            ]).call,
                         onSaved: (String? password) {
                           profile.password = password ?? '';
                         },

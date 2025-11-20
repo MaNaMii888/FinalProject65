@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
+import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/services/post_count_service.dart';
 
 // ----------------- Service Classes -----------------
@@ -478,7 +479,7 @@ class _FindItemFormState extends State<FindItemForm> {
 
         imageUrl = await ImageService.uploadImageToFirebase(
           _imageFile!,
-          'lost_items',
+          'found_items',
           onProgress: (progress) {
             if (mounted) {
               // ✅ ตรวจสอบใน callback
@@ -518,6 +519,7 @@ class _FindItemFormState extends State<FindItemForm> {
       };
 
       await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
         false,
@@ -526,6 +528,11 @@ class _FindItemFormState extends State<FindItemForm> {
       if (!mounted) return; // ✅ ตรวจสอบก่อน setState
       setState(() => uploadProgress = 1.0);
 
+      if (mounted) {
+        // สั่งให้ระบบแจ้งเตือนทำงานทันที เพื่อจับคู่โพสต์นี้กับคนอื่น
+        await Future.delayed(const Duration(seconds: 1));
+        await RealtimeNotificationService.refreshCheck(context);
+      }
       if (mounted) {
         // ✅ ตรวจสอบก่อนแสดง success
         _showSuccess('บันทึกข้อมูลสำเร็จ');
@@ -1099,26 +1106,36 @@ class _FindItemFormState extends State<FindItemForm> {
           initialTime: TimeOfDay.now(),
           // 💡 จุดที่เพิ่ม: กำหนด Theme ให้กับ TimePicker
           builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: greenPrimary, // ✅ สี Header และวงกลมเวลาที่เลือก
-                  onPrimary: Colors.white, // ✅ สีตัวอักษรบน Header
-                  onSurface: Colors.black87, // ✅ สีของตัวอักษรเวลา
-                ),
-                textButtonTheme: TextButtonThemeData(
-                  style: TextButton.styleFrom(
-                    foregroundColor: greenPrimary, // ✅ สีปุ่ม 'ยกเลิก', 'ตกลง'
+            // 1. ใช้ MediaQuery เพื่อบังคับเป็น 24 ชั่วโมง
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(alwaysUse24HourFormat: true),
+              // 2. ใช้ Theme เพื่อกำหนดสี
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: const ColorScheme.light(
+                    primary: greenPrimary, // ✅ สี Header และวงกลม
+                    onPrimary: Colors.white, // ✅ สีตัวอักษรบน Header
+                    onSurface: Colors.black87, // ✅ สีของตัวอักษรเวลา
+                  ),
+                  textButtonTheme: TextButtonThemeData(
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          greenPrimary, // ✅ สีปุ่ม 'ยกเลิก', 'ตกลง'
+                    ),
                   ),
                 ),
+                child: child!,
               ),
-              child: child!,
             );
           },
         );
         if (picked != null) {
           setState(() {
-            timeController.text = picked.format(context);
+            timeController.text = MaterialLocalizations.of(
+              context,
+            ).formatTimeOfDay(picked, alwaysUse24HourFormat: true);
           });
         }
       },

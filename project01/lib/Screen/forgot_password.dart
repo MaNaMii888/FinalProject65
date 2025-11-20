@@ -213,12 +213,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.surface,
+                    ),
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _submit(), // กด Enter แล้วส่งเลย
                     decoration: InputDecoration(
                       labelText: 'อีเมล',
                       hintText: 'example@email.com',
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(

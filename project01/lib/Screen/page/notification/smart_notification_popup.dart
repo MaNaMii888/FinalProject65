@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/notifications_service.dart';
+// ตรวจสอบ path ของ NotificationModel ให้ถูกต้อง
+// import 'package:project01/models/notification_model.dart';
 
 class SmartNotificationPopup extends StatefulWidget {
   const SmartNotificationPopup({super.key});
@@ -15,7 +17,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   @override
   Widget build(BuildContext context) {
     // ดึงสีจาก Theme
-    final primaryColor = Theme.of(context).colorScheme.surface;
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
 
     return Container(
@@ -144,7 +146,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     );
   }
 
-  // ✅✅✅ ดีไซน์ใหม่: แบบ X (Feed) เต็มจอ ไม่มี Card
+  // ✅✅✅ ดีไซน์ X-Style (Feed เต็มจอ)
   Widget _buildNotificationCard(NotificationModel notification) {
     final matchScore = notification.matchScore ?? 0;
     final matchPercentage = (matchScore * 100).round();
@@ -160,7 +162,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
         _viewPostDetails(notification);
       },
       child: Container(
-        // ✅ พื้นหลังสี Primary + เส้นคั่นด้านล่าง
+        // พื้นหลังสี Primary + เส้นคั่นด้านล่าง
         decoration: BoxDecoration(
           color: primaryColor,
           border: Border(
@@ -231,6 +233,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                                   notification.postType == 'lost'
                                       ? Colors.red[300]
                                       : Colors.green[300],
+                              size: 28,
                             ),
                   ),
                 ),
@@ -259,28 +262,21 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (notification.matchReasons.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            '• ${notification.matchReasons.first}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue[300],
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
+                      // แสดงโพสต์ที่เกี่ยวข้อง (ถ้ามี)
+                      // (อาจต้องปรับตามโครงสร้างข้อมูลใน NotificationModel)
                     ],
                   ),
                 ),
               ],
             ),
 
-            // Reasons
+            // Reasons (กล่องเหตุผล)
             if (notification.matchReasons.isNotEmpty)
               Container(
-                margin: const EdgeInsets.only(top: 12, left: 66),
+                margin: const EdgeInsets.only(
+                  top: 12,
+                  left: 66,
+                ), // เว้นซ้ายให้ตรงข้อความ
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: onPrimaryColor.withOpacity(0.05),
@@ -312,12 +308,13 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                 ),
               ),
 
-            // Actions
+            // Actions (ปุ่ม)
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.only(left: 66),
               child: Row(
                 children: [
+                  // ปุ่ม ไม่ใช่
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => _handleNotMatch(notification),
@@ -335,6 +332,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                     ),
                   ),
                   const SizedBox(width: 12),
+                  // ปุ่ม ใช่ (ติดต่อ)
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _handleMatchConfirmed(notification),
@@ -360,7 +358,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     );
   }
 
-  // --- Helper Functions ---
+  // ---------- Helper Functions ----------
 
   Color _getMatchColor(double score) {
     if (score >= 0.8) return Colors.green;
@@ -377,76 +375,61 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
 
   // ฟังก์ชันจัดการเมื่อกด "ไม่ใช่" (ลบการแจ้งเตือนออก)
   void _handleNotMatch(NotificationModel notification) async {
-    // ดึงสีจาก Theme
     final colorScheme = Theme.of(context).colorScheme;
 
-    // แสดง Dialog ที่ตกแต่งแล้ว
     final confirm = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            backgroundColor:
-                Colors.white, // หรือใช้ colorScheme.onPrimary ถ้าชอบสีเทาอ่อนๆ
+            backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20), // มุมมนสวยงาม
+              borderRadius: BorderRadius.circular(20),
             ),
-            contentPadding: EdgeInsets.zero, // จัด Layout เอง
+            contentPadding: EdgeInsets.zero,
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 24),
-                // 1. ไอคอนถังขยะด้านบน (ใช้สีแดงจาก surface)
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colorScheme.surface.withOpacity(
-                      0.1,
-                    ), // พื้นหลังสีแดงจางๆ
+                    color: colorScheme.surface.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.delete_rounded,
                     size: 32,
-                    color: colorScheme.surface, // ไอคอนสีแดง
+                    color: colorScheme.surface,
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // 2. หัวข้อ
                 Text(
                   'ลบการแจ้งเตือน',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: colorScheme.primary, // สีดำเข้ม
+                    color: colorScheme.primary,
                     fontFamily: 'Prompt',
                   ),
                 ),
-
                 const SizedBox(height: 8),
-
-                // 3. ข้อความรายละเอียด
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
                     'คุณต้องการลบการแจ้งเตือนนี้\nใช่หรือไม่?',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: colorScheme.secondary, // สีเทาเข้ม
+                      color: colorScheme.secondary,
                       fontSize: 14,
                       fontFamily: 'Prompt',
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // 4. ปุ่มกด (วางแนวนอน)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                   child: Row(
                     children: [
-                      // ปุ่ม "ยกเลิก"
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () => Navigator.pop(context, false),
@@ -464,16 +447,13 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 12),
-
-                      // ปุ่ม "ยืนยัน" (สีแดง)
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () => Navigator.pop(context, true),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.surface, // สีแดงตามธีม
-                            foregroundColor: Colors.white, // ตัวหนังสือสีขาว
+                            backgroundColor: colorScheme.surface,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -497,7 +477,6 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
           ),
     );
 
-    // Logic การลบข้อมูล (เหมือนเดิม)
     if (confirm == true) {
       await NotificationService.deleteNotification(notification.id);
     }
@@ -512,13 +491,13 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('ติดต่อเจ้าของ'),
+            title: const Text('ข้อมูลติดต่อ'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ListTile(
-                  leading: const Icon(Icons.person),
+                  leading: const Icon(Icons.person, color: Colors.blue),
                   title: Text(
                     (notification.data['userName'] ?? '').isEmpty
                         ? 'ไม่ระบุชื่อ'
@@ -526,8 +505,9 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   ),
                   subtitle: const Text('ผู้โพสต์'),
                 ),
+                const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.phone),
+                  leading: const Icon(Icons.phone, color: Colors.green),
                   title: Text(notification.data['contact'] ?? '-'),
                   subtitle: const Text('เบอร์โทร / Line'),
                 ),

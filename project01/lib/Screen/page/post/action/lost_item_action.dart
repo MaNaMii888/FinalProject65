@@ -509,9 +509,9 @@ class _LostItemFormState extends State<LostItemForm> {
       // เรียก Smart Matching Service สำหรับโพสต์หาของ
       if (mounted) {
         // สั่งให้ระบบแจ้งเตือนทำงานทันที เพื่อจับคู่โพสต์นี้กับคนอื่น
+        await Future.delayed(const Duration(seconds: 1));
         await RealtimeNotificationService.refreshCheck(context);
       }
-
       // อัพเดทจำนวนโพสต์ของผู้ใช้
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,

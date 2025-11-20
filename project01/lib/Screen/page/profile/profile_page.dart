@@ -312,29 +312,6 @@ class _ProfilePageState extends State<ProfilePage>
     final navigator = Navigator.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    // แสดง loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext loadingContext) {
-        return WillPopScope(
-          onWillPop: () async => false,
-          child: const Center(
-            child: AlertDialog(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('กำลังออกจากระบบ...'),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
     try {
       // Sign out จาก Firebase
       await FirebaseAuth.instance.signOut();
