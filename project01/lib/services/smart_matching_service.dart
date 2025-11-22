@@ -173,6 +173,8 @@ class SmartMatchingService {
 
       // ส่งการแจ้งเตือนหากคะแนนสูงพอ (เกณฑ์ 60%)
       if (matchScore >= 0.6) {
+        debugPrint('✅ Match found! Sending notifications to both users...');
+
         // แจ้งเตือนไปยังเจ้าของโพสต์เดิม
         await _sendMatchNotification(
           userId: existingPost.userId,
@@ -180,6 +182,16 @@ class SmartMatchingService {
           matchingPost: existingPost,
           matchScore: matchScore,
         );
+        debugPrint('   ✓ Notified existing post owner: ${existingPost.userId}');
+
+        // แจ้งเตือนไปยังเจ้าของโพสต์ใหม่ด้วย
+        await _sendMatchNotification(
+          userId: newPost.userId,
+          newPost: existingPost,
+          matchingPost: newPost,
+          matchScore: matchScore,
+        );
+        debugPrint('   ✓ Notified new post owner: ${newPost.userId}');
 
         // บันทึกการแมชลงใน Firebase เพื่อไว้ติดตาม
         await _saveMatchRecord(newPost, existingPost, matchScore);
@@ -295,22 +307,22 @@ class SmartMatchingService {
       score += 0.4;
     }
 
-    // 2. หมวดหมู่เดียวกัน - 25%
+    // 2. หมวดหมู่เดียวกัน - 10%
     if (userPost.category == newPost.category) {
-      score += 0.25;
+      score += 0.1;
     }
 
-    // 3. อาคารเดียวกัน - 20%
+    // 3. อาคารเดียวกัน - 10%
     if (userPost.building == newPost.building) {
-      score += 0.2;
+      score += 0.1;
     }
 
-    // 4. ความคล้ายคลึงของคำ - 15%
+    // 4. ความคล้ายคลึงของคำ - 20%
     double textSimilarity = _calculateTextSimilarity(
       '${userPost.title} ${userPost.description}',
       '${newPost.title} ${newPost.description}',
     );
-    score += textSimilarity * 0.15;
+    score += textSimilarity * 0.2;
 
     return score;
   }
