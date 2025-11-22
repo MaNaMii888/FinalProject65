@@ -41,21 +41,41 @@ class NotificationModel {
 
   factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final dataMap = Map<String, dynamic>.from(data['data'] ?? {});
+
+    // รองรับทั้ง field ใหม่และเก่า (backward compatibility)
+    String? postId =
+        data['postId'] ?? dataMap['newPostId'] ?? dataMap['matchingPostId'];
+    String? relatedPostId =
+        data['relatedPostId'] ??
+        dataMap['relatedPostId'] ??
+        dataMap['matchingPostId'];
+    String? postTitle =
+        data['postTitle'] ??
+        dataMap['newPostTitle'] ??
+        dataMap['matchingPostTitle'];
+    String? postType =
+        data['postType'] ??
+        dataMap['newPostType'] ??
+        dataMap['matchingPostType'];
+
     return NotificationModel(
       id: doc.id,
       userId: data['userId'] ?? '',
       title: data['title'] ?? '',
       message: data['message'] ?? '',
       type: data['type'] ?? 'general',
-      data: Map<String, dynamic>.from(data['data'] ?? {}),
+      data: dataMap,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isRead: data['isRead'] ?? false,
-      postId: data['postId'],
-      relatedPostId: data['relatedPostId'],
-      matchScore: (data['matchScore'] as num?)?.toDouble(),
+      postId: postId,
+      relatedPostId: relatedPostId,
+      matchScore:
+          (data['matchScore'] as num?)?.toDouble() ??
+          (dataMap['matchPercentage'] as num?)?.toDouble(),
       matchReasons: List<String>.from(data['matchReasons'] ?? const []),
-      postTitle: data['postTitle'],
-      postType: data['postType'],
+      postTitle: postTitle,
+      postType: postType,
       postImageUrl: data['postImageUrl'],
     );
   }
@@ -206,18 +226,25 @@ class NotificationService {
         matchReasons: matchReasons,
         postTitle: matchedPost.title,
         postType: matchedPost.isLostItem ? 'lost' : 'found',
-        postImageUrl: matchedPost.imageUrl.isEmpty ? null : matchedPost.imageUrl,
+        postImageUrl:
+            matchedPost.imageUrl.isEmpty ? null : matchedPost.imageUrl,
       );
 
       final notificationId = await saveNotificationToFirestore(notification);
 
       if (notificationId != null && showLocal) {
+        final notifId =
+            DateTime.now().millisecondsSinceEpoch.hashCode.abs() % 2147483647;
+        debugPrint('🔔 Showing local notification with ID: $notifId');
+        debugPrint('📝 Notification title: $title');
+        debugPrint('📝 Notification message: $message');
         await showLocalNotification(
-          id: DateTime.now().millisecondsSinceEpoch % 2147483647,
+          id: notifId,
           title: title,
           body: message,
           payload: 'smart_match:${matchedPost.id}',
         );
+        debugPrint('✅ Local notification displayed successfully');
       }
 
       return notificationId;

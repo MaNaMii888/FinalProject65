@@ -20,8 +20,19 @@ class SmartMatchingService {
 
       debugPrint('🔍 Processing new post for matching...');
 
+      // ตรวจสอบว่ามี ID หรือไม่
+      if (!newPostData.containsKey('id') ||
+          newPostData['id'] == null ||
+          newPostData['id'] == 'temp') {
+        debugPrint('❌ Error: newPostData does not contain a valid ID');
+        return;
+      }
+
       // 1. แปลงข้อมูลเป็น Post object
-      final newPost = Post.fromJson({...newPostData, 'id': 'temp'});
+      final newPost = Post.fromJson(newPostData);
+      debugPrint(
+        '📝 Processing post ID: ${newPost.id}, title: ${newPost.title}',
+      );
 
       // 2. หาผู้ใช้ที่อาจสนใจ (แบบ batch)
       await _findPotentialMatches(newPost, currentUserId);

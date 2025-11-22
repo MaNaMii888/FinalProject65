@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/services/post_count_service.dart';
+import 'package:project01/services/smart_matching_service.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -517,7 +518,18 @@ class _FindItemFormState extends State<FindItemForm> {
         'searchKeywords': _generateSearchKeywords(),
       };
 
-      await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+      final docRef = await FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .add(post);
+
+      // เพิ่ม ID จริงเข้าไปใน post data
+      post['id'] = docRef.id;
+      debugPrint('✅ Created new found post with ID: ${docRef.id}');
+
+      // เรียก Smart Matching Service สำหรับโพสต์พบของ
+      debugPrint('🚀 Starting smart matching for new found post...');
+      await SmartMatchingService.processNewPost(post);
+
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
         false,

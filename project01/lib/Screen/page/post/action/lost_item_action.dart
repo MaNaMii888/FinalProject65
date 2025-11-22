@@ -11,6 +11,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/services/post_count_service.dart';
+import 'package:project01/services/smart_matching_service.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -504,9 +505,18 @@ class _LostItemFormState extends State<LostItemForm> {
         'searchKeywords': _generateSearchKeywords(),
       };
 
-      await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+      final docRef = await FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .add(post);
+
+      // เพิ่ม ID จริงเข้าไปใน post data
+      post['id'] = docRef.id;
+      debugPrint('✅ Created new post with ID: ${docRef.id}');
 
       // เรียก Smart Matching Service สำหรับโพสต์หาของ
+      debugPrint('🚀 Starting smart matching for new lost post...');
+      await SmartMatchingService.processNewPost(post);
+
       if (mounted) {
         // สั่งให้ระบบแจ้งเตือนทำงานทันที เพื่อจับคู่โพสต์นี้กับคนอื่น
         await RealtimeNotificationService.refreshCheck(context);
