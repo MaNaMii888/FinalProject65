@@ -11,7 +11,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/services/post_count_service.dart';
-import 'package:project01/services/smart_matching_service.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -515,7 +514,6 @@ class _LostItemFormState extends State<LostItemForm> {
 
       // เรียก Smart Matching Service สำหรับโพสต์หาของ
       debugPrint('🚀 Starting smart matching for new lost post...');
-      await SmartMatchingService.processNewPost(post);
 
       if (mounted) {
         // สั่งให้ระบบแจ้งเตือนทำงานทันที เพื่อจับคู่โพสต์นี้กับคนอื่น
