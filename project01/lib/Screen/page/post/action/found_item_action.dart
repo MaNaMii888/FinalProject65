@@ -11,6 +11,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/services/post_count_service.dart';
 import 'package:project01/services/smart_matching_service.dart';
+import 'package:project01/services/log_service.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -533,6 +534,15 @@ class _FindItemFormState extends State<FindItemForm> {
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
         false,
+      );
+
+      // บันทึก log การสร้างโพสต์
+      await LogService().logPostCreate(
+        userId: AuthService.currentUser!.uid,
+        userName: AuthService.currentUser!.email?.split('@')[0] ?? 'Unknown',
+        postId: docRef.id,
+        postTitle: titleController.text.trim(),
+        isLostItem: false,
       );
 
       if (!mounted) return; // ✅ ตรวจสอบก่อน setState

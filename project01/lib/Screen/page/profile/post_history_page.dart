@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
+import 'package:project01/services/log_service.dart';
 
 class PostHistoryPage extends StatefulWidget {
   final String userId;
@@ -223,6 +225,25 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                                                 .collection('lost_found_items')
                                                 .doc(post.id)
                                                 .delete();
+
+                                            // บันทึก log การลบโพสต์
+                                            final currentUser =
+                                                FirebaseAuth
+                                                    .instance
+                                                    .currentUser;
+                                            if (currentUser != null) {
+                                              await LogService().logPostDelete(
+                                                userId: currentUser.uid,
+                                                userName:
+                                                    currentUser.email?.split(
+                                                      '@',
+                                                    )[0] ??
+                                                    'Unknown',
+                                                postId: post.id,
+                                                postTitle: post.title,
+                                              );
+                                            }
+
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/auth_service.dart';
 import 'package:project01/utils/debug_helper.dart';
+import 'package:project01/services/log_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +19,7 @@ class _LoginScreenState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
+  final LogService _logService = LogService();
 
   // --- Logic ส่วนเดิม ---
   Future<UserCredential?> signInWithGoogle() async {
@@ -235,12 +237,26 @@ class _LoginScreenState extends State<LoginPage> {
 
                               try {
                                 // Logic การ login เดิม
-                                await FirebaseAuth.instance
+                                final userCredential = await FirebaseAuth
+                                    .instance
                                     .signInWithEmailAndPassword(
                                       email: _emailController.text.trim(),
                                       password: _passwordController.text,
                                     )
                                     .timeout(const Duration(seconds: 15));
+
+                                // บันทึก log การเข้าสู่ระบบ
+                                if (userCredential.user != null) {
+                                  await _logService.logUserLogin(
+                                    userId: userCredential.user!.uid,
+                                    userName:
+                                        userCredential.user!.email?.split(
+                                          '@',
+                                        )[0] ??
+                                        'Unknown',
+                                    provider: 'email',
+                                  );
+                                }
 
                                 _dismissLoadingDialog();
                                 if (!mounted) return;

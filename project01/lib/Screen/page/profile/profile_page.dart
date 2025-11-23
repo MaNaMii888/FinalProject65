@@ -8,6 +8,7 @@ import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dar
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
+import 'package:project01/services/log_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -869,6 +870,23 @@ class _ProfilePageState extends State<ProfilePage>
                                           .collection('lost_found_items')
                                           .doc(post.id)
                                           .delete();
+
+                                      // บันทึก log การลบโพสต์
+                                      final currentUser =
+                                          FirebaseAuth.instance.currentUser;
+                                      if (currentUser != null) {
+                                        await LogService().logPostDelete(
+                                          userId: currentUser.uid,
+                                          userName:
+                                              currentUser.email?.split(
+                                                '@',
+                                              )[0] ??
+                                              'Unknown',
+                                          postId: post.id,
+                                          postTitle: post.title,
+                                        );
+                                      }
+
                                       final messenger =
                                           ScaffoldMessenger.maybeOf(context);
                                       if (messenger != null) {

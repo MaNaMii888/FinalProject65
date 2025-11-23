@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Panel - Lost & Found</title>
+  <title>ระบบจัดการแอปพลิเคชันค้นหาสิ่งของสูญหาย</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -11,11 +11,11 @@
     <!-- Sidebar Navigation -->
     <nav class="sidebar">
       <div class="sidebar-header">
-        <h2><i class="fas fa-shield-alt"></i> Admin Panel</h2>
+        <h2><i class="fas fa-shield-alt"></i> ระบบจัดการแอปพลิเคชันค้นหาสิ่งของสูญหาย </h2>
       </div>
       <ul class="nav-menu">
         <li><a href="#" data-section="dashboard" class="nav-link active">
-          <i class="fas fa-chart-line"></i> Dashboard
+          <i class="fas fa-chart-line"></i> สรุปข้อมูล
         </a></li>
         <li><a href="#" data-section="posts" class="nav-link">
           <i class="fas fa-box"></i> จัดการโพสต์
@@ -25,6 +25,9 @@
         </a></li>
         <li><a href="#" data-section="notifications" class="nav-link">
           <i class="fas fa-bell"></i> การแจ้งเตือน
+        </a></li>
+        <li><a href="#" data-section="logs" class="nav-link">
+          <i class="fas fa-history"></i> บันทึกกิจกรรม
         </a></li>
       </ul>
       <div class="sidebar-footer">
@@ -37,7 +40,7 @@
     <!-- Main Content -->
     <div class="main-content">
       <div class="top-bar">
-        <h1 id="pageTitle">Dashboard</h1>
+        <h1 id="pageTitle">สรุปข้อมูล</h1>
       </div>
 
       <!-- Dashboard Section -->
@@ -94,9 +97,16 @@
           </select>
           <select id="statusFilter">
             <option value="">ทั้งหมด</option>
-            <option value="Lost">Lost</option>
-            <option value="Found">Found</option>
+            <option value="หาย">หาย</option>
+            <option value="เจอ">เจอ</option>
           </select>
+          <select id="sortDateFilter">
+            <option value="newest">ล่าสุด</option>
+            <option value="oldest">เก่าที่สุด</option>
+          </select>
+          <button class="btn-refresh" onclick="refreshPosts()">
+            <i class="fas fa-sync-alt"></i> รีเฟรช
+          </button>
         </div>
 
         <div class="table-container">
@@ -111,7 +121,7 @@
                 <th>สถานะ</th>
                 <th>ติดต่อ</th>
                 <th>วันที่</th>
-                <th>Actions</th>
+                <th>ดำเนินการ</th>
               </tr>
             </thead>
             <tbody id="postsTable"></tbody>
@@ -143,7 +153,7 @@
                 <th>Role</th>
                 <th>จำนวนโพสต์</th>
                 <th>วันที่สร้าง</th>
-                <th>Actions</th>
+                <th>ดำเนินการ</th>
               </tr>
             </thead>
             <tbody id="usersTable"></tbody>
@@ -160,6 +170,9 @@
             <option value="false">ยังไม่อ่าน</option>
             <option value="true">อ่านแล้ว</option>
           </select>
+          <button class="btn-refresh" onclick="refreshNotifications()">
+            <i class="fas fa-sync-alt"></i> รีเฟรช
+          </button>
         </div>
 
         <div class="table-container">
@@ -173,10 +186,52 @@
                 <th>คะแนน</th>
                 <th>สถานะ</th>
                 <th>วันที่</th>
-                <th>Actions</th>
+                <th>ดำเนินการ</th>
               </tr>
             </thead>
             <tbody id="notificationsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Logs Section -->
+      <section id="logs" class="section">
+        <div class="filter-container">
+          <input type="text" id="logSearchInput" placeholder="ค้นหา logs...">
+          <select id="logTypeFilter">
+            <option value="">ทุกประเภท</option>
+            <option value="user_register">สมัครสมาชิก</option>
+            <option value="user_login">เข้าสู่ระบบ</option>
+            <option value="post_create">สร้างโพสต์</option>
+            <option value="post_update">แก้ไขโพสต์</option>
+            <option value="post_delete">ลบโพสต์</option>
+          </select>
+          <select id="logUserTypeFilter">
+            <option value="">ทุกคน</option>
+            <option value="user">ผู้ใช้</option>
+            <option value="admin">Admin</option>
+          </select>
+          <select id="logDateFilter">
+            <option value="newest">ล่าสุด</option>
+            <option value="oldest">เก่าที่สุด</option>
+          </select>
+          <button class="btn-refresh" onclick="refreshLogs()">
+            <i class="fas fa-sync-alt"></i> รีเฟรช
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>เวลา</th>
+                <th>ประเภท</th>
+                <th>ผู้ใช้</th>
+                <th>การกระทำ</th>
+                <th>รายละเอียด</th>
+              </tr>
+            </thead>
+            <tbody id="logsTable"></tbody>
           </table>
         </div>
       </section>

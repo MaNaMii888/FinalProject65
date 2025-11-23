@@ -1,4 +1,4 @@
-import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, limit, getDoc } 
+import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, limit, getDoc, addDoc, Timestamp } 
   from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { db, auth } from "./firebase.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
@@ -12,6 +12,7 @@ const postsTable = document.getElementById("postsTable");
 const searchInput = document.getElementById("searchInput");
 const buildingFilter = document.getElementById("buildingFilter");
 const statusFilter = document.getElementById("statusFilter");
+const sortDateFilter = document.getElementById("sortDateFilter");
 
 // Users Elements  
 const usersTable = document.getElementById("usersTable");
@@ -23,6 +24,13 @@ const notificationsTable = document.getElementById("notificationsTable");
 const notifSearchInput = document.getElementById("notifSearchInput");
 const notifStatusFilter = document.getElementById("notifStatusFilter");
 
+// Logs Elements
+const logsTable = document.getElementById("logsTable");
+const logSearchInput = document.getElementById("logSearchInput");
+const logTypeFilter = document.getElementById("logTypeFilter");
+const logUserTypeFilter = document.getElementById("logUserTypeFilter");
+const logDateFilter = document.getElementById("logDateFilter");
+
 // Modal
 const postModal = document.getElementById("postModal");
 const modalClose = document.querySelector(".close");
@@ -30,6 +38,7 @@ const modalClose = document.querySelector(".close");
 let allPosts = [];
 let allUsers = [];
 let allNotifications = [];
+let allLogs = [];
 let currentSection = 'dashboard';
 
 // ---------- Navigation ----------
@@ -58,10 +67,11 @@ function switchSection(section) {
   
   // Update title
   const titles = {
-    dashboard: 'Dashboard',
+    dashboard: 'สรุปข้อมูล',
     posts: 'จัดการโพสต์',
     users: 'จัดการผู้ใช้',
-    notifications: 'การแจ้งเตือน'
+    notifications: 'การแจ้งเตือน',
+    logs: 'บันทึกกิจกรรม'
   };
   pageTitle.textContent = titles[section];
   
@@ -70,6 +80,7 @@ function switchSection(section) {
   else if (section === 'posts') loadPosts();
   else if (section === 'users') loadUsers();
   else if (section === 'notifications') loadNotifications();
+  else if (section === 'logs') loadLogs();
 }
 
 // ---------- Dashboard ----------
@@ -241,7 +252,7 @@ function displayPosts(posts) {
       <td>${post.categoryName || "-"}</td>
       <td>${post.building || "-"}</td>
       <td>${post.room || post.location || "-"}</td>
-      <td><span class="badge ${post.isLostItem ? 'badge-lost' : 'badge-found'}">${post.isLostItem ? "Lost" : "Found"}</span></td>
+      <td><span class="badge ${post.isLostItem ? 'badge-lost' : 'badge-found'}">${post.isLostItem ? "หาย" : "เจอ"}</span></td>
       <td>${post.contact || "-"}</td>
       <td>${formatDate(postDate)}</td>
       <td class="action-cell">
@@ -286,10 +297,24 @@ window.viewPost = async function(id) {
   postModal.style.display = 'block';
 }
 
-window.deletePost = async function(id) {
+window.deletePost = async (id) => {
   if (confirm("คุณต้องการลบโพสต์นี้ไหม?")) {
     try {
+      const post = allPosts.find(p => p.id === id);
       await deleteDoc(doc(db, "lost_found_items", id));
+      
+      // Log admin action
+      const adminUser = auth.currentUser;
+      if (adminUser && post) {
+        await createLog(
+          'admin_delete_post',
+          adminUser.uid,
+          adminUser.email,
+          'ลบโพสต์',
+          `ลบโพสต์: ${post.title || post.detail || 'ไม่มีชื่อ'} (ID: ${id})`
+        );
+      }
+      
       allPosts = allPosts.filter(p => p.id !== id);
       displayPosts(allPosts);
       alert('ลบสำเร็จ');
@@ -304,8 +329,9 @@ function filterPosts() {
   const query = searchInput.value.toLowerCase();
   const building = buildingFilter.value;
   const status = statusFilter.value;
+  const sortOrder = sortDateFilter ? sortDateFilter.value : 'newest';
 
-  const filtered = allPosts.filter(p => {
+  let filtered = allPosts.filter(p => {
     const values = [
       p.title,
       p.detail,
@@ -316,14 +342,33 @@ function filterPosts() {
       p.location,
       p.contact,
       p.date,
-      p.isLostItem ? "Lost" : "Found"
+      p.isLostItem ? "หาย" : "เจอ"
     ].filter(v => v).map(v => v.toString().toLowerCase());
 
     const matchesSearch = values.some(v => v.includes(query));
     const matchesBuilding = building ? p.building === building : true;
-    const matchesStatus = status ? (p.isLostItem ? "Lost" : "Found") === status : true;
+    const matchesStatus = status ? (p.isLostItem ? "หาย" : "เจอ") === status : true;
 
     return matchesSearch && matchesBuilding && matchesStatus;
+  });
+
+  // เรียงลำดับตามวันที่
+  filtered.sort((a, b) => {
+    const dateA = getPostDate(a);
+    const dateB = getPostDate(b);
+    
+    let timeA, timeB;
+    if (dateA?.toDate) timeA = dateA.toDate().getTime();
+    else if (dateA?.seconds) timeA = dateA.seconds * 1000;
+    else if (dateA) timeA = new Date(dateA).getTime();
+    else timeA = 0;
+    
+    if (dateB?.toDate) timeB = dateB.toDate().getTime();
+    else if (dateB?.seconds) timeB = dateB.seconds * 1000;
+    else if (dateB) timeB = new Date(dateB).getTime();
+    else timeB = 0;
+    
+    return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
   });
 
   displayPosts(filtered);
@@ -332,6 +377,15 @@ function filterPosts() {
 if (searchInput) searchInput.addEventListener("input", filterPosts);
 if (buildingFilter) buildingFilter.addEventListener("change", filterPosts);
 if (statusFilter) statusFilter.addEventListener("change", filterPosts);
+if (sortDateFilter) sortDateFilter.addEventListener("change", filterPosts);
+
+// Refresh posts function
+window.refreshPosts = async function() {
+  console.log('🔄 Refreshing posts...');
+  allPosts = []; // Clear cache
+  await loadPosts();
+  alert('รีเฟรชข้อมูลโพสต์เรียบร้อย (' + allPosts.length + ' รายการ)');
+}
 
 // ---------- Users Management ----------
 async function loadUsers() {
@@ -415,6 +469,8 @@ window.toggleRole = async function(userId) {
 window.deleteUser = async function(userId) {
   if (confirm("คุณต้องการลบผู้ใช้นี้ไหม? (จะลบโพสต์ทั้งหมดของผู้ใช้ด้วย)")) {
     try {
+      const user = allUsers.find(u => u.id === userId);
+      
       // Delete user's posts
       const userPosts = allPosts.filter(p => p.userId === userId);
       for (const post of userPosts) {
@@ -423,6 +479,18 @@ window.deleteUser = async function(userId) {
       
       // Delete user
       await deleteDoc(doc(db, "users", userId));
+      
+      // Log admin action
+      const adminUser = auth.currentUser;
+      if (adminUser && user) {
+        await createLog(
+          'admin_delete_user',
+          adminUser.uid,
+          adminUser.email,
+          'ลบผู้ใช้',
+          `ลบผู้ใช้: ${user.name || user.email || 'ไม่มีชื่อ'} (ID: ${userId})`
+        );
+      }
       
       allUsers = allUsers.filter(u => u.id !== userId);
       allPosts = allPosts.filter(p => p.userId !== userId);
@@ -434,6 +502,7 @@ window.deleteUser = async function(userId) {
     }
   }
 }
+
 
 function filterUsers() {
   const query = userSearchInput.value.toLowerCase();
@@ -621,11 +690,136 @@ window.onclick = (e) => {
   }
 }
 
+// Refresh notifications function
+window.refreshNotifications = async function() {
+  console.log('🔄 Refreshing notifications...');
+  await loadNotifications();
+  alert('รีเฟรชข้อมูลการแจ้งเตือนเรียบร้อย (' + allNotifications.length + ' รายการ)');
+}
+
 // ---------- Log Out ----------
 logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "login.html";
 });
+
+// ---------- Logs Management ----------
+async function loadLogs() {
+  try {
+    const logsSnapshot = await getDocs(collection(db, "activity_logs"));
+    allLogs = logsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    filterLogs();
+  } catch (error) {
+    console.error("Error loading logs:", error);
+    logsTable.innerHTML = '<tr><td colspan="5">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
+  }
+}
+
+function filterLogs() {
+  const searchTerm = logSearchInput?.value?.toLowerCase() || '';
+  const typeFilter = logTypeFilter?.value || '';
+  const userTypeFilter = logUserTypeFilter?.value || '';
+  const dateSort = logDateFilter?.value || 'newest';
+  
+  let filtered = allLogs.filter(log => {
+    const matchSearch = !searchTerm || 
+      log.userName?.toLowerCase().includes(searchTerm) ||
+      log.action?.toLowerCase().includes(searchTerm) ||
+      log.details?.toLowerCase().includes(searchTerm);
+    
+    const matchType = !typeFilter || log.type === typeFilter;
+    
+    // กรองตาม user type (admin actions ขึ้นต้นด้วย admin_)
+    let matchUserType = true;
+    if (userTypeFilter === 'admin') {
+      matchUserType = log.type?.startsWith('admin_');
+    } else if (userTypeFilter === 'user') {
+      matchUserType = !log.type?.startsWith('admin_');
+    }
+    
+    return matchSearch && matchType && matchUserType;
+  });
+  
+  // Sort by date
+  filtered.sort((a, b) => {
+    const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+    const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+    return dateSort === 'newest' ? timeB - timeA : timeA - timeB;
+  });
+  
+  displayLogs(filtered);
+}
+
+function displayLogs(logs) {
+  if (!logsTable) return;
+  
+  if (logs.length === 0) {
+    logsTable.innerHTML = '<tr><td colspan="5">ไม่พบข้อมูล</td></tr>';
+    return;
+  }
+  
+  logsTable.innerHTML = logs.map(log => {
+    const typeLabels = {
+      'user_register': 'สมัครสมาชิก',
+      'user_login': 'เข้าสู่ระบบ',
+      'post_create': 'สร้างโพสต์',
+      'post_update': 'แก้ไขโพสต์',
+      'post_delete': 'ลบโพสต์',
+      'post_status_change': 'เปลี่ยนสถานะโพสต์',
+      'admin_delete_post': 'Admin ลบโพสต์',
+      'admin_delete_user': 'Admin ลบผู้ใช้'
+    };
+    
+    const typeColors = {
+      'user_register': '#2ecc71',
+      'user_login': '#3498db',
+      'post_create': '#9b59b6',
+      'post_update': '#f39c12',
+      'post_delete': '#e74c3c',
+      'post_status_change': '#1abc9c',
+      'admin_delete_post': '#c0392b',
+      'admin_delete_user': '#c0392b'
+    };
+    
+    return `
+      <tr>
+        <td>${formatDate(log.timestamp)}</td>
+        <td><span class="badge" style="background: ${typeColors[log.type] || '#95a5a6'}">
+          ${typeLabels[log.type] || log.type}
+        </span></td>
+        <td>${log.userName || 'ไม่ระบุ'}</td>
+        <td>${log.action || '-'}</td>
+        <td>${log.details || '-'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.refreshLogs = loadLogs;
+
+if (logSearchInput) logSearchInput.addEventListener('input', filterLogs);
+if (logTypeFilter) logTypeFilter.addEventListener('change', filterLogs);
+if (logUserTypeFilter) logUserTypeFilter.addEventListener('change', filterLogs);
+if (logDateFilter) logDateFilter.addEventListener('change', filterLogs);
+
+// ---------- Log Helper Function ----------
+async function createLog(type, userId, userName, action, details) {
+  try {
+    await addDoc(collection(db, "activity_logs"), {
+      type: type,
+      userId: userId || null,
+      userName: userName || 'ไม่ระบุ',
+      action: action,
+      details: details || '',
+      timestamp: Timestamp.now()
+    });
+  } catch (error) {
+    console.error("Error creating log:", error);
+  }
+}
+
+// Export function for use in other parts
+window.createLog = createLog;
 
 // ---------- Initialize ----------
 loadDashboard();

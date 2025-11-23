@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/utils/category_utils.dart';
+import 'package:project01/services/log_service.dart';
 
 class EditPostBottomSheet extends StatefulWidget {
   final Post post;
@@ -97,6 +99,17 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
             'category': _selectedCategory,
             'updatedAt': FieldValue.serverTimestamp(),
           });
+
+      // บันทึก log การแก้ไขโพสต์
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await LogService().logPostUpdate(
+          userId: currentUser.uid,
+          userName: currentUser.email?.split('@')[0] ?? 'Unknown',
+          postId: widget.post.id,
+          postTitle: _titleController.text.trim(),
+        );
+      }
 
       if (mounted) {
         Navigator.of(context).pop();
