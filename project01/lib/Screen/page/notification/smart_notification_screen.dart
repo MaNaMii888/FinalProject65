@@ -22,37 +22,68 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   }
 
   Future<void> _loadSmartNotifications() async {
-    if (currentUserId == null) return;
+    if (currentUserId == null) {
+      debugPrint('❌ No current user ID');
+      return;
+    }
 
     setState(() => isLoading = true);
 
     try {
+      debugPrint('🔍 Loading notifications for user: $currentUserId');
+
       final snapshot =
           await FirebaseFirestore.instance
-              .collection('smart_notifications')
+              .collection('notifications')
               .where('userId', isEqualTo: currentUserId)
               .orderBy('createdAt', descending: true)
               .limit(50)
               .get();
 
+      debugPrint('📊 Found ${snapshot.docs.length} notification documents');
+
       List<SmartNotificationItem> notifications = [];
 
       for (var doc in snapshot.docs) {
+        debugPrint('📝 Processing notification: ${doc.id}');
         final data = doc.data();
+        final dataMap = Map<String, dynamic>.from(data['data'] ?? {});
+
+        // รองรับทั้ง field ใหม่และเก่า
+        final postId =
+            data['postId'] ?? dataMap['newPostId'] ?? dataMap['matchingPostId'];
+        final relatedPostId =
+            data['relatedPostId'] ??
+            dataMap['relatedPostId'] ??
+            dataMap['matchingPostId'];
+        final matchScore =
+            (data['matchScore'] as num?)?.toDouble() ??
+            (dataMap['matchPercentage'] as num?)?.toDouble() ??
+            0.0;
+
+        debugPrint(
+          '   postId: $postId, relatedPostId: $relatedPostId, matchScore: $matchScore',
+        );
+
+        if (postId == null) {
+          debugPrint('⚠️ Skipping notification ${doc.id}: no postId found');
+          continue;
+        }
+
         final postDoc =
             await FirebaseFirestore.instance
                 .collection('lost_found_items')
-                .doc(data['postId'])
+                .doc(postId)
                 .get();
 
         if (postDoc.exists) {
           final post = Post.fromJson({...postDoc.data()!, 'id': postDoc.id});
           Post? relatedUserPost;
-          if (data['relatedPostId'] != null) {
+          if (relatedPostId != null) {
             final relatedDoc =
                 await FirebaseFirestore.instance
                     .collection('lost_found_items')
-                    .doc(data['relatedPostId'])
+                    .doc(relatedPostId)
                     .get();
 
             if (relatedDoc.exists) {
@@ -66,7 +97,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
           notifications.add(
             SmartNotificationItem(
               post: post,
-              matchScore: (data['matchScore'] as num).toDouble(),
+              matchScore: matchScore,
               matchReasons: List<String>.from(data['matchReasons'] ?? []),
               createdAt: (data['createdAt'] as Timestamp).toDate(),
               relatedUserPost: relatedUserPost,
@@ -74,17 +105,26 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
               isRead: data['isRead'] ?? false,
             ),
           );
+          debugPrint('✅ Added notification to list');
+        } else {
+          debugPrint('⚠️ Post document not found for ID: $postId');
         }
       }
+
+      debugPrint('📋 Total notifications loaded: ${notifications.length}');
 
       if (mounted) {
         setState(() {
           smartNotifications = notifications;
           isLoading = false;
         });
+        debugPrint(
+          '✅ UI updated with ${smartNotifications.length} notifications',
+        );
       }
-    } catch (e) {
-      debugPrint('Error loading smart notifications: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error loading smart notifications: $e');
+      debugPrint('Stack trace: $stackTrace');
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -437,7 +477,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   Future<void> _markNotificationAsRead(String notificationId) async {
     try {
       await FirebaseFirestore.instance
-          .collection('smart_notifications')
+          .collection('notifications')
           .doc(notificationId)
           .update({'isRead': true});
     } catch (e) {
@@ -471,7 +511,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
       });
       if (notification.notificationId != null) {
         await FirebaseFirestore.instance
-            .collection('smart_notifications')
+            .collection('notifications')
             .doc(notification.notificationId)
             .delete();
       }
@@ -483,27 +523,74 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   }
 
   void _contactOwner(Post post) {
+    final displayName =
+        post.userName.isEmpty || post.userName == 'ไม่ระบุชื่อ'
+            ? 'ผู้ใช้งาน'
+            : post.userName;
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('ติดต่อเจ้าของ'),
+            title: const Text('ติดต่อเจ้าของของที่โพสต์'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text(
-                    post.userName.isEmpty ? 'ไม่ระบุชื่อ' : post.userName,
+                const SizedBox(height: 8),
+                Text(
+                  post.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
-                  subtitle: const Text('ผู้โพสต์'),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  post.isLostItem ? '📍 ของหาย' : '✅ ของเจอ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: post.isLostItem ? Colors.red : Colors.green,
+                  ),
+                ),
+                const Divider(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.person, color: Colors.blue),
+                  title: Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: const Text('ชื่อผู้โพสต์'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.phone),
-                  title: Text(post.contact),
-                  subtitle: const Text('เบอร์โทร / Line'),
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.phone, color: Colors.green),
+                  title: Text(
+                    post.contact,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: const Text('เบอร์โทร / Line ID'),
                 ),
+                if (post.building.isNotEmpty)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.location_on,
+                      color: Colors.orange,
+                    ),
+                    title: Text(
+                      '${post.building}${post.location.isNotEmpty ? ' - ${post.location}' : ''}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    subtitle: const Text('สถานที่'),
+                  ),
               ],
             ),
             actions: [

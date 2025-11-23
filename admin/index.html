@@ -4,48 +4,189 @@
   <meta charset="UTF-8">
   <title>Admin Panel - Lost & Found</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <div class="container">
-  <h1>📋 Lost & Found Admin Panel</h1>
+  <div class="admin-wrapper">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h2><i class="fas fa-shield-alt"></i> Admin Panel</h2>
+      </div>
+      <ul class="nav-menu">
+        <li><a href="#" data-section="dashboard" class="nav-link active">
+          <i class="fas fa-chart-line"></i> Dashboard
+        </a></li>
+        <li><a href="#" data-section="posts" class="nav-link">
+          <i class="fas fa-box"></i> จัดการโพสต์
+        </a></li>
+        <li><a href="#" data-section="users" class="nav-link">
+          <i class="fas fa-users"></i> จัดการผู้ใช้
+        </a></li>
+        <li><a href="#" data-section="notifications" class="nav-link">
+          <i class="fas fa-bell"></i> การแจ้งเตือน
+        </a></li>
+      </ul>
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="btn-logout">
+          <i class="fas fa-sign-out-alt"></i> Log Out
+        </button>
+      </div>
+    </nav>
 
-  <!-- ---------- Log Out ---------- -->
-  <div class="top-bar">
-    <button id="logoutBtn">Log Out</button>
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="top-bar">
+        <h1 id="pageTitle">Dashboard</h1>
+      </div>
+
+      <!-- Dashboard Section -->
+      <section id="dashboard" class="section active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <i class="fas fa-box stat-icon" style="color: #3498db;"></i>
+            <div class="stat-info">
+              <h3 id="totalPosts">0</h3>
+              <p>โพสต์ทั้งหมด</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-search stat-icon" style="color: #e74c3c;"></i>
+            <div class="stat-info">
+              <h3 id="lostItems">0</h3>
+              <p>ของหาย</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-check-circle stat-icon" style="color: #2ecc71;"></i>
+            <div class="stat-info">
+              <h3 id="foundItems">0</h3>
+              <p>ของเจอ</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i class="fas fa-users stat-icon" style="color: #9b59b6;"></i>
+            <div class="stat-info">
+              <h3 id="totalUsers">0</h3>
+              <p>ผู้ใช้ทั้งหมด</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <h3><i class="fas fa-clock"></i> โพสต์ล่าสุด (5 รายการ)</h3>
+            <div id="recentPosts" class="recent-list"></div>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-chart-pie"></i> สถิติหมวดหมู่</h3>
+            <div id="categoryStats" class="category-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Posts Management Section -->
+      <section id="posts" class="section">
+        <div class="filter-container">
+          <input type="text" id="searchInput" placeholder="ค้นหาข้อมูล...">
+          <select id="buildingFilter">
+            <option value="">ทุกอาคาร</option>
+          </select>
+          <select id="statusFilter">
+            <option value="">ทั้งหมด</option>
+            <option value="Lost">Lost</option>
+            <option value="Found">Found</option>
+          </select>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>รูปภาพ</th>
+                <th>รายละเอียด</th>
+                <th>หมวดหมู่</th>
+                <th>อาคาร</th>
+                <th>ห้อง</th>
+                <th>สถานะ</th>
+                <th>ติดต่อ</th>
+                <th>วันที่</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="postsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Users Management Section -->
+      <section id="users" class="section">
+        <div class="filter-container">
+          <input type="text" id="userSearchInput" placeholder="ค้นหาผู้ใช้...">
+          <select id="roleFilter">
+            <option value="">ทุก Role</option>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+          </select>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>UID</th>
+                <th>อีเมล</th>
+                <th>ชื่อ</th>
+                <th>Role</th>
+                <th>จำนวนโพสต์</th>
+                <th>วันที่สร้าง</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Notifications Section -->
+      <section id="notifications" class="section">
+        <div class="filter-container">
+          <input type="text" id="notifSearchInput" placeholder="ค้นหาการแจ้งเตือน...">
+          <select id="notifStatusFilter">
+            <option value="">ทั้งหมด</option>
+            <option value="false">ยังไม่อ่าน</option>
+            <option value="true">อ่านแล้ว</option>
+          </select>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ผู้ใช้</th>
+                <th>ประเภท</th>
+                <th>โพสต์</th>
+                <th>คะแนน</th>
+                <th>สถานะ</th>
+                <th>วันที่</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="notificationsTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </div>
 
-  <!-- ---------- Search & Filter ---------- -->
-  <div class="filter-container">
-    <input type="text" id="searchInput" placeholder="ค้นหาข้อมูล...">
-    <select id="buildingFilter">
-      <option value="">ทุกอาคาร</option>
-    </select>
-    <select id="statusFilter">
-      <option value="">ทั้งหมด</option>
-      <option value="Lost">Lost</option>
-      <option value="Found">Found</option>
-    </select>
+  <!-- Modal for Post Details -->
+  <div id="postModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <div id="postDetails"></div>
+    </div>
   </div>
 
-  <!-- ---------- Table ---------- -->
-  <table>
-    <thead>
-      <tr>
-        <th>รูปภาพ</th>
-        <th>รายละเอียด</th>
-        <th>หมวดหมู่</th>
-        <th>อาคาร</th>
-        <th>ห้อง</th>
-        <th>สถานะ</th>
-        <th>ติดต่อ</th>
-        <th>วันที่</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody id="postsTable"></tbody>
-  </table>
-</div>
-  </div>
   <script type="module" src="admin.js"></script>
 </body>
 </html>
