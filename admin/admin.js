@@ -95,9 +95,21 @@ async function loadDashboard() {
     // Recent posts
     const recentPosts = [...allPosts]
       .sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.date || 0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.date || 0);
-        return dateB - dateA;
+        const dateA = getPostDate(a);
+        const dateB = getPostDate(b);
+        
+        let timeA, timeB;
+        if (dateA?.toDate) timeA = dateA.toDate().getTime();
+        else if (dateA?.seconds) timeA = dateA.seconds * 1000;
+        else if (dateA) timeA = new Date(dateA).getTime();
+        else timeA = 0;
+        
+        if (dateB?.toDate) timeB = dateB.toDate().getTime();
+        else if (dateB?.seconds) timeB = dateB.seconds * 1000;
+        else if (dateB) timeB = new Date(dateB).getTime();
+        else timeB = 0;
+        
+        return timeB - timeA;
       })
       .slice(0, 5);
     
@@ -220,7 +232,9 @@ function displayPosts(posts) {
     return;
   }
   
-  postsTable.innerHTML = posts.map(post => `
+  postsTable.innerHTML = posts.map(post => {
+    const postDate = getPostDate(post);
+    return `
     <tr>
       <td>${post.imageUrl ? `<img src="${post.imageUrl}" alt="รูปภาพ" class="table-img">` : "-"}</td>
       <td class="td-detail">${post.title || post.detail || "-"}</td>
@@ -229,7 +243,7 @@ function displayPosts(posts) {
       <td>${post.room || post.location || "-"}</td>
       <td><span class="badge ${post.isLostItem ? 'badge-lost' : 'badge-found'}">${post.isLostItem ? "Lost" : "Found"}</span></td>
       <td>${post.contact || "-"}</td>
-      <td>${formatDate(post.date || post.createdAt)}</td>
+      <td>${formatDate(postDate)}</td>
       <td class="action-cell">
         <button class="btn-icon btn-view" onclick="viewPost('${post.id}')" title="ดูรายละเอียด">
           <i class="fas fa-eye"></i>
@@ -239,12 +253,17 @@ function displayPosts(posts) {
         </button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 window.viewPost = async function(id) {
   const post = allPosts.find(p => p.id === id);
   if (!post) return;
+  
+  // ดึงชื่อผู้ใช้จริง
+  const posterName = await getUserName(post.userId);
+  const postDate = getPostDate(post);
   
   const details = document.getElementById('postDetails');
   details.innerHTML = `
@@ -257,9 +276,10 @@ window.viewPost = async function(id) {
         <p><strong>อาคาร:</strong> ${post.building || 'ไม่ระบุ'}</p>
         <p><strong>ห้อง/สถานที่:</strong> ${post.room || post.location || 'ไม่ระบุ'}</p>
         <p><strong>ติดต่อ:</strong> ${post.contact || 'ไม่ระบุ'}</p>
-        <p><strong>วันที่:</strong> ${formatDate(post.date || post.createdAt)}</p>
+        <p><strong>วันที่:</strong> ${formatDate(postDate)}</p>
         <p><strong>รายละเอียด:</strong><br>${post.description || post.detail || 'ไม่มี'}</p>
-        <p><strong>ผู้โพสต์:</strong> ${post.userName || post.userId || 'ไม่ระบุ'}</p>
+        <p><strong>ผู้โพสต์:</strong> ${posterName}</p>
+        <p><strong>ผู้โพสต์ ID:</strong> ${post.userId || 'ไม่ระบุ'}</p>
       </div>
     </div>
   `;
@@ -316,10 +336,9 @@ if (statusFilter) statusFilter.addEventListener("change", filterPosts);
 // ---------- Users Management ----------
 async function loadUsers() {
   try {
-    if (allUsers.length === 0) {
-      const usersSnapshot = await getDocs(collection(db, "users"));
-      allUsers = usersSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    }
+    // Force reload from Firestore
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    allUsers = usersSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     
     // Count posts per user
     if (allPosts.length === 0) {
@@ -328,9 +347,17 @@ async function loadUsers() {
     }
     
     displayUsers(allUsers);
+    console.log('✅ Loaded', allUsers.length, 'users');
   } catch (error) {
     console.error("Error loading users:", error);
   }
+}
+
+// Refresh users data
+window.refreshUsers = async function() {
+  console.log('🔄 Refreshing users...');
+  await loadUsers();
+  alert('รีเฟรชข้อมูลผู้ใช้เรียบร้อย (' + allUsers.length + ' คน)');
 }
 
 function displayUsers(users) {
@@ -342,6 +369,9 @@ function displayUsers(users) {
   usersTable.innerHTML = users.map(user => {
     const userPostCount = allPosts.filter(p => p.userId === user.id).length;
     
+    // ถ้าไม่มี createdAt ให้ลอง lastLogin หรือแสดง "ไม่ระบุ"
+    const dateToShow = user.createdAt || user.lastLogin || user.metadata?.creationTime;
+    
     return `
       <tr>
         <td class="td-uid">${user.id.substring(0, 8)}...</td>
@@ -349,7 +379,7 @@ function displayUsers(users) {
         <td>${user.name || user.displayName || 'ไม่ระบุ'}</td>
         <td><span class="badge ${user.role === 'admin' ? 'badge-admin' : 'badge-user'}">${user.role || 'user'}</span></td>
         <td>${userPostCount}</td>
-        <td>${formatDate(user.createdAt)}</td>
+        <td>${formatDate(dateToShow)}</td>
         <td class="action-cell">
           <button class="btn-icon btn-edit" onclick="toggleRole('${user.id}')" title="เปลี่ยน Role">
             <i class="fas fa-user-cog"></i>
@@ -437,15 +467,34 @@ async function loadNotifications() {
 
 function displayNotifications(notifs) {
   if (notifs.length === 0) {
-    notificationsTable.innerHTML = '<tr><td colspan="7" class="empty-state">ไม่พบข้อมูล</td></tr>';
+    notificationsTable.innerHTML = '<tr><td colspan="8" class="empty-state">ไม่พบข้อมูล</td></tr>';
     return;
   }
   
-  notificationsTable.innerHTML = notifs.map(notif => `
+  notificationsTable.innerHTML = notifs.map(notif => {
+    // หาชื่อผู้รับแจ้งเตือน
+    const recipient = allUsers.find(u => u.id === notif.userId);
+    const recipientName = recipient ? (recipient.name || recipient.displayName || recipient.email) : 'ไม่ระบุ';
+    
+    // หาชื่อผู้โพสต์จาก data.userName หรือค้นหาใน allUsers
+    let posterName = 'ไม่ระบุ';
+    if (notif.data?.userName) {
+      posterName = notif.data.userName;
+    } else if (notif.postId) {
+      // หาโพสต์แล้วดึง userId
+      const post = allPosts.find(p => p.id === notif.postId);
+      if (post) {
+        const poster = allUsers.find(u => u.id === post.userId);
+        posterName = poster ? (poster.name || poster.displayName || poster.email) : 'ไม่ระบุ';
+      }
+    }
+    
+    return `
     <tr>
-      <td class="td-uid">${notif.userId?.substring(0, 8)}...</td>
+      <td class="td-uid">${recipientName}</td>
       <td><span class="badge badge-info">${notif.type || 'smart_match'}</span></td>
       <td class="td-detail">${notif.title || 'ไม่มีชื่อ'}</td>
+      <td>${posterName}</td>
       <td>${notif.matchScore ? `${Math.round(notif.matchScore * 100)}%` : '-'}</td>
       <td><span class="badge ${notif.isRead ? 'badge-found' : 'badge-lost'}">${notif.isRead ? 'อ่านแล้ว' : 'ยังไม่อ่าน'}</span></td>
       <td>${formatDate(notif.createdAt)}</td>
@@ -455,7 +504,8 @@ function displayNotifications(notifs) {
         </button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 window.deleteNotification = async function(id) {
@@ -491,11 +541,37 @@ if (notifSearchInput) notifSearchInput.addEventListener("input", filterNotificat
 if (notifStatusFilter) notifStatusFilter.addEventListener("change", filterNotifications);
 
 // ---------- Utilities ----------
+// ดึงวันที่จากโพสต์ (รองรับหลาย field)
+function getPostDate(post) {
+  // ลองดึงจาก field ต่างๆ
+  const dateField = post.createdAt || post.date || post.timestamp || post.created;
+  return dateField;
+}
+
 function formatDate(date) {
   if (!date) return 'ไม่ระบุ';
   
   try {
-    const d = date.toDate ? date.toDate() : new Date(date);
+    let d;
+    if (date.toDate && typeof date.toDate === 'function') {
+      // Firebase Timestamp
+      d = date.toDate();
+    } else if (date.seconds) {
+      // Firebase Timestamp object
+      d = new Date(date.seconds * 1000);
+    } else if (typeof date === 'string' || typeof date === 'number') {
+      d = new Date(date);
+    } else if (date instanceof Date) {
+      d = date;
+    } else {
+      return 'ไม่ระบุ';
+    }
+    
+    // ตรวจสอบว่าเป็น valid date
+    if (!d || isNaN(d.getTime())) {
+      return 'ไม่ระบุ';
+    }
+    
     return d.toLocaleDateString('th-TH', {
       year: 'numeric',
       month: 'short',
@@ -503,8 +579,34 @@ function formatDate(date) {
       hour: '2-digit',
       minute: '2-digit'
     });
-  } catch {
+  } catch (error) {
+    console.error('Date format error:', error, date);
     return 'ไม่ระบุ';
+  }
+}
+
+// ดึงชื่อผู้ใช้จริงจาก userId
+async function getUserName(userId) {
+  if (!userId) return 'ไม่ระบุ';
+  
+  try {
+    // หาจาก cache ก่อน
+    const cachedUser = allUsers.find(u => u.id === userId);
+    if (cachedUser) {
+      return cachedUser.name || cachedUser.displayName || cachedUser.email || userId;
+    }
+    
+    // ถ้าไม่มีใน cache ให้ดึงจาก Firestore
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      return userData.name || userData.displayName || userData.email || userId;
+    }
+    
+    return userId;
+  } catch (error) {
+    console.error('Error getting user name:', error);
+    return userId;
   }
 }
 

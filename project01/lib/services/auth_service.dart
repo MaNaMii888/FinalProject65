@@ -66,8 +66,8 @@ class UserModel {
       'email': email,
       'profileUrl': profileUrl,
       'provider': provider,
-      'createdAt': createdAt,
-      'lastLogin': lastLogin,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'lastLogin': Timestamp.fromDate(lastLogin),
       'lostCount': lostCount,
       'foundCount': foundCount,
       'helpCount': helpCount,
@@ -185,7 +185,7 @@ class AuthService {
 
       // ปิดการใช้ cache เพื่อให้ Google Sign-In ทำงานได้ถูกต้องหลัง logout
       final now = DateTime.now();
-      
+
       // Clear cache เสมอเพื่อให้ user เลือก account ใหม่ได้
       _cachedCredential = null;
       _lastSignInAttempt = null;
@@ -242,10 +242,13 @@ class AuthService {
             }
           } catch (e) {
             print('Interactive sign-in error: $e');
-            
+
             // หาก error เกี่ยวกับ PigeonUser ให้ลอง clear และ retry
-            if (e.toString().contains('PigeonUser') || e.toString().contains('List<Object?>')) {
-              print('PigeonUser type error detected, clearing Google Sign-In cache...');
+            if (e.toString().contains('PigeonUser') ||
+                e.toString().contains('List<Object?>')) {
+              print(
+                'PigeonUser type error detected, clearing Google Sign-In cache...',
+              );
               try {
                 await _googleSignIn.signOut();
                 await _googleSignIn.disconnect();
@@ -311,32 +314,31 @@ class AuthService {
   Future<void> signOut() async {
     try {
       print('Starting sign out process...');
-      
+
       // Clear cache ก่อน sign out
       _cachedCredential = null;
       _lastSignInAttempt = null;
-      
+
       // Reset rate limiting
       _attemptCount = 0;
       _lastAttempt = null;
-      
+
       // Sign out และ disconnect Google Sign-In อย่างสมบูรณ์
       if (!kIsWeb) {
         try {
           // Sign out จาก Google Sign-In ก่อน
           await _googleSignIn.signOut();
           print('Google Sign-In signed out');
-          
+
           // รอสักครู่เพื่อให้ Google Sign-In process เสร็จสมบูรณ์
           await Future.delayed(Duration(milliseconds: 300));
-          
+
           // Disconnect เพื่อ clear cached accounts และ tokens
           await _googleSignIn.disconnect();
           print('Google Sign-In disconnected');
-          
+
           // รอเพิ่มเติมเพื่อให้ Pigeon communication clear
           await Future.delayed(Duration(milliseconds: 200));
-          
         } catch (e) {
           print('Error during Google Sign-In logout: $e');
           // ถ้า error ก็ยังคงทำต่อ แต่ลอง force clear
@@ -348,14 +350,14 @@ class AuthService {
           }
         }
       }
-      
+
       // Sign out จาก Firebase Auth
       await _auth.signOut();
       print('Firebase Auth signed out');
-      
+
       // รอสักครู่เพื่อให้ทุก process เสร็จสมบูรณ์
       await Future.delayed(Duration(milliseconds: 100));
-      
+
       print('Sign out completed successfully');
     } catch (e) {
       print('Error signing out: $e');
@@ -364,7 +366,7 @@ class AuthService {
       _lastSignInAttempt = null;
       _attemptCount = 0;
       _lastAttempt = null;
-      
+
       // พยายาม force clear Google Sign-In พร้อม delay
       try {
         if (!kIsWeb) {

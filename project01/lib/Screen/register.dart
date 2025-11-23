@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
 import 'package:project01/models/profile.dart' show Profile;
@@ -193,11 +194,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                               try {
                                 // 2. Process (ตัด delay 2 วิออกเพื่อให้เร็วขึ้น)
-                                await FirebaseAuth.instance
+                                final userCredential = await FirebaseAuth
+                                    .instance
                                     .createUserWithEmailAndPassword(
                                       email: profile.email,
                                       password: profile.password,
                                     );
+
+                                // บันทึกข้อมูล user ลง Firestore
+                                if (userCredential.user != null) {
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(userCredential.user!.uid)
+                                      .set({
+                                        'uid': userCredential.user!.uid,
+                                        'name':
+                                            profile.email.split(
+                                              '@',
+                                            )[0], // ใช้ส่วนหน้า @ เป็นชื่อ
+                                        'email': profile.email,
+                                        'profileUrl': null,
+                                        'provider': 'email',
+                                        'createdAt':
+                                            FieldValue.serverTimestamp(),
+                                        'lastLogin':
+                                            FieldValue.serverTimestamp(),
+                                        'lostCount': 0,
+                                        'foundCount': 0,
+                                        'helpCount': 0,
+                                        'status': 'active',
+                                        'notificationsEnabled': true,
+                                      });
+                                }
 
                                 // 3. Close Loading
                                 _dismissLoadingDialog();

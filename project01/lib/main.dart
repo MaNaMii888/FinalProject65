@@ -8,7 +8,10 @@ import 'package:project01/Screen/page/profile/profile_page.dart';
 import 'package:project01/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:project01/firebase_options.dart';
+import 'package:project01/services/notifications_service.dart';
 import 'dart:async';
+// ignore: unused_import
+import 'package:project01/services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +26,8 @@ Future<void> main() async {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
+        // Initialize notifications service
+        await NotificationService.initialize();
         firebaseInitialized = true;
       } catch (e, st) {
         firebaseInitialized = false;

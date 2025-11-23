@@ -523,6 +523,11 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   }
 
   void _contactOwner(Post post) {
+    final displayName =
+        post.userName.isEmpty || post.userName == 'ไม่ระบุชื่อ'
+            ? 'ผู้ใช้งาน'
+            : post.userName;
+
     showDialog(
       context: context,
       builder:
@@ -549,6 +554,18 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   ),
                 ),
                 const Divider(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.person, color: Colors.blue),
+                  title: Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: const Text('ชื่อผู้โพสต์'),
+                ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.phone, color: Colors.green),
