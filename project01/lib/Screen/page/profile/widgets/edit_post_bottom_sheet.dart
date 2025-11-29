@@ -22,6 +22,7 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
   late TextEditingController _buildingController;
   late TextEditingController _contactController;
   late String _selectedCategory;
+  late String _selectedStatus;
   bool _isLoading = false;
 
   static const List<String> buildings = [
@@ -69,6 +70,7 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
     _buildingController = TextEditingController(text: widget.post.building);
     _contactController = TextEditingController(text: widget.post.contact);
     _selectedCategory = widget.post.category;
+    _selectedStatus = widget.post.status ?? 'active';
   }
 
   @override
@@ -97,6 +99,7 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
             'building': _buildingController.text.trim(),
             'contact': _contactController.text.trim(),
             'category': _selectedCategory,
+            'status': _selectedStatus,
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
@@ -109,6 +112,18 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
           postId: widget.post.id,
           postTitle: _titleController.text.trim(),
         );
+
+        // ถ้ามีการเปลี่ยนสถานะ ให้บันทึก log แยก
+        if (_selectedStatus != widget.post.status) {
+          await LogService().logPostStatusChange(
+            userId: currentUser.uid,
+            userName: currentUser.email?.split('@')[0] ?? 'Unknown',
+            postId: widget.post.id,
+            postTitle: _titleController.text.trim(),
+            oldStatus: widget.post.status ?? 'active',
+            newStatus: _selectedStatus,
+          );
+        }
       }
 
       if (mounted) {
@@ -277,6 +292,25 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                               value!.trim().isEmpty
                                   ? 'กรุณาใส่ช่องทางติดต่อ'
                                   : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Status
+                    DropdownButtonFormField<String>(
+                      value: _selectedStatus,
+                      decoration: _inputStyle('สถานะ *', Icons.info_outline),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text('ยังไม่พบเจ้าของ'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'found_owner',
+                          child: Text('เจอเจ้าของแล้ว'),
+                        ),
+                      ],
+                      onChanged: (v) => setState(() => _selectedStatus = v!),
+                      validator: (v) => v == null ? 'กรุณาเลือกสถานะ' : null,
                     ),
                     const SizedBox(height: 24),
 

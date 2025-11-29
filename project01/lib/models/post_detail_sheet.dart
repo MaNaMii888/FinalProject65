@@ -107,15 +107,48 @@ class PostDetailSheet extends StatelessWidget {
 
                       const SizedBox(height: 20),
 
-                      // หัวข้อ
-                      Text(
-                        post.title,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.headlineSmall?.copyWith(
-                          color: contentColor,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      // หัวข้อและสถานะ
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              post.title,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.headlineSmall?.copyWith(
+                                color: contentColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  post.status == 'found_owner'
+                                      ? Colors.green[100]
+                                      : Colors.orange[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              post.status == 'found_owner'
+                                  ? 'เจอเจ้าของแล้ว'
+                                  : 'กำลังดำเนินการ',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color:
+                                    post.status == 'found_owner'
+                                        ? Colors.green[700]
+                                        : Colors.orange[700],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 12),
