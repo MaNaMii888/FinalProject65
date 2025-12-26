@@ -5,7 +5,7 @@ import 'package:form_field_validator/form_field_validator.dart';
 import 'package:project01/models/profile.dart' show Profile;
 import 'package:project01/Screen/login.dart';
 import 'package:project01/services/auth_service.dart';
-// แนะนำให้ import เพื่อใช้ log
+import 'package:project01/services/log_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // ไม่จำเป็นต้องประกาศ Firebase.initializeApp() ตรงนี้เพราะมักจะทำที่ main.dart แล้ว
   Profile profile = Profile(email: '', password: '');
   final AuthService _authService = AuthService();
+  final LogService _logService = LogService();
 
   // Function ช่วยปิด Dialog แบบปลอดภัย
   void _dismissLoadingDialog() {
@@ -203,15 +204,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                                 // บันทึกข้อมูล user ลง Firestore
                                 if (userCredential.user != null) {
+                                  final userName = profile.email.split('@')[0];
                                   await FirebaseFirestore.instance
                                       .collection('users')
                                       .doc(userCredential.user!.uid)
                                       .set({
                                         'uid': userCredential.user!.uid,
-                                        'name':
-                                            profile.email.split(
-                                              '@',
-                                            )[0], // ใช้ส่วนหน้า @ เป็นชื่อ
+                                        'name': userName,
                                         'email': profile.email,
                                         'profileUrl': null,
                                         'provider': 'email',
@@ -225,6 +224,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         'status': 'active',
                                         'notificationsEnabled': true,
                                       });
+
+                                  // บันทึก log การสมัครสมาชิก
+                                  await _logService.logUserRegister(
+                                    userId: userCredential.user!.uid,
+                                    userName: userName,
+                                    email: profile.email,
+                                  );
                                 }
 
                                 // 3. Close Loading

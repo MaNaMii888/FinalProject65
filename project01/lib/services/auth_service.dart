@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:project01/services/log_service.dart';
 
 class UserModel {
   final String uid;
@@ -166,9 +167,23 @@ class AuthService {
       if (!docSnapshot.exists) {
         // สร้างข้อมูลผู้ใช้ใหม่
         await userDoc.set(userModel.toMap());
+
+        // บันทึก log การสมัครสมาชิก (ผ่าน Google)
+        await LogService().logUserRegister(
+          userId: user.uid,
+          userName: user.displayName ?? 'Unknown',
+          email: user.email ?? '',
+        );
       } else {
         // อัพเดทข้อมูลที่จำเป็น และ tokens
         await userDoc.update(userData);
+
+        // บันทึก log การเข้าสู่ระบบ
+        await LogService().logUserLogin(
+          userId: user.uid,
+          userName: user.displayName ?? 'Unknown',
+          provider: 'google',
+        );
       }
     } catch (e) {
       print('Error saving user data: $e');

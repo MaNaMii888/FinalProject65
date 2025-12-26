@@ -8,6 +8,7 @@ import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dar
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
+import 'package:project01/services/log_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -773,22 +774,19 @@ class _ProfilePageState extends State<ProfilePage>
                               ),
                               decoration: BoxDecoration(
                                 color:
-                                    post.status == 'resolved' ||
-                                            post.status == 'closed'
+                                    post.status == 'found_owner'
                                         ? Colors.green[100]
                                         : Colors.orange[100],
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                post.status == 'resolved' ||
-                                        post.status == 'closed'
-                                    ? 'เสร็จสิ้น'
+                                post.status == 'found_owner'
+                                    ? 'เจอเจ้าของแล้ว'
                                     : 'กำลังดำเนินการ',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color:
-                                      post.status == 'resolved' ||
-                                              post.status == 'closed'
+                                      post.status == 'found_owner'
                                           ? Colors.green[700]
                                           : Colors.orange[700],
                                   fontWeight: FontWeight.w500,
@@ -846,6 +844,23 @@ class _ProfilePageState extends State<ProfilePage>
                                           .collection('lost_found_items')
                                           .doc(post.id)
                                           .delete();
+
+                                      // บันทึก log การลบโพสต์
+                                      final currentUser =
+                                          FirebaseAuth.instance.currentUser;
+                                      if (currentUser != null) {
+                                        await LogService().logPostDelete(
+                                          userId: currentUser.uid,
+                                          userName:
+                                              currentUser.email?.split(
+                                                '@',
+                                              )[0] ??
+                                              'Unknown',
+                                          postId: post.id,
+                                          postTitle: post.title,
+                                        );
+                                      }
+
                                       final messenger =
                                           ScaffoldMessenger.maybeOf(context);
                                       if (messenger != null) {

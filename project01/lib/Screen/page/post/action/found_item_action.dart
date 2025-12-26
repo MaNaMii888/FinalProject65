@@ -11,6 +11,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/services/post_count_service.dart';
+<<<<<<< HEAD
+=======
+import 'package:project01/services/smart_matching_service.dart';
+import 'package:project01/services/log_service.dart';
+>>>>>>> 194706070a05c941158bc791a365e79051b0fb01
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -448,6 +453,43 @@ class _FindItemFormState extends State<FindItemForm> {
     }
   }
 
+  Future<bool> _checkDailyPostLimit() async {
+    try {
+      final user = AuthService.currentUser;
+      if (user == null) return false;
+
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('lost_found_items')
+              .where('userId', isEqualTo: user.uid)
+              .get();
+
+      // กรองโพสต์ที่สร้างวันนี้ใน client side
+      int todayPostCount = 0;
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final createdAt = data['createdAt'] as Timestamp?;
+        if (createdAt != null) {
+          final postDate = createdAt.toDate();
+          if (postDate.year == now.year &&
+              postDate.month == now.month &&
+              postDate.day == now.day) {
+            todayPostCount++;
+          }
+        }
+      }
+
+      debugPrint('📊 Today post count: $todayPostCount/5');
+      return todayPostCount < 5;
+    } catch (e) {
+      debugPrint('❌ Error checking daily post limit: $e');
+      return true; // ถ้าเกิดข้อผิดพลาด ให้โพสต์ได้
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
       _showError('กรุณากรอกข้อมูลให้ครบถ้วน');
@@ -455,6 +497,13 @@ class _FindItemFormState extends State<FindItemForm> {
     }
     if (selectedCategory == null) {
       _showError('กรุณาเลือกประเภทสิ่งของ');
+      return;
+    }
+
+    // ตรวจสอบจำนวนโพสต์ต่อวัน
+    final canPost = await _checkDailyPostLimit();
+    if (!canPost) {
+      _showError('คุณโพสต์ครบ 5 โพสต์ต่อวันแล้ว กรุณาลองใหม่พรุ่งนี้');
       return;
     }
 
@@ -522,6 +571,15 @@ class _FindItemFormState extends State<FindItemForm> {
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
         false,
+      );
+
+      // บันทึก log การสร้างโพสต์
+      await LogService().logPostCreate(
+        userId: AuthService.currentUser!.uid,
+        userName: AuthService.currentUser!.email?.split('@')[0] ?? 'Unknown',
+        postId: docRef.id,
+        postTitle: titleController.text.trim(),
+        isLostItem: false,
       );
 
       if (!mounted) return; // ✅ ตรวจสอบก่อน setState
