@@ -196,7 +196,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     'ลืมรหัสผ่าน?',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onBackground,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
