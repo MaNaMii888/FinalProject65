@@ -118,24 +118,15 @@ class SmartMatchingService {
       // ถ้าโพสต์ใหม่เป็น "พบของ" (found) → หาใน "หาของ" (lost)
       final oppositeType = !newPost.isLostItem;
 
-      // ค้นหาโพสต์ที่อาจตรงกัน โดยใช้เงื่อนไขพื้นฐาน
-      Query query = _firestore
-          .collection('lost_found_items')
-          .where('isLostItem', isEqualTo: oppositeType)
-          .where('userId', isNotEqualTo: excludeUserId)
-          .where('status', isEqualTo: 'active'); // เฉพาะโพสต์ที่ยังคงใช้งาน
-
-      // เพิ่มเงื่อนไขเพื่อความแม่นยำ
-      if (newPost.category.isNotEmpty) {
-        query = query.where('category', isEqualTo: newPost.category);
-      }
-
+      // ค้นหาโพสต์ที่อาจตรงกัน - แบบง่ายเพื่อหลีกเลี่ยง composite index
       final snapshot =
-          await query
-              .orderBy('createdAt', descending: true)
-              .limit(50) // จำกัดเพื่อประสิทธิภาพ
+          await _firestore
+              .collection('lost_found_items')
+              .where('isLostItem', isEqualTo: oppositeType)
+              .limit(100) // เพิ่มขึ้นเพื่อดึงข้อมูลมากขึ้น
               .get();
 
+      // กรองข้อมูลใน client side
       final oppositePosts =
           snapshot.docs
               .map(
@@ -143,6 +134,11 @@ class SmartMatchingService {
                   ...doc.data() as Map<String, dynamic>,
                   'id': doc.id,
                 }),
+              )
+              .where(
+                (post) =>
+                    post.userId != excludeUserId &&
+                    (post.status == 'active' || post.status == null),
               )
               .toList();
 

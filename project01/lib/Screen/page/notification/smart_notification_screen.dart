@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
@@ -532,23 +533,6 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
-                Text(
-                  post.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  post.isLostItem ? '📍 ของหาย' : '✅ ของเจอ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: post.isLostItem ? Colors.red : Colors.green,
-                  ),
-                ),
-                const Divider(height: 24),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.phone, color: Colors.green),
@@ -559,7 +543,15 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                       fontSize: 16,
                     ),
                   ),
-                  subtitle: const Text('เบอร์โทร / Line ID'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.copy, size: 20),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: post.contact));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('คัดลอกเบอร์แล้ว')),
+                      );
+                    },
+                  ),
                 ),
                 if (post.building.isNotEmpty)
                   ListTile(
@@ -572,7 +564,6 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                       '${post.building}${post.location.isNotEmpty ? ' - ${post.location}' : ''}',
                       style: const TextStyle(fontSize: 14),
                     ),
-                    subtitle: const Text('สถานที่'),
                   ),
               ],
             ),
