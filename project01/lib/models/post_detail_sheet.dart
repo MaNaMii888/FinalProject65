@@ -195,7 +195,7 @@ class PostDetailSheet extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      // ส่วนติดต่อ (แก้ปุ่มที่นี่)
+                      // ส่วนติดต่อ
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(

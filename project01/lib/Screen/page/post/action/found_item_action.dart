@@ -452,10 +452,12 @@ class _FindItemFormState extends State<FindItemForm> {
   Future<bool> _checkDailyPostLimit() async {
     try {
       final user = AuthService.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        debugPrint('❌ User not logged in');
+        return false;
+      }
 
       final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
 
       final snapshot =
           await FirebaseFirestore.instance
@@ -479,10 +481,16 @@ class _FindItemFormState extends State<FindItemForm> {
       }
 
       debugPrint('📊 Today post count: $todayPostCount/5');
-      return todayPostCount < 5;
+
+      if (todayPostCount >= 5) {
+        debugPrint('⛔ Daily limit reached!');
+        return false;
+      }
+
+      return true;
     } catch (e) {
       debugPrint('❌ Error checking daily post limit: $e');
-      return true; // ถ้าเกิดข้อผิดพลาด ให้โพสต์ได้
+      return false; // ถ้าเกิดข้อผิดพลาด ไม่ให้โพสต์เพื่อความปลอดภัย
     }
   }
 

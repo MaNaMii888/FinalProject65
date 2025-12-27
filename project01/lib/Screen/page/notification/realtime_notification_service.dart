@@ -143,8 +143,8 @@ class RealtimeNotificationService {
           }
         }
 
-        // บันทึกการแจ้งเตือนถ้าพบความคล้าย >= 60%
-        if (bestMatch >= 0.6 && matchingPost != null) {
+        // บันทึกการแจ้งเตือนถ้าพบความคล้าย >= 55%
+        if (bestMatch >= 0.55 && matchingPost != null) {
           debugPrint(
             '🎯 Initial match found: ${(bestMatch * 100).toStringAsFixed(1)}%',
           );
@@ -251,7 +251,7 @@ class RealtimeNotificationService {
 
     debugPrint('🎯 Best match: ${(bestMatch * 100).toStringAsFixed(1)}%');
 
-    if (bestMatch >= 0.6 && matchingUserPost != null) {
+    if (bestMatch >= 0.55 && matchingUserPost != null) {
       debugPrint('✅ Match found! Sending notification...');
 
       // เช็คว่ามี notification ซ้ำหรือไม่
@@ -277,7 +277,7 @@ class RealtimeNotificationService {
         debugPrint('⏭️ Notification already exists');
       }
     } else {
-      debugPrint('⏭️ No sufficient match (threshold: 60%)');
+      debugPrint('⏭️ No sufficient match (threshold: 55%)');
     }
   }
 
@@ -470,24 +470,61 @@ class RealtimeNotificationService {
   static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
     List<String> reasons = [];
 
+    // ประเภทตรงข้าม - 35%
     if (userPost.isLostItem != otherPost.isLostItem) {
       String userType = userPost.isLostItem ? 'หาของ' : 'เจอของ';
       String otherType = otherPost.isLostItem ? 'หาของ' : 'เจอของ';
-      reasons.add('คุณเคย$userType และมีคนอื่น$otherType');
+      reasons.add(
+        '✓ ประเภทตรงข้าม: คุณเคย$userType และมีคนอื่น$otherType (+35%)',
+      );
     }
 
+    // หมวดหมู่เดียวกัน - 20%
     if (userPost.category == otherPost.category) {
-      reasons.add('หมวดหมู่เดียวกัน: ${_getCategoryName(otherPost.category)}');
+      reasons.add(
+        '✓ หมวดหมู่เดียวกัน: ${_getCategoryName(otherPost.category)} (+20%)',
+      );
     }
 
+    // อาคารเดียวกัน - 15%
     if (userPost.building == otherPost.building) {
-      reasons.add('อาคารเดียวกัน: ${otherPost.building}');
+      reasons.add('✓ อาคารเดียวกัน: ${otherPost.building} (+15%)');
     }
 
+    // สถานที่ - 15% (เต็ม) หรือ 10% (คล้าย)
     if (userPost.location.isNotEmpty && otherPost.location.isNotEmpty) {
       if (userPost.location.toLowerCase() == otherPost.location.toLowerCase()) {
-        reasons.add('สถานที่เดียวกัน: ${otherPost.location}');
+        reasons.add('✓ สถานที่เดียวกัน: ${otherPost.location} (+15%)');
+      } else {
+        double locationSimilarity = _calculateTextSimilarity(
+          userPost.location,
+          otherPost.location,
+        );
+        if (locationSimilarity > 0) {
+          int percent = (locationSimilarity * 10).round();
+          reasons.add('✓ สถานที่คล้ายกัน: ${otherPost.location} (+$percent%)');
+        }
       }
+    }
+
+    // ชื่อเรื่อง - สูงสุด 10%
+    double titleSimilarity = _calculateTextSimilarity(
+      userPost.title,
+      otherPost.title,
+    );
+    if (titleSimilarity > 0.3) {
+      int percent = (titleSimilarity * 10).round();
+      reasons.add('✓ ชื่อเรื่องคล้ายกัน (+$percent%)');
+    }
+
+    // คำอธิบาย - สูงสุด 5%
+    double descSimilarity = _calculateTextSimilarity(
+      userPost.description,
+      otherPost.description,
+    );
+    if (descSimilarity > 0.3) {
+      int percent = (descSimilarity * 5).round();
+      reasons.add('✓ คำอธิบายคล้ายกัน (+$percent%)');
     }
 
     return reasons;

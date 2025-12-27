@@ -167,8 +167,8 @@ class SmartMatchingService {
         '🎯 Match score between "${newPost.title}" and "${existingPost.title}": ${(matchScore * 100).round()}%',
       );
 
-      // ส่งการแจ้งเตือนหากคะแนนสูงพอ (เกณฑ์ 60%)
-      if (matchScore >= 0.6) {
+      // ส่งการแจ้งเตือนหากคะแนนสูงพอ (เกณฑ์ 55%)
+      if (matchScore >= 0.55) {
         debugPrint('✅ Match found! Sending notifications to both users...');
 
         // แจ้งเตือนไปยังเจ้าของโพสต์เดิม
@@ -247,8 +247,8 @@ class SmartMatchingService {
         }
       }
 
-      // ส่ง notification หากคะแนนสูงกว่า threshold (เกณฑ์ 60%)
-      if (bestMatchScore >= 0.6 && bestMatchPost != null) {
+      // ส่ง notification หากคะแนนสูงกว่า threshold (เกณฑ์ 55%)
+      if (bestMatchScore >= 0.55 && bestMatchPost != null) {
         await _sendMatchNotification(
           userId: userId,
           newPost: newPost,
@@ -396,23 +396,30 @@ class SmartMatchingService {
   static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
     final List<String> reasons = [];
 
+    // ประเภทตรงข้าม - 40%
     if (userPost.isLostItem != otherPost.isLostItem) {
-      reasons.add('ประเภทตรงข้าม (หาของ/เจอของ)');
-    }
-    if (userPost.category == otherPost.category) {
-      reasons.add('หมวดหมู่เดียวกัน');
-    }
-    if (userPost.building == otherPost.building &&
-        userPost.building.isNotEmpty) {
-      reasons.add('อาคารเดียวกัน: อาคาร ${otherPost.building}');
+      reasons.add('✓ ประเภทตรงข้าม (หาของ/เจอของ) (+40%)');
     }
 
+    // หมวดหมู่เดียวกัน - 10%
+    if (userPost.category == otherPost.category) {
+      reasons.add('✓ หมวดหมู่เดียวกัน (+10%)');
+    }
+
+    // อาคารเดียวกัน - 10%
+    if (userPost.building == otherPost.building &&
+        userPost.building.isNotEmpty) {
+      reasons.add('✓ อาคารเดียวกัน: อาคาร ${otherPost.building} (+10%)');
+    }
+
+    // ความคล้ายคลึงของข้อความ - สูงสุด 20%
     final textSim = _calculateTextSimilarity(
       '${userPost.title} ${userPost.description}',
       '${otherPost.title} ${otherPost.description}',
     );
     if (textSim >= 0.3) {
-      reasons.add('ข้อความคล้ายกัน');
+      int percent = (textSim * 20).round();
+      reasons.add('✓ ข้อความคล้ายกัน (+$percent%)');
     }
 
     return reasons;
