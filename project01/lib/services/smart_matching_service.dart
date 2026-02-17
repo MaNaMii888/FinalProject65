@@ -167,8 +167,8 @@ class SmartMatchingService {
         '🎯 Match score between "${newPost.title}" and "${existingPost.title}": ${(matchScore * 100).round()}%',
       );
 
-      // ส่งการแจ้งเตือนหากคะแนนสูงพอ (เกณฑ์ 55%)
-      if (matchScore >= 0.55) {
+      // ส่งการแจ้งเตือนหากคะแนนสูงพอ (เกณฑ์เพิ่มขึ้นเป็น 65% เพื่อความแม่นยำ)
+      if (matchScore >= 0.65) {
         debugPrint('✅ Match found! Sending notifications to both users...');
 
         // แจ้งเตือนไปยังเจ้าของโพสต์เดิม
@@ -247,8 +247,8 @@ class SmartMatchingService {
         }
       }
 
-      // ส่ง notification หากคะแนนสูงกว่า threshold (เกณฑ์ 55%)
-      if (bestMatchScore >= 0.55 && bestMatchPost != null) {
+      // ส่ง notification หากคะแนนสูงกว่า threshold (เกณฑ์เพิ่มขึ้นเป็น 65%)
+      if (bestMatchScore >= 0.65 && bestMatchPost != null) {
         await _sendMatchNotification(
           userId: userId,
           newPost: newPost,
@@ -298,19 +298,22 @@ class SmartMatchingService {
   static double _calculatePostSimilarity(Post userPost, Post newPost) {
     double score = 0.0;
 
-    // 1. ประเภทตรงข้าม (Lost vs Found) - 40%
+    // 1. ประเภทตรงข้าม (Lost vs Found) - 30% (ลดจาก 40%)
     if (userPost.isLostItem != newPost.isLostItem) {
-      score += 0.4;
+      score += 0.3;
+    } else {
+      // ถ้าประเภทเหมือนกัน ไม่ให้คะแนน (ต้องตรงข้าม)
+      return 0.0; // ยกเลิกการแมตช์ทันที
     }
 
-    // 2. หมวดหมู่เดียวกัน - 10%
+    // 2. หมวดหมู่เดียวกัน - 25% (เพิ่มจาก 10%)
     if (userPost.category == newPost.category) {
-      score += 0.1;
+      score += 0.25;
     }
 
-    // 3. อาคารเดียวกัน - 10%
-    if (userPost.building == newPost.building) {
-      score += 0.1;
+    // 3. อาคารเดียวกัน - 25% (เพิ่มจาก 10%)
+    if (userPost.building == newPost.building && userPost.building.isNotEmpty) {
+      score += 0.25;
     }
 
     // 4. ความคล้ายคลึงของคำ - 20%

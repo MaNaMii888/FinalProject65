@@ -19,12 +19,18 @@ class _PostPageState extends State<PostPage>
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   List<Post> posts = [];
-  bool isLoading = true;
+  bool isLoading = false;
   String searchQuery = '';
-  String? selectedCategory;
+  String? selectedCategory = null;
   static const int pageSize = 10;
   DocumentSnapshot? lastDocument;
   bool hasMore = true;
+
+  // Cache สำหรับข้อมูลที่กรองแล้ว เพื่อลดการ rebuild ไม่ต้องการ
+  List<Post> _lostItemsCached = [];
+  List<Post> _foundItemsCached = [];
+  String _lastSearchQuery = '';
+  String? _lastSelectedCategory;
 
   // FAB Animated
   bool isFabOpen = false;
@@ -66,7 +72,16 @@ class _PostPageState extends State<PostPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadPosts();
+    // Initialize cache with empty lists
+    _lostItemsCached = [];
+    _foundItemsCached = [];
+
+    // Delay loading เพื่อให้ UI render ก่อน
+    Future.delayed(Duration.zero, () {
+      if (mounted) {
+        _loadAllPosts(); // โหลดข้อมูลทั้งหมดครั้งแรก
+      }
+    });
   }
 
   @override
@@ -74,6 +89,60 @@ class _PostPageState extends State<PostPage>
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAllPosts() async {
+    if (!mounted) return;
+
+    debugPrint("📍 START loading all posts...");
+
+    // Set loading state immediately
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // โหลดข้อมูลทั้งหมด (ไม่ใช้ limit)
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('lost_found_items')
+              .orderBy('createdAt', descending: true)
+              .get(); // ลบ limit() ออกเพื่อโหลดข้อมูลทั้งหมด
+
+      debugPrint("🔥 Found ${snapshot.docs.length} items");
+
+      if (!mounted) return;
+
+      final List<Post> loadedPosts = [];
+      for (var doc in snapshot.docs) {
+        try {
+          loadedPosts.add(Post.fromJson({...doc.data(), 'id': doc.id}));
+        } catch (e) {
+          debugPrint("💥 Error parsing doc ${doc.id}: $e");
+        }
+      }
+
+      debugPrint("✅ Successfully loaded ${loadedPosts.length} posts");
+
+      if (!mounted) return;
+
+      setState(() {
+        posts = loadedPosts;
+        isLoading = false;
+        lastDocument = null; // รีเซ็ต pagination
+        hasMore = false; // โหลดครบแล้ว ไม่ต้อง load more
+        // อัปเดต cache ทันทีหลังจากข้อมูลโหลด
+        _updateCachedPostsInternal();
+        debugPrint(
+          "📊 Lost items: ${_lostItemsCached.length}, Found items: ${_foundItemsCached.length}",
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      debugPrint("❌ Error loading posts: $e");
+      _showError('เกิดข้อผิดพลาด: $e');
+    }
   }
 
   Future<void> _loadPosts() async {
@@ -111,6 +180,8 @@ class _PostPageState extends State<PostPage>
         posts = loadedPosts;
         isLoading = false;
         hasMore = snapshot.docs.length == pageSize;
+        // อัปเดต cache ทันทีหลังจากข้อมูลโหลด
+        _updateCachedPostsInternal();
       });
     } catch (e) {
       if (!mounted) return;
@@ -174,6 +245,48 @@ class _PostPageState extends State<PostPage>
 
   String _normalize(String input) => input.replaceAll(' ', '').toLowerCase();
 
+  // ฟังก์ชันอัปเดต cache แบบภายใน (ไม่เรียก setState)
+  void _updateCachedPostsInternal() {
+    final normalizedQuery = _normalize(searchQuery);
+
+    _lostItemsCached =
+        posts.where((post) {
+          final matchesType = post.isLostItem == true;
+          final matchesSearch =
+              normalizedQuery.isEmpty ||
+              _normalize(post.title).contains(normalizedQuery) ||
+              _normalize(post.description).contains(normalizedQuery) ||
+              _normalize(post.building).contains(normalizedQuery) ||
+              _normalize(post.location).contains(normalizedQuery);
+          final matchesCategory =
+              selectedCategory == null ||
+              selectedCategory == 'all' ||
+              post.category == selectedCategory;
+          return matchesType && matchesSearch && matchesCategory;
+        }).toList();
+
+    _foundItemsCached =
+        posts.where((post) {
+          final matchesType = post.isLostItem == false;
+          final matchesSearch =
+              normalizedQuery.isEmpty ||
+              _normalize(post.title).contains(normalizedQuery) ||
+              _normalize(post.description).contains(normalizedQuery) ||
+              _normalize(post.building).contains(normalizedQuery) ||
+              _normalize(post.location).contains(normalizedQuery);
+          final matchesCategory =
+              selectedCategory == null ||
+              selectedCategory == 'all' ||
+              post.category == selectedCategory;
+          return matchesType && matchesSearch && matchesCategory;
+        }).toList();
+
+    _lastSearchQuery = searchQuery;
+    _lastSelectedCategory = selectedCategory;
+  }
+
+  // ฟังก์ชันอัปเดต cache เมื่อค้นหาหรือตัวกรองเปลี่ยน
+
   // ฟังก์ชันเคลียร์ตัวกรองทั้งหมด
   void _clearAllFilters() {
     setState(() {
@@ -222,20 +335,14 @@ class _PostPageState extends State<PostPage>
 
   // ฟังก์ชันนับจำนวนโพสต์ที่ผ่านตัวกรอง
   int _getFilteredPostsCount(bool isLostItems) {
-    final normalizedQuery = _normalize(searchQuery);
+    if (searchQuery.isNotEmpty || selectedCategory != null) {
+      return isLostItems ? _lostItemsCached.length : _foundItemsCached.length;
+    }
+    // ถ้าไม่มีการกรอง ให้นับจาก posts โดยตรง
     return posts.where((post) {
-      final matchesType = post.isLostItem == isLostItems;
-      final matchesSearch =
-          normalizedQuery.isEmpty ||
-          _normalize(post.title).contains(normalizedQuery) ||
-          _normalize(post.description).contains(normalizedQuery) ||
-          _normalize(post.building).contains(normalizedQuery) ||
-          _normalize(post.location).contains(normalizedQuery);
-      final matchesCategory =
-          selectedCategory == null ||
-          selectedCategory == 'all' ||
-          post.category == selectedCategory;
-      return matchesType && matchesSearch && matchesCategory;
+      final matchesType =
+          isLostItems ? post.isLostItem == true : post.isLostItem == false;
+      return matchesType;
     }).length;
   }
 
@@ -339,7 +446,7 @@ class _PostPageState extends State<PostPage>
                 // After returning from Lost form, switch to the "ของหาย" tab and reload
                 if (mounted) {
                   _tabController.animateTo(0);
-                  _loadPosts();
+                  _loadAllPosts(); // โหลดข้อมูลทั้งหมดแทน _loadPosts
                 }
               });
             },
@@ -351,7 +458,7 @@ class _PostPageState extends State<PostPage>
                 // After returning from Found form, switch to the "เจอของ" tab and reload
                 if (mounted) {
                   _tabController.animateTo(1);
-                  _loadPosts();
+                  _loadAllPosts(); // โหลดข้อมูลทั้งหมดแทน _loadPosts
                 }
               });
             },
@@ -406,6 +513,7 @@ class _PostPageState extends State<PostPage>
                     onChanged: (value) {
                       setState(() {
                         searchQuery = value;
+                        _updateCachedPostsInternal(); // อัปเดต cache ทันที
                       });
                     },
                   ),
@@ -424,6 +532,7 @@ class _PostPageState extends State<PostPage>
                 onSelected: (value) {
                   setState(() {
                     selectedCategory = value;
+                    _updateCachedPostsInternal(); // อัปเดต cache ทันที
                   });
                 },
                 itemBuilder:
@@ -548,22 +657,20 @@ class _PostPageState extends State<PostPage>
       return const Center(child: CircularProgressIndicator());
     }
 
-    final normalizedQuery = _normalize(searchQuery);
+    // ใช้ข้อมูลจาก cache ถ้ามีการกรอง มิฉะนั้นใช้ posts โดยตรง
+    debugPrint(
+      "🔍 _buildPostsList: isLostItems=$isLostItems, total posts=${posts.length}",
+    );
     final filteredPosts =
-        posts.where((post) {
-          final matchesType = post.isLostItem == isLostItems;
-          final matchesSearch =
-              normalizedQuery.isEmpty ||
-              _normalize(post.title).contains(normalizedQuery) ||
-              _normalize(post.description).contains(normalizedQuery) ||
-              _normalize(post.building).contains(normalizedQuery) ||
-              _normalize(post.location).contains(normalizedQuery);
-          final matchesCategory =
-              selectedCategory == null ||
-              selectedCategory == 'all' ||
-              post.category == selectedCategory;
-          return matchesType && matchesSearch && matchesCategory;
-        }).toList();
+        (searchQuery.isNotEmpty || selectedCategory != null)
+            ? (isLostItems ? _lostItemsCached : _foundItemsCached)
+            : posts.where((post) {
+              final matchesType =
+                  isLostItems
+                      ? post.isLostItem == true
+                      : post.isLostItem == false;
+              return matchesType;
+            }).toList();
 
     if (filteredPosts.isEmpty) {
       String noResultsText = '';
@@ -623,7 +730,7 @@ class _PostPageState extends State<PostPage>
     }
 
     return RefreshIndicator(
-      onRefresh: _loadPosts,
+      onRefresh: _loadAllPosts,
       child: NotificationListener<ScrollNotification>(
         onNotification: (scrollInfo) {
           if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {

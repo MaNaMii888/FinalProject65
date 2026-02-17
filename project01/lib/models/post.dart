@@ -37,6 +37,22 @@ class Post {
     // Debug: แสดงข้อมูลที่ได้จาก Firebase
     print('Post.fromJson - Raw data: $json');
 
+    // ดึงค่า isLostItem โดยตรวจสอบหลายชื่อ field
+    final isLostItemValue = json['isLostItem'];
+    bool isLostItem = true; // default = true (ของหาย)
+
+    if (isLostItemValue != null) {
+      if (isLostItemValue is bool) {
+        isLostItem = isLostItemValue;
+      } else if (isLostItemValue is String) {
+        isLostItem = isLostItemValue.toLowerCase() == 'true';
+      } else if (isLostItemValue is int) {
+        isLostItem = isLostItemValue != 0;
+      }
+    }
+
+    print('Post.fromJson - isLostItem: $isLostItem');
+
     return Post(
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
@@ -48,7 +64,7 @@ class Post {
       building: json['building'] ?? '',
       location: json['location'] ?? json['room'] ?? '',
       category: json['category']?.toString() ?? '',
-      isLostItem: json['isLostItem'] ?? true,
+      isLostItem: isLostItem,
       status:
           json['status'] ??
           'active', // เปลี่ยน default เป็น 'active' เพื่อให้ตรงกับข้อมูลที่บันทึก
