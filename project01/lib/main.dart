@@ -6,6 +6,7 @@ import 'package:project01/Screen/dashboard.dart'; // หน้าหลักห
 import 'package:project01/Screen/login.dart'; // เพิ่ม import
 import 'package:project01/Screen/page/profile/profile_page.dart';
 import 'package:project01/providers/theme_provider.dart';
+import 'package:project01/providers/post_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:project01/firebase_options.dart';
 import 'package:project01/services/notifications_service.dart';
@@ -52,8 +53,11 @@ Future<void> main() async {
       ]);
 
       runApp(
-        ChangeNotifierProvider<ThemeProvider>(
-          create: (_) => ThemeProvider(),
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
+            ChangeNotifierProvider(create: (_) => PostProvider()),
+          ],
           child: MyApp(
             firebaseInitialized: firebaseInitialized,
             initError: initError,

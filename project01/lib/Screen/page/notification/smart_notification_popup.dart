@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/notifications_service.dart';
-// ตรวจสอบ path ของ NotificationModel ให้ถูกต้อง
-// import 'package:project01/models/notification_model.dart';
+import 'package:project01/utils/time_formatter.dart';
 
 class SmartNotificationPopup extends StatefulWidget {
   const SmartNotificationPopup({super.key});
@@ -159,7 +159,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
         if (!notification.isRead) {
           await NotificationService.markAsRead(notification.id);
         }
-        _viewPostDetails(notification);
+        _contactOwner(notification);
       },
       child: Container(
         // พื้นหลังสี Primary + เส้นคั่นด้านล่าง
@@ -199,7 +199,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   ),
                 ),
                 Text(
-                  _getTimeAgo(notification.createdAt),
+                  TimeFormatter.getTimeAgo(notification.createdAt),
                   style: TextStyle(
                     fontSize: 12,
                     color: onPrimaryColor.withOpacity(0.6),
@@ -338,7 +338,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                       onPressed: () => _handleMatchConfirmed(notification),
                       icon: const Icon(Icons.chat_bubble_outline, size: 16),
                       label: const Text(
-                        'ติดต่อ',
+                        'ยืนยัน',
                         style: TextStyle(fontSize: 12),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -364,13 +364,6 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     if (score >= 0.8) return Colors.green;
     if (score >= 0.7) return Colors.orange;
     return Colors.blue;
-  }
-
-  String _getTimeAgo(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inDays > 0) return '${diff.inDays} วันที่แล้ว';
-    if (diff.inHours > 0) return '${diff.inHours} ชม. ที่แล้ว';
-    return '${diff.inMinutes} นาทีที่แล้ว';
   }
 
   // ฟังก์ชันจัดการเมื่อกด "ไม่ใช่" (ลบการแจ้งเตือนออก)
@@ -483,7 +476,36 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
   }
 
   void _handleMatchConfirmed(NotificationModel notification) {
-    _contactOwner(notification);
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('ยืนยันการติดต่อ'),
+            content: const Text(
+              'ท่านได้ทำการติดต่อกับผู้พบ/ผู้ทำของหายแล้วใช่หรือไม่?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('ยกเลิก'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // ในอนาคตอาจจะมีการอัพเดทสถานะโพสต์หรือลบการแจ้งเตือน
+                  NotificationService.deleteNotification(notification.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('ยืนยันการติดต่อเรียบร้อย')),
+                  );
+                },
+                child: const Text(
+                  'ยืนยัน',
+                  style: TextStyle(color: Colors.green),
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   void _contactOwner(NotificationModel notification) {
@@ -496,40 +518,77 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.person, color: Colors.blue),
-                  title: Text(
-                    (notification.data['userName'] ?? '').isEmpty
-                        ? 'ไม่ระบุชื่อ'
-                        : notification.data['userName'],
+                Text(
+                  notification.postTitle ?? 'ไม่ระบุสิ่งของ',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
-                  subtitle: const Text('ผู้โพสต์'),
                 ),
-                const Divider(),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      notification.postType == 'lost'
+                          ? Icons.search
+                          : Icons.check_box,
+                      color: Colors.green,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      notification.postType == 'lost' ? 'ของหาย' : 'ของเจอ',
+                      style: const TextStyle(color: Colors.green, fontSize: 14),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24),
                 ListTile(
+                  contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.phone, color: Colors.green),
-                  title: Text(notification.data['contact'] ?? '-'),
-                  subtitle: const Text('เบอร์โทร / Line'),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notification.data['contact'] ?? '-',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.copy,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(
+                              text: notification.data['contact'] ?? '',
+                            ),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('คัดลอกเบอร์ติดต่อแล้ว'),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  subtitle: const Text('เบอร์โทร / Line ID'),
                 ),
+                if ((notification.data['location'] ?? '').isNotEmpty)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.location_on,
+                      color: Colors.orange,
+                    ),
+                    title: Text(notification.data['location']),
+                    subtitle: const Text('สถานที่'),
+                  ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _viewPostDetails(NotificationModel notification) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(notification.postTitle ?? notification.title),
-            content: Text(notification.message),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

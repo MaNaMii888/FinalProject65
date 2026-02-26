@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:project01/utils/time_formatter.dart';
 
 class Post {
   final String id;
@@ -77,7 +77,6 @@ class Post {
   };
 
   String getTimeAgo() {
-    timeago.setLocaleMessages('th', timeago.ThMessages());
-    return timeago.format(createdAt, locale: 'th');
+    return TimeFormatter.getTimeAgo(createdAt);
   }
 }

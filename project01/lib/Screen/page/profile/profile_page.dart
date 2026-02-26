@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:project01/services/log_service.dart';
+import 'package:project01/utils/time_formatter.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -1016,7 +1017,7 @@ class _ProfilePageState extends State<ProfilePage>
                             ),
                             const Spacer(),
                             Text(
-                              _formatDate(post.createdAt),
+                              TimeFormatter.getTimeAgo(post.createdAt),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[500],
@@ -1059,20 +1060,5 @@ class _ProfilePageState extends State<ProfilePage>
       backgroundColor: Colors.transparent,
       builder: (context) => EditPostBottomSheet(post: post),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} วันที่แล้ว';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชม.ที่แล้ว';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} นาทีที่แล้ว';
-    } else {
-      return 'เมื่อสักครู่';
-    }
   }
 }

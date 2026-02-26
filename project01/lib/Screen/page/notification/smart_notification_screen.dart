@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
+import 'package:project01/utils/time_formatter.dart';
 
 class SmartNotificationPopup extends StatefulWidget {
   const SmartNotificationPopup({super.key});
@@ -258,13 +260,28 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
       onTap: () async {
         if (notification.notificationId != null && !notification.isRead) {
           await _markNotificationAsRead(notification.notificationId!);
+          setState(() {
+            final index = smartNotifications.indexOf(notification);
+            if (index != -1) {
+              smartNotifications[index] = SmartNotificationItem(
+                post: notification.post,
+                matchScore: notification.matchScore,
+                matchReasons: notification.matchReasons,
+                createdAt: notification.createdAt,
+                relatedUserPost: notification.relatedUserPost,
+                notificationId: notification.notificationId,
+                isRead: true,
+              );
+            }
+          });
         }
-        _viewPostDetails(post);
+        _contactOwner(post);
       },
       child: Container(
-        // ✅ พื้นหลังสี Primary + เส้นคั่นด้านล่าง
+        // ✅ พื้นหลังสี Primary + เส้นคั่นด้านล่าง (ถ้ายังไม่อ่านให้ไฮไลท์)
         decoration: BoxDecoration(
-          color: primaryColor,
+          color:
+              notification.isRead ? primaryColor : Colors.blue.withOpacity(0.1),
           border: Border(
             bottom: BorderSide(
               color: onPrimaryColor.withOpacity(0.2), // เส้นสีจางๆ
@@ -298,12 +315,33 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                     ),
                   ),
                 ),
-                Text(
-                  _getTimeAgo(notification.createdAt),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: onPrimaryColor.withOpacity(0.6),
-                  ),
+                Row(
+                  children: [
+                    if (!notification.isRead)
+                      Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    Text(
+                      TimeFormatter.getTimeAgo(notification.createdAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            notification.isRead
+                                ? onPrimaryColor.withOpacity(0.6)
+                                : onPrimaryColor,
+                        fontWeight:
+                            notification.isRead
+                                ? FontWeight.normal
+                                : FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -436,10 +474,10 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _handleMatchConfirmed(post),
+                      onPressed: () => _handleMatchConfirmed(notification),
                       icon: const Icon(Icons.chat_bubble_outline, size: 16),
                       label: const Text(
-                        'ติดต่อ',
+                        'ยืนยัน',
                         style: TextStyle(fontSize: 12),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -465,13 +503,6 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     if (score >= 0.8) return Colors.green;
     if (score >= 0.7) return Colors.orange;
     return Colors.blue;
-  }
-
-  String _getTimeAgo(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inDays > 0) return '${diff.inDays} วันที่แล้ว';
-    if (diff.inHours > 0) return '${diff.inHours} ชม. ที่แล้ว';
-    return '${diff.inMinutes} นาทีที่แล้ว';
   }
 
   Future<void> _markNotificationAsRead(String notificationId) async {
@@ -518,8 +549,44 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     }
   }
 
-  void _handleMatchConfirmed(Post post) {
-    _contactOwner(post);
+  void _handleMatchConfirmed(SmartNotificationItem notification) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('ยืนยันการติดต่อ'),
+            content: const Text(
+              'ท่านได้ทำการติดต่อกับผู้พบ/ผู้ทำของหายแล้วใช่หรือไม่?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('ยกเลิก'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  if (notification.notificationId != null) {
+                    await FirebaseFirestore.instance
+                        .collection('notifications')
+                        .doc(notification.notificationId)
+                        .delete();
+                    setState(() {
+                      smartNotifications.remove(notification);
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ยืนยันการติดต่อเรียบร้อย')),
+                    );
+                  }
+                },
+                child: const Text(
+                  'ยืนยัน',
+                  style: TextStyle(color: Colors.green),
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   void _contactOwner(Post post) {
@@ -552,12 +619,33 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.phone, color: Colors.green),
-                  title: Text(
-                    post.contact,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          post.contact,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.copy,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: post.contact));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('คัดลอกเบอร์ติดต่อแล้ว'),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   subtitle: const Text('เบอร์โทร / Line ID'),
                 ),
@@ -576,25 +664,6 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _viewPostDetails(Post post) {
-    // คุณสามารถใส่โค้ดเปิดหน้า PostDetailSheet ที่นี่ได้
-    // หรือใช้ Dialog ง่ายๆ แบบนี้ไปก่อน
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(post.title),
-            content: Text(post.description),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

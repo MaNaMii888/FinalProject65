@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart'; // Add geolocator
+import 'dart:async'; // Add async for StreamSubscription
 import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 import 'package:project01/Screen/page/map/feature/floor_plan_a.dart';
 import 'package:project01/Screen/page/map/feature/floor_plan_b.dart';
@@ -30,6 +33,12 @@ class _CampusNavigationState extends State<CampusNavigation>
 
   Map<String, RoomData>? roomDataMap;
   bool isLoadingRoomData = false;
+
+  // เพิ่ม State สำหรับ GPS Tracking
+  StreamSubscription<Position>? _positionStreamSubscription;
+  Set<Marker> _markers = {};
+  Set<Circle> _circles = {};
+  LatLng? _currentPosition;
 
   @override
   void initState() {
@@ -58,10 +67,103 @@ class _CampusNavigationState extends State<CampusNavigation>
 
     // ตั้งค่า status bar เริ่มต้น
     _updateStatusBarColor();
+
+    // เริ่มการติดตาม GPS
+    _startLocationTracking();
+  }
+
+  Future<void> _startLocationTracking() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // 1. ตรวจสอบว่าเปิด Location Service บนมือถือหรือยัง
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'กรุณาเปิด Location Service ของเครื่องก่อนใช้งานแผนที่',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // 2. ขอสิทธิ์ Permission
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('สิทธิ์ถูกปฏิเสธถาวร ไม่สามารถดึงตำแหน่งได้'),
+          ),
+        );
+      }
+      return;
+    }
+
+    // 3. เมื่อได้สิทธิ์แล้ว เริ่ม Stream ดูดพิกัดแบบต่อเนื่อง
+    final locationSettings = const LocationSettings(
+      accuracy: LocationAccuracy.high, // ความแม่นยำสูง
+      distanceFilter:
+          5, // สั่งอัพเดทเมื่อเดินไปครบทุกๆ 5 เมตร (ลดการทำงานซ้ำซ้อน)
+    );
+
+    _positionStreamSubscription = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen((Position position) {
+      final currentLatLng = LatLng(position.latitude, position.longitude);
+
+      if (mounted) {
+        setState(() {
+          _currentPosition = currentLatLng;
+
+          // สร้างหมุด (Marker) เคลื่อนที่ตามคน
+          _markers = {
+            Marker(
+              markerId: const MarkerId('my_current_location'),
+              position: currentLatLng,
+              infoWindow: const InfoWindow(title: 'คุณอยู่ที่นี่'),
+            ),
+          };
+
+          // สร้างวงรัศมีสีฟ้า
+          _circles = {
+            Circle(
+              circleId: const CircleId('my_accuracy_radius'),
+              center: currentLatLng,
+              radius: position.accuracy, // วาดความกว้างวงกลมตามความแม่นยำ GPS
+              fillColor: Colors.blue.withOpacity(0.2),
+              strokeColor: Colors.blue,
+              strokeWidth: 2,
+            ),
+          };
+        });
+
+        // แพนกล้องตามผู้ใช้อัตโนมัติ (ถ้าต้องการให้แอพล็อกเป้าตลอด)
+        // _mapController?.animateCamera(CameraUpdate.newLatLng(currentLatLng));
+      }
+    });
   }
 
   @override
   void dispose() {
+    _positionStreamSubscription
+        ?.cancel(); // อย่าลืมยกเลิก Stream เมื่อปิดหน้าต่าง
     _pageController.dispose();
     _tabController.dispose();
     // รีเซ็ต status bar เมื่อออกจากหน้านี้
@@ -209,17 +311,42 @@ class _CampusNavigationState extends State<CampusNavigation>
           Positioned(
             right: 20,
             bottom: 24,
-            child: IconButton(
-              onPressed: _showNotifications,
-              icon: const Icon(Icons.notifications),
-              color: Theme.of(context).colorScheme.surface, // สีของไอคอน
-              iconSize: 40, // ขนาดของไอคอน
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.all(Colors.transparent),
-                overlayColor: WidgetStateProperty.all(
-                  Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
-                ), // ตอนกดให้ดูมีเอฟเฟกต์
-              ),
+            child: StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseAuth.instance.currentUser?.uid != null
+                      ? FirebaseFirestore.instance
+                          .collection('notifications')
+                          .where(
+                            'userId',
+                            isEqualTo: FirebaseAuth.instance.currentUser!.uid,
+                          )
+                          .where('isRead', isEqualTo: false)
+                          .snapshots()
+                      : const Stream.empty(),
+              builder: (context, snapshot) {
+                int unreadCount = 0;
+                if (snapshot.hasData) {
+                  unreadCount = snapshot.data!.docs.length;
+                }
+                return IconButton(
+                  onPressed: _showNotifications,
+                  icon: Badge(
+                    isLabelVisible: unreadCount > 0,
+                    label: Text('$unreadCount'),
+                    child: const Icon(Icons.notifications),
+                  ),
+                  color: Theme.of(context).colorScheme.surface, // สีของไอคอน
+                  iconSize: 40, // ขนาดของไอคอน
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.all(
+                      Colors.transparent,
+                    ),
+                    overlayColor: WidgetStateProperty.all(
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                    ), // ตอนกดให้ดูมีเอฟเฟกต์
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -291,9 +418,10 @@ class _CampusNavigationState extends State<CampusNavigation>
                     target: LatLng(13.732371977476102, 100.49013701457356),
                     zoom: 17.0,
                   ),
-                  markers: const {},
+                  markers: _markers, // ใช้ state ของ marker
+                  circles: _circles, // ใช้ state ของ circle
                   myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
+                  myLocationButtonEnabled: false,
                   mapType: MapType.normal,
                   zoomControlsEnabled: false,
                   zoomGesturesEnabled: true,
@@ -318,15 +446,23 @@ class _CampusNavigationState extends State<CampusNavigation>
                 child: FloatingActionButton.small(
                   heroTag: "center_campus",
                   onPressed: () {
-                    _mapController?.animateCamera(
-                      CameraUpdate.newLatLngZoom(
-                        const LatLng(13.732371977476102, 100.49013701457356),
-                        17.0,
-                      ),
-                    );
+                    if (_currentPosition != null) {
+                      // ถ้าหาตำแหน่งเราเจอ ให้วิ่งไปหาเรา
+                      _mapController?.animateCamera(
+                        CameraUpdate.newLatLngZoom(_currentPosition!, 18.0),
+                      );
+                    } else {
+                      // ไม่งั้นไป center ปกติ
+                      _mapController?.animateCamera(
+                        CameraUpdate.newLatLngZoom(
+                          const LatLng(13.732371977476102, 100.49013701457356),
+                          17.0,
+                        ),
+                      );
+                    }
                   },
                   backgroundColor: Colors.blue,
-                  child: const Icon(Icons.school, color: Colors.white),
+                  child: const Icon(Icons.my_location, color: Colors.white),
                 ),
               ),
             ],
@@ -356,9 +492,10 @@ class _CampusNavigationState extends State<CampusNavigation>
                         target: LatLng(13.732371977476102, 100.49013701457356),
                         zoom: 17.0,
                       ),
-                      markers: const {},
+                      markers: _markers,
+                      circles: _circles,
                       myLocationEnabled: true,
-                      myLocationButtonEnabled: true,
+                      myLocationButtonEnabled: false,
                       mapType: MapType.normal,
                       zoomControlsEnabled: false,
                       zoomGesturesEnabled: true,

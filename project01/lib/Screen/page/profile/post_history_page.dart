@@ -5,6 +5,7 @@ import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
 import 'package:project01/services/log_service.dart';
+import 'package:project01/utils/time_formatter.dart';
 
 class PostHistoryPage extends StatefulWidget {
   final String userId;
@@ -23,6 +24,92 @@ class PostHistoryPage extends StatefulWidget {
 }
 
 class _PostHistoryPageState extends State<PostHistoryPage> {
+  List<Post> posts = [];
+  bool isLoading = true;
+  bool isLoadingMore = false;
+  bool hasMore = true;
+  DocumentSnapshot? lastDocument;
+  static const int pageSize = 15;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+        _loadData(isLoadMore: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData({bool isLoadMore = false}) async {
+    if (isLoadMore) {
+      if (!hasMore || isLoadingMore) return;
+      setState(() {
+        isLoadingMore = true;
+      });
+    } else {
+      setState(() {
+        isLoading = true;
+        hasMore = true;
+        lastDocument = null;
+        posts.clear();
+      });
+    }
+
+    try {
+      var query = FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .where('userId', isEqualTo: widget.userId)
+          .where('isLostItem', isEqualTo: widget.isLostItems)
+          .orderBy('createdAt', descending: true)
+          .limit(pageSize);
+
+      if (lastDocument != null && isLoadMore) {
+        query = query.startAfterDocument(lastDocument!);
+      }
+
+      final snapshot = await query.get();
+      
+      final List<Post> loaded = [];
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          loaded.add(Post.fromJson({...data, 'id': doc.id}));
+        } catch (e) {
+          print("Error parsing post: $e");
+        }
+      }
+
+      setState(() {
+        if (isLoadMore) {
+          posts.addAll(loaded);
+          isLoadingMore = false;
+        } else {
+          posts = loaded;
+          isLoading = false;
+        }
+        hasMore = snapshot.docs.length == pageSize;
+        if (snapshot.docs.isNotEmpty) {
+          lastDocument = snapshot.docs.last;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        isLoadingMore = false;
+      });
+      print('Error loading history: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,24 +124,13 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection('lost_found_items')
-                .where('userId', isEqualTo: widget.userId)
-                .where('isLostItem', isEqualTo: widget.isLostItems)
-                .orderBy('createdAt', descending: true)
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: Builder(
+        builder: (context) {
+          if (isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'));
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (posts.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -78,22 +154,22 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
             );
           }
 
-          final posts =
-              snapshot.data!.docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return Post.fromJson({...data, 'id': doc.id});
-              }).toList();
-
           return RefreshIndicator(
-            onRefresh: () async {
-              // Stream จะอัพเดทอัตโนมัติ
-            },
+            onRefresh: () => _loadData(),
             child: ListView.builder(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
-              itemCount: posts.length,
+              itemCount: posts.length + (isLoadingMore ? 1 : 0),
               itemBuilder: (context, index) {
+                if (index == posts.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
                 final post = posts[index];
-                return Card(
+return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   elevation: 2,
                   shape: RoundedRectangleBorder(
@@ -412,7 +488,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                               ),
                               const Spacer(),
                               Text(
-                                _formatDate(post.createdAt),
+                                TimeFormatter.getTimeAgo(post.createdAt),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[500],
@@ -455,21 +531,6 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
         return 'ของมีค่าอื่นๆ';
       default:
         return 'ไม่ระบุ';
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} วันที่แล้ว';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ชม.ที่แล้ว';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} นาทีที่แล้ว';
-    } else {
-      return 'เมื่อสักครู่';
     }
   }
 }

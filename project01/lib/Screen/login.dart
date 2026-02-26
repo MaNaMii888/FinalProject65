@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
   final LogService _logService = LogService();
+  bool _isLoading = false;
 
   // --- Logic ส่วนเดิม ---
   Future<UserCredential?> signInWithGoogle() async {
@@ -34,11 +35,6 @@ class _LoginScreenState extends State<LoginPage> {
   }
 
   // Function ช่วยปิด Dialog แบบปลอดภัย
-  void _dismissLoadingDialog() {
-    if (mounted && Navigator.canPop(context)) {
-      Navigator.of(context).pop();
-    }
-  }
 
   // Function แสดง Dialog แจ้งเตือน
   Future<void> _showAlertDialog({
@@ -82,319 +78,343 @@ class _LoginScreenState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'ยินดีต้อนรับ',
-                  style: TextStyle(
-                    color:
-                        theme.colorScheme.onSurface, // ปรับให้เห็นชัดบนพื้นหลัง
-                    fontSize: 22,
-                  ),
-                ),
-                Text(
-                  'เข้าสู่ระบบ', // แก้คำผิด
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // --- Card Container แบบเดียวกับ Register ---
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(
-                      0.9,
-                    ), // ใช้ withOpacity เพื่อความชัวร์
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    children: [
-                      // --- Email Input ---
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        style: TextStyle(
-                          color: Colors.black87,
-                        ), // สีตัวอักษรเวลาพิมพ์
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: TextStyle(
-                            color: theme.colorScheme.primary,
-                          ),
-                          // ใส่ Icon และกำหนดสีตาม Theme
-                          prefixIcon: Icon(
-                            Icons.email_outlined,
-                            color: theme.colorScheme.primary,
-                          ),
-                          border: const UnderlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "กรุณากรอกอีเมล";
-                          }
-                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                            return "รูปแบบอีเมลไม่ถูกต้อง";
-                          }
-                          return null;
-                        },
+      body: Stack(
+        children: [
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'ยินดีต้อนรับ',
+                      style: TextStyle(
+                        color:
+                            theme
+                                .colorScheme
+                                .onSurface, // ปรับให้เห็นชัดบนพื้นหลัง
+                        fontSize: 22,
                       ),
-                      const SizedBox(height: 16),
-
-                      // --- Password Input ---
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        style: TextStyle(color: Colors.black87),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          labelStyle: TextStyle(
-                            color: theme.colorScheme.primary,
-                          ),
-                          // ใส่ Icon และกำหนดสีตาม Theme
-                          prefixIcon: Icon(
-                            Icons.lock_outline,
-                            color: theme.colorScheme.primary,
-                          ),
-                          border: const UnderlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "กรุณากรอกรหัสผ่าน";
-                          }
-                          if (value.length < 6) {
-                            return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
-                          }
-                          return null;
-                        },
+                    ),
+                    Text(
+                      'เข้าสู่ระบบ', // แก้คำผิด
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    const SizedBox(height: 32),
 
-                      // --- Forgot Password Button ---
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => const ForgotPasswordPage(),
-                              ),
-                            );
-                          },
-                          child: Text(
-                            'ลืมรหัสผ่าน?',
-                            style: TextStyle(
-                              color:
-                                  theme
-                                      .colorScheme
-                                      .error, // ใช้สีแดงหรือ secondary ให้เด่น
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
+                    // --- Card Container แบบเดียวกับ Register ---
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(
+                          0.9,
+                        ), // ใช้ withOpacity เพื่อความชัวร์
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      const SizedBox(
-                        height: 8,
-                      ), // ลดระยะห่างนิดหน่อยเพราะมีปุ่มลืมรหัสผ่าน
-                      // --- Login Button ---
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                theme
-                                    .colorScheme
-                                    .primary, // ใช้สีหลัก (เทาเข้ม)
-                            foregroundColor:
-                                theme
-                                    .colorScheme
-                                    .onPrimary, // สีตัวหนังสือ (ขาว/เทาอ่อน)
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                30,
-                              ), // ความโค้งเท่ากับหน้า Register
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          onPressed: () async {
-                            if (_formKey.currentState!.validate()) {
-                              // Show Loading
-                              showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder:
-                                    (c) => const Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                              );
-
-                              try {
-                                // Logic การ login เดิม
-                                final userCredential = await FirebaseAuth
-                                    .instance
-                                    .signInWithEmailAndPassword(
-                                      email: _emailController.text.trim(),
-                                      password: _passwordController.text,
-                                    )
-                                    .timeout(const Duration(seconds: 15));
-
-                                // บันทึก log การเข้าสู่ระบบ
-                                if (userCredential.user != null) {
-                                  await _logService.logUserLogin(
-                                    userId: userCredential.user!.uid,
-                                    userName:
-                                        userCredential.user!.email?.split(
-                                          '@',
-                                        )[0] ??
-                                        'Unknown',
-                                    provider: 'email',
-                                  );
-                                }
-
-                                _dismissLoadingDialog();
-                                if (!mounted) return;
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  '/dashboard',
-                                );
-                              } on FirebaseAuthException catch (e) {
-                                _dismissLoadingDialog();
-                                String msg = "เข้าสู่ระบบไม่สำเร็จ";
-                                if (e.code == 'user-not-found') {
-                                  msg = "ไม่พบผู้ใช้งานนี้";
-                                } else if (e.code == 'wrong-password')
-                                  msg = "รหัสผ่านไม่ถูกต้อง";
-                                else if (e.code == 'invalid-credential')
-                                  msg = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
-
-                                await _showAlertDialog(
-                                  title: 'เกิดข้อผิดพลาด',
-                                  content: Text(msg),
-                                  isError: true,
-                                );
-                              } catch (e) {
-                                _dismissLoadingDialog();
-                                await _showAlertDialog(
-                                  title: 'เกิดข้อผิดพลาด',
-                                  content: Text(e.toString()),
-                                  isError: true,
-                                );
-                              }
-                            }
-                          },
-                          child: const Text(
-                            'เข้าสู่ระบบ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // --- Google Login Button ---
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: Image.asset(
-                            'assets/img/google.jpg',
-                            height: 24.0,
-                          ),
-                          label: const Text('เข้าสู่ระบบด้วย Google'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                30,
-                              ), // ความโค้งเท่ากัน
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            elevation: 2,
-                          ),
-                          onPressed: () async {
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder:
-                                  (c) => const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                            );
-
-                            try {
-                              final userCredential = await signInWithGoogle();
-                              _dismissLoadingDialog();
-
-                              if (userCredential != null && mounted) {
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  '/dashboard',
-                                );
-                              }
-                            } catch (e) {
-                              _dismissLoadingDialog();
-                              if (!mounted) return;
-                              await _showAlertDialog(
-                                title: 'เกิดข้อผิดพลาด',
-                                content: Text('Google Sign-In Error: $e'),
-                                isError: true,
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // --- Register Link ---
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Column(
                         children: [
-                          Text(
-                            'ยังไม่มีการลงทะเบียน? ',
-                            style: TextStyle(color: Colors.grey[700]),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const RegisterScreen(),
-                                ),
-                              );
+                          // --- Email Input ---
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(
+                              color: Colors.black87,
+                            ), // สีตัวอักษรเวลาพิมพ์
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              labelStyle: TextStyle(
+                                color: theme.colorScheme.primary,
+                              ),
+                              // ใส่ Icon และกำหนดสีตาม Theme
+                              prefixIcon: Icon(
+                                Icons.email_outlined,
+                                color: theme.colorScheme.primary,
+                              ),
+                              border: const UnderlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return "กรุณากรอกอีเมล";
+                              if (!RegExp(
+                                r'^[^@]+@[^@]+\.[^@]+',
+                              ).hasMatch(value))
+                                return "รูปแบบอีเมลไม่ถูกต้อง";
+                              return null;
                             },
-                            child: Text(
-                              'ลงทะเบียน',
-                              style: TextStyle(
-                                color:
+                          ),
+                          const SizedBox(height: 16),
+
+                          // --- Password Input ---
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            style: TextStyle(color: Colors.black87),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              labelStyle: TextStyle(
+                                color: theme.colorScheme.primary,
+                              ),
+                              // ใส่ Icon และกำหนดสีตาม Theme
+                              prefixIcon: Icon(
+                                Icons.lock_outline,
+                                color: theme.colorScheme.primary,
+                              ),
+                              border: const UnderlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return "กรุณากรอกรหัสผ่าน";
+                              if (value.length < 6)
+                                return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+                              return null;
+                            },
+                          ),
+
+                          // --- Forgot Password Button ---
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => const ForgotPasswordPage(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'ลืมรหัสผ่าน?',
+                                style: TextStyle(
+                                  color:
+                                      theme
+                                          .colorScheme
+                                          .error, // ใช้สีแดงหรือ secondary ให้เด่น
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ), // ลดระยะห่างนิดหน่อยเพราะมีปุ่มลืมรหัสผ่าน
+                          // --- Login Button ---
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
                                     theme
                                         .colorScheme
-                                        .primary, // ใช้สี Theme ให้ดูเป็นลิงก์
-                                fontWeight: FontWeight.bold,
+                                        .primary, // ใช้สีหลัก (เทาเข้ม)
+                                foregroundColor:
+                                    theme
+                                        .colorScheme
+                                        .onPrimary, // สีตัวหนังสือ (ขาว/เทาอ่อน)
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    30,
+                                  ), // ความโค้งเท่ากับหน้า Register
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                              ),
+                              onPressed:
+                                  _isLoading
+                                      ? null
+                                      : () async {
+                                        if (_formKey.currentState!.validate()) {
+                                          setState(() {
+                                            _isLoading = true;
+                                          });
+
+                                          try {
+                                            // Logic การ login
+                                            final userCredential =
+                                                await FirebaseAuth.instance
+                                                    .signInWithEmailAndPassword(
+                                                      email:
+                                                          _emailController.text
+                                                              .trim(),
+                                                      password:
+                                                          _passwordController
+                                                              .text,
+                                                    )
+                                                    .timeout(
+                                                      const Duration(
+                                                        seconds: 15,
+                                                      ),
+                                                    );
+
+                                            // บันทึก log การเข้าสู่ระบบ
+                                            if (userCredential.user != null) {
+                                              await _logService.logUserLogin(
+                                                userId:
+                                                    userCredential.user!.uid,
+                                                userName:
+                                                    userCredential.user!.email
+                                                        ?.split('@')[0] ??
+                                                    'Unknown',
+                                                provider: 'email',
+                                              );
+                                            }
+
+                                            // ไม่ต้องสั่งเปลี่ยนหน้าหรือปิด dialog เอง
+                                            // StreamBuilder ใน main.dart จะจัดการให้
+                                          } on FirebaseAuthException catch (e) {
+                                            if (mounted) {
+                                              setState(() {
+                                                _isLoading = false;
+                                              });
+                                              String msg =
+                                                  "เข้าสู่ระบบไม่สำเร็จ";
+                                              if (e.code == 'user-not-found')
+                                                msg = "ไม่พบผู้ใช้งานนี้";
+                                              else if (e.code ==
+                                                  'wrong-password')
+                                                msg = "รหัสผ่านไม่ถูกต้อง";
+                                              else if (e.code ==
+                                                  'invalid-credential')
+                                                msg =
+                                                    "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
+
+                                              await _showAlertDialog(
+                                                title: 'เกิดข้อผิดพลาด',
+                                                content: Text(msg),
+                                                isError: true,
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (mounted) {
+                                              setState(() {
+                                                _isLoading = false;
+                                              });
+                                              await _showAlertDialog(
+                                                title: 'เกิดข้อผิดพลาด',
+                                                content: Text(e.toString()),
+                                                isError: true,
+                                              );
+                                            }
+                                          }
+                                        }
+                                      },
+                              child: const Text(
+                                'เข้าสู่ระบบ',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // --- Google Login Button ---
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: Image.asset(
+                                'assets/img/google.jpg',
+                                height: 24.0,
+                              ),
+                              label: const Text('เข้าสู่ระบบด้วย Google'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black87,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    30,
+                                  ), // ความโค้งเท่ากัน
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                elevation: 2,
+                              ),
+                              onPressed:
+                                  _isLoading
+                                      ? null
+                                      : () async {
+                                        setState(() {
+                                          _isLoading = true;
+                                        });
+
+                                        try {
+                                          await signInWithGoogle();
+                                          // ไม่ต้องสั่งเปลี่ยนหน้าหรือปิด dialog เอง
+                                          // StreamBuilder ใน main.dart จะจัดการให้
+                                        } catch (e) {
+                                          if (mounted) {
+                                            setState(() {
+                                              _isLoading = false;
+                                            });
+                                            await _showAlertDialog(
+                                              title: 'เกิดข้อผิดพลาด',
+                                              content: Text(
+                                                'Google Sign-In Error: $e',
+                                              ),
+                                              isError: true,
+                                            );
+                                          }
+                                        }
+                                      },
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // --- Register Link ---
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'ยังไม่มีการลงทะเบียน? ',
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => const RegisterScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  'ลงทะเบียน',
+                                  style: TextStyle(
+                                    color:
+                                        theme
+                                            .colorScheme
+                                            .primary, // ใช้สี Theme ให้ดูเป็นลิงก์
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          if (_isLoading)
+            Container(
+              color: Colors.black26,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
     );
   }
