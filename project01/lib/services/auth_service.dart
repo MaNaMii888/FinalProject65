@@ -90,7 +90,7 @@ class AuthService {
   AuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   // Rate limiting
   static DateTime? _lastAttempt;
@@ -238,6 +238,7 @@ class AuthService {
           rethrow;
         }
       } else {
+        await _googleSignIn.initialize();
         try {
           // ไม่ใช้ silent sign-in หลัง logout เพื่อให้ user เลือก account ใหม่ได้
           // account = await _googleSignIn.signInSilently();
@@ -250,11 +251,7 @@ class AuthService {
         if (account == null) {
           try {
             // เพิ่ม error handling สำหรับ PigeonUser type casting
-            account = await _googleSignIn.signIn();
-            if (account == null) {
-              print('User cancelled sign-in');
-              return null;
-            }
+            account = await _googleSignIn.authenticate();
           } catch (e) {
             print('Interactive sign-in error: $e');
 
@@ -269,11 +266,7 @@ class AuthService {
                 await _googleSignIn.disconnect();
                 // รอสักครู่แล้วลองใหม่
                 await Future.delayed(Duration(milliseconds: 500));
-                account = await _googleSignIn.signIn();
-                if (account == null) {
-                  print('User cancelled sign-in after retry');
-                  return null;
-                }
+                account = await _googleSignIn.authenticate();
               } catch (retryError) {
                 print('Retry after PigeonUser error failed: $retryError');
                 rethrow;
@@ -285,11 +278,11 @@ class AuthService {
         }
 
         try {
-          final googleAuth = await account.authentication;
+          final googleAuth = account.authentication;
           print('Got authentication tokens');
 
           final credential = GoogleAuthProvider.credential(
-            accessToken: googleAuth.accessToken,
+            accessToken: null,
             idToken: googleAuth.idToken,
           );
 
@@ -300,7 +293,7 @@ class AuthService {
             await saveUserData(
               userCredential.user!,
               idToken: googleAuth.idToken,
-              accessToken: googleAuth.accessToken,
+              accessToken: null,
             );
 
             // บันทึก cache

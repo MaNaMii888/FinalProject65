@@ -196,14 +196,14 @@ class NotificationService {
       if (matchedIsLost && !relatedIsLost) {
         title = '🔍 มีคนหาสิ่งของที่คุณพบ!';
         message =
-            'ผู้ใช้ ${matchedPost.userName} กำลังหา "${matchedPost.title}" ที่คล้ายกับที่คุณพบ (${matchPercentage}%)';
+            'ผู้ใช้ ${matchedPost.userName} กำลังหา "${matchedPost.title}" ที่คล้ายกับที่คุณพบ ($matchPercentage%)';
       } else if (!matchedIsLost && relatedIsLost) {
         title = '🎯 มีคนพบสิ่งของที่คุณหา!';
         message =
-            'ผู้ใช้ ${matchedPost.userName} พบ "${matchedPost.title}" ที่คล้ายกับที่คุณหา (${matchPercentage}%)';
+            'ผู้ใช้ ${matchedPost.userName} พบ "${matchedPost.title}" ที่คล้ายกับที่คุณหา ($matchPercentage%)';
       } else {
         title = '🎯 พบสิ่งของที่อาจเกี่ยวข้อง';
-        message = '${matchedPost.title} - ความตรง ${matchPercentage}%';
+        message = '${matchedPost.title} - ความตรง $matchPercentage%';
       }
 
       final notification = NotificationModel(

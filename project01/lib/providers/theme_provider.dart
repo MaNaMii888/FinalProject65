@@ -19,7 +19,7 @@ class ThemeProvider extends ChangeNotifier {
       appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
-        color: Colors.transparent,
+        backgroundColor: Colors.transparent,
         iconTheme: IconThemeData(color: Colors.black87),
         titleTextStyle: TextStyle(
           color: Colors.black87,

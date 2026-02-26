@@ -54,8 +54,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       DebugHelper.log('ForgotPassword: sending reset to $email');
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
 
-      if (mounted && Navigator.canPop(context))
+      if (mounted && Navigator.canPop(context)) {
         Navigator.of(context).pop(); // ปิด Loading
+      }
 
       if (!mounted) return;
       _showResultDialog(
@@ -66,8 +67,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       );
     } on FirebaseAuthException catch (e, st) {
       DebugHelper.logError('ForgotPassword error', e, st);
-      if (mounted && Navigator.canPop(context))
+      if (mounted && Navigator.canPop(context)) {
         Navigator.of(context).pop(); // ปิด Loading
+      }
 
       String msg = 'เกิดข้อผิดพลาด กรุณาลองใหม่';
       if (e.code == 'user-not-found') {
@@ -84,8 +86,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       );
     } catch (e, st) {
       DebugHelper.logError('ForgotPassword general error', e, st);
-      if (mounted && Navigator.canPop(context))
+      if (mounted && Navigator.canPop(context)) {
         Navigator.of(context).pop(); // ปิด Loading
+      }
       if (!mounted) return;
       _showResultDialog(
         title: 'ข้อผิดพลาด',
@@ -244,8 +247,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'กรุณากรอกอีเมล';
+                      }
                       // Regex เดิมใช้งานได้ดีแล้ว
                       if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                         return 'รูปแบบอีเมลไม่ถูกต้อง';

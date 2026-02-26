@@ -11,11 +11,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/services/post_count_service.dart';
-<<<<<<< HEAD
-=======
-import 'package:project01/services/smart_matching_service.dart';
+
 import 'package:project01/services/log_service.dart';
->>>>>>> 194706070a05c941158bc791a365e79051b0fb01
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -460,29 +457,25 @@ class _FindItemFormState extends State<FindItemForm> {
 
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
 
+      // ใช้ Query แบบ server-side เพื่อลดการดึงข้อมูลและเพิ่มความเร็ว
       final snapshot =
           await FirebaseFirestore.instance
               .collection('lost_found_items')
               .where('userId', isEqualTo: user.uid)
+              .where(
+                'createdAt',
+                isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+              )
+              .where(
+                'createdAt',
+                isLessThanOrEqualTo: Timestamp.fromDate(endOfDay),
+              )
               .get();
 
-      // กรองโพสต์ที่สร้างวันนี้ใน client side
-      int todayPostCount = 0;
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final createdAt = data['createdAt'] as Timestamp?;
-        if (createdAt != null) {
-          final postDate = createdAt.toDate();
-          if (postDate.year == now.year &&
-              postDate.month == now.month &&
-              postDate.day == now.day) {
-            todayPostCount++;
-          }
-        }
-      }
-
-      debugPrint('📊 Today post count: $todayPostCount/5');
+      final todayPostCount = snapshot.docs.length;
+      debugPrint('📊 Today post count (Server-side): $todayPostCount/5');
       return todayPostCount < 5;
     } catch (e) {
       debugPrint('❌ Error checking daily post limit: $e');
@@ -567,7 +560,9 @@ class _FindItemFormState extends State<FindItemForm> {
         'searchKeywords': _generateSearchKeywords(),
       };
 
-      await FirebaseFirestore.instance.collection('lost_found_items').add(post);
+      final docRef = await FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .add(post);
       await PostCountService.updatePostCount(
         AuthService.currentUser!.uid,
         false,
@@ -951,7 +946,7 @@ class _FindItemFormState extends State<FindItemForm> {
                                     ),
                                   )
                                   .toList(),
-                          value: selectedBuilding,
+                          initialValue: selectedBuilding,
                           validator:
                               (value) =>
                                   value == null ? 'กรุณาเลือกอาคาร' : null,
