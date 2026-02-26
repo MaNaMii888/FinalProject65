@@ -21,7 +21,15 @@ class _PostPageState extends State<PostPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  List<Post> posts = [];
+  bool isLoading = true;
+  String searchQuery = '';
+  String? selectedCategory;
+  static const int pageSize = 10;
+  DocumentSnapshot? lastDocument;
+  bool hasMore = true;
 
+  // FAB Animated
   bool isFabOpen = false;
 
   void toggleFab() {
@@ -34,12 +42,7 @@ class _PostPageState extends State<PostPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<PostProvider>(context, listen: false);
-      if (provider.lostPosts.isEmpty && provider.foundPosts.isEmpty) {
-         provider.refreshAll();
-      }
-    });
+    _loadPosts();
   }
 
   @override
@@ -49,6 +52,159 @@ class _PostPageState extends State<PostPage>
     super.dispose();
   }
 
+  Future<void> _loadAllPosts() async {
+    if (!mounted) return;
+
+    debugPrint("📍 START loading all posts...");
+
+    // Set loading state immediately
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // โหลดข้อมูลทั้งหมด (ไม่ใช้ limit)
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('lost_found_items')
+              .orderBy('createdAt', descending: true)
+              .get(); // ลบ limit() ออกเพื่อโหลดข้อมูลทั้งหมด
+
+      debugPrint("🔥 Found ${snapshot.docs.length} items");
+
+      if (!mounted) return;
+
+      final List<Post> loadedPosts = [];
+      for (var doc in snapshot.docs) {
+        try {
+          loadedPosts.add(Post.fromJson({...doc.data(), 'id': doc.id}));
+        } catch (e) {
+          debugPrint("💥 Error parsing doc ${doc.id}: $e");
+        }
+      }
+
+      debugPrint("✅ Successfully loaded ${loadedPosts.length} posts");
+
+      if (!mounted) return;
+
+      setState(() {
+        posts = loadedPosts;
+        isLoading = false;
+        lastDocument = null; // รีเซ็ต pagination
+        hasMore = false; // โหลดครบแล้ว ไม่ต้อง load more
+        // อัปเดต cache ทันทีหลังจากข้อมูลโหลด
+        _updateCachedPostsInternal();
+        debugPrint(
+          "📊 Lost items: ${_lostItemsCached.length}, Found items: ${_foundItemsCached.length}",
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      debugPrint("❌ Error loading posts: $e");
+      _showError('เกิดข้อผิดพลาด: $e');
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    if (!mounted) return;
+    setState(() => isLoading = true);
+    try {
+      // ลอง comment บรรทัด orderBy ออกชั่วคราว เพื่อเทสว่าเกี่ยวกับ Index ไหม
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('lost_found_items')
+              .orderBy('createdAt', descending: true)
+              .limit(pageSize)
+              .get();
+
+      debugPrint("🔥 เจอข้อมูลจำนวน: ${snapshot.docs.length} รายการ");
+
+      if (snapshot.docs.isNotEmpty) {
+        lastDocument = snapshot.docs.last;
+      }
+
+      if (!mounted) return;
+
+      // ลองแปลงข้อมูลดูว่าพังตรง Model หรือไม่
+      final List<Post> loadedPosts = [];
+      for (var doc in snapshot.docs) {
+        try {
+          loadedPosts.add(Post.fromJson({...doc.data(), 'id': doc.id}));
+        } catch (e) {
+          debugPrint("💥 Error แปลงข้อมูล ID ${doc.id}: $e");
+          // อาจจะเกิดจากชื่อตัวแปรไม่ตรงกัน (detail vs description)
+        }
+      }
+
+      setState(() {
+        posts = loadedPosts;
+        isLoading = false;
+        hasMore = snapshot.docs.length == pageSize;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      debugPrint("❌ Error โหลดข้อมูล: $e");
+      _showError('เกิดข้อผิดพลาด: $e');
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (!hasMore || isLoading) return;
+    setState(() => isLoading = true);
+    try {
+      var query = FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .orderBy('createdAt', descending: true)
+          .limit(pageSize);
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument!);
+      }
+
+      final snapshot = await query.get();
+
+      if (snapshot.docs.length < pageSize) {
+        hasMore = false;
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        lastDocument = snapshot.docs.last;
+      }
+
+      setState(() {
+        posts.addAll(
+          snapshot.docs.map(
+            (doc) => Post.fromJson({...doc.data(), 'id': doc.id}),
+          ),
+        );
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+      _showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: $e');
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  String _normalize(String input) => input.replaceAll(' ', '').toLowerCase();
+
+  // ฟังก์ชันเคลียร์ตัวกรองทั้งหมด
   void _clearAllFilters() {
     final provider = Provider.of<PostProvider>(context, listen: false);
     provider.clearFilters();
@@ -92,11 +248,22 @@ class _PostPageState extends State<PostPage>
   }
 
   // ฟังก์ชันนับจำนวนโพสต์ที่ผ่านตัวกรอง
-  int _getFilteredPostsCount(PostProvider provider, bool isLostItems) {
-    if (provider.searchQuery.isEmpty && provider.selectedCategory == null) {
-      return isLostItems ? provider.totalLostCount : provider.totalFoundCount;
-    }
-    return isLostItems ? provider.lostPosts.length : provider.foundPosts.length;
+  int _getFilteredPostsCount(bool isLostItems) {
+    final normalizedQuery = _normalize(searchQuery);
+    return posts.where((post) {
+      final matchesType = post.isLostItem == isLostItems;
+      final matchesSearch =
+          normalizedQuery.isEmpty ||
+          _normalize(post.title).contains(normalizedQuery) ||
+          _normalize(post.description).contains(normalizedQuery) ||
+          _normalize(post.building).contains(normalizedQuery) ||
+          _normalize(post.location).contains(normalizedQuery);
+      final matchesCategory =
+          selectedCategory == null ||
+          selectedCategory == 'all' ||
+          post.category == selectedCategory;
+      return matchesType && matchesSearch && matchesCategory;
+    }).length;
   }
 
   @override
@@ -199,7 +366,7 @@ class _PostPageState extends State<PostPage>
                 // After returning from Lost form, switch to the "ของหาย" tab and reload
                 if (mounted) {
                   _tabController.animateTo(0);
-                  context.read<PostProvider>().refreshAll();
+                  _loadPosts();
                 }
               });
             },
@@ -211,7 +378,7 @@ class _PostPageState extends State<PostPage>
                 // After returning from Found form, switch to the "เจอของ" tab and reload
                 if (mounted) {
                   _tabController.animateTo(1);
-                  context.read<PostProvider>().refreshAll();
+                  _loadPosts();
                 }
               });
             },
@@ -264,7 +431,9 @@ class _PostPageState extends State<PostPage>
                       ),
                     ),
                     onChanged: (value) {
-                      context.read<PostProvider>().setSearchQuery(value);
+                      setState(() {
+                        searchQuery = value;
+                      });
                     },
                   ),
                 ),
@@ -280,7 +449,9 @@ class _PostPageState extends State<PostPage>
                 shadowColor: Colors.white, // ✅ สีเงา
                 offset: const Offset(0, 60),
                 onSelected: (value) {
-                  context.read<PostProvider>().setCategory(value);
+                  setState(() {
+                    selectedCategory = value;
+                  });
                 },
                 itemBuilder:
                     (context) => [
@@ -409,7 +580,22 @@ class _PostPageState extends State<PostPage>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final filteredPosts = isLostItems ? provider.lostPosts : provider.foundPosts;
+    final normalizedQuery = _normalize(searchQuery);
+    final filteredPosts =
+        posts.where((post) {
+          final matchesType = post.isLostItem == isLostItems;
+          final matchesSearch =
+              normalizedQuery.isEmpty ||
+              _normalize(post.title).contains(normalizedQuery) ||
+              _normalize(post.description).contains(normalizedQuery) ||
+              _normalize(post.building).contains(normalizedQuery) ||
+              _normalize(post.location).contains(normalizedQuery);
+          final matchesCategory =
+              selectedCategory == null ||
+              selectedCategory == 'all' ||
+              post.category == selectedCategory;
+          return matchesType && matchesSearch && matchesCategory;
+        }).toList();
 
         if (filteredPosts.isEmpty) {
           String noResultsText = '';
@@ -462,37 +648,25 @@ class _PostPageState extends State<PostPage>
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            provider.loadPosts(isLostItems: isLostItems, isRefresh: true);
-          },
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (scrollInfo) {
-              if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
-                provider.loadPosts(isLostItems: isLostItems, isRefresh: false);
-              }
-              return false;
-            },
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: filteredPosts.length + (currentIsLoadingMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == filteredPosts.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return _buildPostItem(
-                  filteredPosts[index],
-                  isMobile: MediaQuery.of(context).size.width < 600,
-                );
-              },
-            ),
-          ),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _loadPosts,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (scrollInfo) {
+          if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+            _loadMorePosts();
+          }
+          return true;
+        },
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: filteredPosts.length,
+          itemBuilder:
+              (context, index) => _buildPostItem(
+                filteredPosts[index],
+                isMobile: MediaQuery.of(context).size.width < 600,
+              ),
+        ),
+      ),
     );
   }
 
