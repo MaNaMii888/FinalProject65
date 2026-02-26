@@ -3,7 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
-import 'package:image/image.dart' as img;
+
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,6 +11,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/services/post_count_service.dart';
+import 'package:project01/utils/image_compressor.dart';
 import 'package:project01/services/log_service.dart';
 
 // ----------------- Service Classes -----------------
@@ -126,59 +127,11 @@ class ImageService {
   }
 
   static Future<File> compressImage(File imageFile) async {
-    try {
-      debugPrint('🖼️ [COMPRESS] เริ่มบีบอัดรูปภาพ...');
-
-      final bytes = await imageFile.readAsBytes();
-      final originalSizeMB = (bytes.length / 1024 / 1024);
-      debugPrint(
-        '🖼️ [COMPRESS] ขนาดต้นฉบับ: ${originalSizeMB.toStringAsFixed(2)} MB',
-      );
-
-      final image = img.decodeImage(bytes);
-      if (image != null) {
-        debugPrint(
-          '🖼️ [COMPRESS] ขนาดต้นฉบับ: ${image.width}x${image.height}',
-        );
-
-        // คำนวณขนาดที่เหมาะสม
-        int targetWidth = 600;
-        if (image.width > 2000) targetWidth = 500;
-        if (image.width > 4000) targetWidth = 400;
-
-        final resized = img.copyResize(image, width: targetWidth);
-        debugPrint(
-          '🖼️ [COMPRESS] ขนาดใหม่: ${resized.width}x${resized.height}',
-        );
-
-        // บีบอัดแบบ progressive
-        int quality = 60;
-        List<int> compressedBytes;
-
-        do {
-          compressedBytes = img.encodeJpg(resized, quality: quality);
-          debugPrint(
-            '🖼️ [COMPRESS] Quality $quality%: ${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
-          );
-
-          if (compressedBytes.length <= 500 * 1024) break; // เป้าหมาย 500KB
-
-          quality -= 10;
-        } while (quality >= 20);
-
-        final compressedSizeMB = (compressedBytes.length / 1024 / 1024);
-        debugPrint(
-          '✅ [COMPRESS] เสร็จสิ้น: ${compressedSizeMB.toStringAsFixed(2)} MB (Quality: $quality%)',
-        );
-
-        final compressedFile = File('${imageFile.path}_compressed.jpg');
-        await compressedFile.writeAsBytes(compressedBytes);
-        return compressedFile;
-      }
-    } catch (e) {
-      debugPrint('💥 [COMPRESS] ข้อผิดพลาด: $e');
-    }
-    return imageFile;
+    final File? compressed = await ImageCompressor.compressImage(
+      imageFile,
+      quality: 75,
+    );
+    return compressed ?? imageFile;
   }
 
   static Future<String?> uploadImageToFirebase(

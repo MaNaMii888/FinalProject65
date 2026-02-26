@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/Screen/login.dart';
+import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -315,6 +316,9 @@ class _ProfilePageState extends State<ProfilePage>
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
+      // 🛑 หยุดการฟังการแจ้งเตือนแบบเรียลไทม์เมื่อล็อกเอาต์
+      await RealtimeNotificationService.stopListening();
+
       // Sign out จาก Firebase
       await FirebaseAuth.instance.signOut();
       // เช็คว่ายัง mounted อยู่ไหม

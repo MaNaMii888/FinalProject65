@@ -1,4 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:project01/models/post.dart';
+import 'package:project01/services/notifications_service.dart';
 
 class SmartMatchingService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -433,4 +437,16 @@ class SmartMatchingService {
       // Quietly fail if the user document doesn't exist or permission denied
     }
   }
+}
+
+class UserMatchingProfile {
+  final String userId;
+  final List<Post> userPosts;
+  final DateTime lastUpdated;
+
+  UserMatchingProfile({
+    required this.userId,
+    required this.userPosts,
+    required this.lastUpdated,
+  });
 }

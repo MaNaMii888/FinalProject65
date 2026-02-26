@@ -21,13 +21,6 @@ class _PostPageState extends State<PostPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  List<Post> posts = [];
-  bool isLoading = true;
-  String searchQuery = '';
-  String? selectedCategory;
-  static const int pageSize = 10;
-  DocumentSnapshot? lastDocument;
-  bool hasMore = true;
 
   // FAB Animated
   bool isFabOpen = false;
@@ -42,7 +35,12 @@ class _PostPageState extends State<PostPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadPosts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<PostProvider>(context, listen: false);
+      if (provider.lostPosts.isEmpty && provider.foundPosts.isEmpty) {
+        provider.refreshAll();
+      }
+    });
   }
 
   @override
@@ -52,218 +50,38 @@ class _PostPageState extends State<PostPage>
     super.dispose();
   }
 
-  Future<void> _loadAllPosts() async {
-    if (!mounted) return;
+  int _getFilteredPostsCount(PostProvider provider, bool isLostItems) {
+    if (provider.searchQuery.isEmpty && provider.selectedCategory == null) {
+      return isLostItems ? provider.totalLostCount : provider.totalFoundCount;
+    }
+    return isLostItems ? provider.lostPosts.length : provider.foundPosts.length;
+  }
 
-    debugPrint("📍 START loading all posts...");
+  String _getActiveFiltersText(PostProvider provider) {
+    List<String> activeFilters = [];
+    if (provider.searchQuery.isNotEmpty) {
+      activeFilters.add('คำค้นหา "${provider.searchQuery}"');
+    }
+    if (provider.selectedCategory != null) {
+      activeFilters.add('ประเภท "${_getCategoryName(provider.selectedCategory!)}"');
+    }
+    return activeFilters.isEmpty ? 'ไม่มีตัวกรอง' : activeFilters.join(' • ');
+  }
 
-    // Set loading state immediately
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      // โหลดข้อมูลทั้งหมด (ไม่ใช้ limit)
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('lost_found_items')
-              .orderBy('createdAt', descending: true)
-              .get(); // ลบ limit() ออกเพื่อโหลดข้อมูลทั้งหมด
-
-      debugPrint("🔥 Found ${snapshot.docs.length} items");
-
-      if (!mounted) return;
-
-      final List<Post> loadedPosts = [];
-      for (var doc in snapshot.docs) {
-        try {
-          loadedPosts.add(Post.fromJson({...doc.data(), 'id': doc.id}));
-        } catch (e) {
-          debugPrint("💥 Error parsing doc ${doc.id}: $e");
-        }
-      }
-
-      debugPrint("✅ Successfully loaded ${loadedPosts.length} posts");
-
-      if (!mounted) return;
-
-      setState(() {
-        posts = loadedPosts;
-        isLoading = false;
-        lastDocument = null; // รีเซ็ต pagination
-        hasMore = false; // โหลดครบแล้ว ไม่ต้อง load more
-        // อัปเดต cache ทันทีหลังจากข้อมูลโหลด
-        _updateCachedPostsInternal();
-        debugPrint(
-          "📊 Lost items: ${_lostItemsCached.length}, Found items: ${_foundItemsCached.length}",
-        );
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => isLoading = false);
-      debugPrint("❌ Error loading posts: $e");
-      _showError('เกิดข้อผิดพลาด: $e');
+  String _getCategoryName(String categoryId) {
+    switch (categoryId) {
+      case '1': return 'ของใช้ส่วนตัว';
+      case '2': return 'เอกสาร/บัตร';
+      case '3': return 'อุปกรณ์การเรียน';
+      case '4': return 'ของมีค่าอื่นๆ';
+      default: return 'ไม่ระบุ';
     }
   }
 
-  Future<void> _loadPosts() async {
-    if (!mounted) return;
-    setState(() => isLoading = true);
-    try {
-      // ลอง comment บรรทัด orderBy ออกชั่วคราว เพื่อเทสว่าเกี่ยวกับ Index ไหม
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('lost_found_items')
-              .orderBy('createdAt', descending: true)
-              .limit(pageSize)
-              .get();
-
-      debugPrint("🔥 เจอข้อมูลจำนวน: ${snapshot.docs.length} รายการ");
-
-      if (snapshot.docs.isNotEmpty) {
-        lastDocument = snapshot.docs.last;
-      }
-
-      if (!mounted) return;
-
-      // ลองแปลงข้อมูลดูว่าพังตรง Model หรือไม่
-      final List<Post> loadedPosts = [];
-      for (var doc in snapshot.docs) {
-        try {
-          loadedPosts.add(Post.fromJson({...doc.data(), 'id': doc.id}));
-        } catch (e) {
-          debugPrint("💥 Error แปลงข้อมูล ID ${doc.id}: $e");
-          // อาจจะเกิดจากชื่อตัวแปรไม่ตรงกัน (detail vs description)
-        }
-      }
-
-      setState(() {
-        posts = loadedPosts;
-        isLoading = false;
-        hasMore = snapshot.docs.length == pageSize;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => isLoading = false);
-      debugPrint("❌ Error โหลดข้อมูล: $e");
-      _showError('เกิดข้อผิดพลาด: $e');
-    }
-  }
-
-  Future<void> _loadMorePosts() async {
-    if (!hasMore || isLoading) return;
-    setState(() => isLoading = true);
-    try {
-      var query = FirebaseFirestore.instance
-          .collection('lost_found_items')
-          .orderBy('createdAt', descending: true)
-          .limit(pageSize);
-
-      if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument!);
-      }
-
-      final snapshot = await query.get();
-
-      if (snapshot.docs.length < pageSize) {
-        hasMore = false;
-      }
-
-      if (snapshot.docs.isNotEmpty) {
-        lastDocument = snapshot.docs.last;
-      }
-
-      setState(() {
-        posts.addAll(
-          snapshot.docs.map(
-            (doc) => Post.fromJson({...doc.data(), 'id': doc.id}),
-          ),
-        );
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() => isLoading = false);
-      _showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: $e');
-    }
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  String _normalize(String input) => input.replaceAll(' ', '').toLowerCase();
-
-  // ฟังก์ชันเคลียร์ตัวกรองทั้งหมด
   void _clearAllFilters() {
     final provider = Provider.of<PostProvider>(context, listen: false);
     provider.clearFilters();
     _searchController.clear();
-  }
-
-  // ฟังก์ชันแสดงข้อความตัวกรองที่กำลังใช้งาน
-  String _getActiveFiltersText(PostProvider provider) {
-    List<String> activeFilters = [];
-
-    if (provider.searchQuery.isNotEmpty) {
-      activeFilters.add('คำค้นหา "${provider.searchQuery}"');
-    }
-
-    if (provider.selectedCategory != null) {
-      String categoryName = _getCategoryName(provider.selectedCategory!);
-      activeFilters.add('ประเภท "$categoryName"');
-    }
-
-    if (activeFilters.isEmpty) {
-      return 'ไม่มีตัวกรอง';
-    }
-
-    return activeFilters.join(' • ');
-  }
-
-  // ฟังก์ชันแปลงรหัสหมวดหมู่เป็นชื่อ
-  String _getCategoryName(String categoryId) {
-    switch (categoryId) {
-      case '1':
-        return 'ของใช้ส่วนตัว';
-      case '2':
-        return 'เอกสาร/บัตร';
-      case '3':
-        return 'อุปกรณ์การเรียน';
-      case '4':
-        return 'ของมีค่าอื่นๆ';
-      default:
-        return 'ไม่ระบุ';
-    }
-  }
-
-  // ฟังก์ชันนับจำนวนโพสต์ที่ผ่านตัวกรอง
-  int _getFilteredPostsCount(bool isLostItems) {
-    final normalizedQuery = _normalize(searchQuery);
-    return posts.where((post) {
-      final matchesType = post.isLostItem == isLostItems;
-      final matchesSearch =
-          normalizedQuery.isEmpty ||
-          _normalize(post.title).contains(normalizedQuery) ||
-          _normalize(post.description).contains(normalizedQuery) ||
-          _normalize(post.building).contains(normalizedQuery) ||
-          _normalize(post.location).contains(normalizedQuery);
-      final matchesCategory =
-          selectedCategory == null ||
-          selectedCategory == 'all' ||
-          post.category == selectedCategory;
-      return matchesType && matchesSearch && matchesCategory;
-    }).length;
   }
 
   @override
@@ -278,9 +96,7 @@ class _PostPageState extends State<PostPage>
             bottom: TabBar(
               controller: _tabController,
               labelColor: Theme.of(context).colorScheme.onPrimary,
-              unselectedLabelColor: Theme.of(
-                context,
-              ).colorScheme.onPrimary.withOpacity(0.7),
+              unselectedLabelColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
               tabs: [
                 Tab(
                   child: Row(
@@ -289,20 +105,15 @@ class _PostPageState extends State<PostPage>
                       const Text('ของหาย'),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.red[100],
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          '${_getFilteredPostsCount(context.watch<PostProvider>(), true)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.red[700],
-                            fontWeight: FontWeight.bold,
+                        child: Consumer<PostProvider>(
+                          builder: (context, provider, child) => Text(
+                            '${_getFilteredPostsCount(provider, true)}',
+                            style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -316,20 +127,15 @@ class _PostPageState extends State<PostPage>
                       const Text('เจอของ'),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.green[100],
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          '${_getFilteredPostsCount(context.watch<PostProvider>(), false)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.bold,
+                        child: Consumer<PostProvider>(
+                          builder: (context, provider, child) => Text(
+                            '${_getFilteredPostsCount(provider, false)}',
+                            style: TextStyle(fontSize: 12, color: Colors.green[700], fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -355,30 +161,21 @@ class _PostPageState extends State<PostPage>
           ),
         ),
 
-        /// 👇 ปุ่ม FAB
         Positioned(
           child: PostActionButton(
             onLostPress: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LostItemForm()),
-              ).then((_) {
-                // After returning from Lost form, switch to the "ของหาย" tab and reload
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const LostItemForm())).then((_) {
                 if (mounted) {
                   _tabController.animateTo(0);
-                  _loadPosts();
+                  context.read<PostProvider>().refreshAll();
                 }
               });
             },
             onFoundPress: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FindItemForm()),
-              ).then((_) {
-                // After returning from Found form, switch to the "เจอของ" tab and reload
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const FindItemForm())).then((_) {
                 if (mounted) {
                   _tabController.animateTo(1);
-                  _loadPosts();
+                  context.read<PostProvider>().refreshAll();
                 }
               });
             },
@@ -389,6 +186,7 @@ class _PostPageState extends State<PostPage>
   }
 
   Widget _buildSearchBar() {
+    final provider = context.watch<PostProvider>();
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
@@ -401,155 +199,59 @@ class _PostPageState extends State<PostPage>
                     color: Theme.of(context).colorScheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(25.0),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.3),
-                        spreadRadius: 2,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
+                      BoxShadow(color: Colors.grey.withOpacity(0.3), spreadRadius: 2, blurRadius: 5, offset: const Offset(0, 3)),
                     ],
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
                     cursorColor: Theme.of(context).colorScheme.surface,
                     decoration: InputDecoration(
                       hintText: 'ค้นหา...',
-                      hintStyle: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
+                      prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 12.0,
-                      ),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value;
-                      });
-                    },
+                    onChanged: (value) => context.read<PostProvider>().setSearchQuery(value),
                   ),
                 ),
               ),
               const SizedBox(width: 8.0),
               PopupMenuButton<String?>(
-                icon: Icon(
-                  Icons.filter_list,
-                  color: Theme.of(context).colorScheme.secondary,
-                ),
+                icon: Icon(Icons.filter_list, color: Theme.of(context).colorScheme.secondary),
                 color: Theme.of(context).colorScheme.primary,
-                elevation: 3, // ✅ ความสูงของเงา
-                shadowColor: Colors.white, // ✅ สีเงา
+                elevation: 3,
+                shadowColor: Colors.white,
                 offset: const Offset(0, 60),
-                onSelected: (value) {
-                  setState(() {
-                    selectedCategory = value;
-                  });
-                },
-                itemBuilder:
-                    (context) => [
-                      PopupMenuItem<String?>(
-                        value: null,
-                        child: Text(
-                          'ทั้งหมด',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context)
-                                    .colorScheme
-                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem<String?>(
-                        value: '1',
-                        child: Text(
-                          'ของใช้ส่วนตัว',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context)
-                                    .colorScheme
-                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem<String?>(
-                        value: '2',
-                        child: Text(
-                          'เอกสาร/บัตร',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context)
-                                    .colorScheme
-                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem<String?>(
-                        value: '3',
-                        child: Text(
-                          'อุปกรณ์การเรียน',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context)
-                                    .colorScheme
-                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem<String?>(
-                        value: '4',
-                        child: Text(
-                          'ของมีค่าอื่นๆ',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context)
-                                    .colorScheme
-                                    .onPrimary, // หรือ Theme.of(context).colorScheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
+                onSelected: (value) => context.read<PostProvider>().setCategory(value),
+                itemBuilder: (context) => [
+                  PopupMenuItem<String?>(value: null, child: Text('ทั้งหมด', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
+                  PopupMenuItem<String?>(value: '1', child: Text('ของใช้ส่วนตัว', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
+                  PopupMenuItem<String?>(value: '2', child: Text('เอกสาร/บัตร', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
+                  PopupMenuItem<String?>(value: '3', child: Text('อุปกรณ์การเรียน', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
+                  PopupMenuItem<String?>(value: '4', child: Text('ของมีค่าอื่นๆ', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
+                ],
               ),
             ],
           ),
-          // แสดงสถานะตัวกรองและปุ่มเคลียร์
-          if (context.watch<PostProvider>().searchQuery.isNotEmpty || context.watch<PostProvider>().selectedCategory != null)
+          if (provider.searchQuery.isNotEmpty || provider.selectedCategory != null)
             Container(
               margin: const EdgeInsets.only(top: 16.0),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12.0,
-                vertical: 8.0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.secondary,
                 borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.surface,
-                ),
+                border: Border.all(color: Theme.of(context).colorScheme.surface),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.filter_alt,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.surface,
-                  ),
+                  Icon(Icons.filter_alt, size: 16, color: Theme.of(context).colorScheme.surface),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'กรองโดย: ${_getActiveFiltersText(context.watch<PostProvider>())}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      'กรองโดย: ${_getActiveFiltersText(provider)}',
+                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimaryContainer, fontWeight: FontWeight.w500),
                     ),
                   ),
                   IconButton(
@@ -557,10 +259,7 @@ class _PostPageState extends State<PostPage>
                     icon: Icon(Icons.clear, size: 18, color: Colors.red[600]),
                     tooltip: 'เคลียร์ตัวกรองทั้งหมด',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                 ],
               ),
@@ -573,29 +272,14 @@ class _PostPageState extends State<PostPage>
   Widget _buildPostsList(bool isLostItems) {
     return Consumer<PostProvider>(
       builder: (context, provider, child) {
-        final bool currentIsLoading = isLostItems ? provider.isLoadingLost : provider.isLoadingFound;
-        final bool currentIsLoadingMore = isLostItems ? provider.isLoadingMoreLost : provider.isLoadingMoreFound;
+        final currentIsLoading = isLostItems ? provider.isLoadingLost : provider.isLoadingFound;
+        final currentIsLoadingMore = isLostItems ? provider.isLoadingMoreLost : provider.isLoadingMoreFound;
 
         if (currentIsLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-    final normalizedQuery = _normalize(searchQuery);
-    final filteredPosts =
-        posts.where((post) {
-          final matchesType = post.isLostItem == isLostItems;
-          final matchesSearch =
-              normalizedQuery.isEmpty ||
-              _normalize(post.title).contains(normalizedQuery) ||
-              _normalize(post.description).contains(normalizedQuery) ||
-              _normalize(post.building).contains(normalizedQuery) ||
-              _normalize(post.location).contains(normalizedQuery);
-          final matchesCategory =
-              selectedCategory == null ||
-              selectedCategory == 'all' ||
-              post.category == selectedCategory;
-          return matchesType && matchesSearch && matchesCategory;
-        }).toList();
+        final filteredPosts = isLostItems ? provider.lostPosts : provider.foundPosts;
 
         if (filteredPosts.isEmpty) {
           String noResultsText = '';
@@ -621,16 +305,9 @@ class _PostPageState extends State<PostPage>
                   color: Colors.grey[400],
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  noResultsText,
-                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                ),
+                Text(noResultsText, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
                 const SizedBox(height: 8),
-                Text(
-                  suggestionText,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                  textAlign: TextAlign.center,
-                ),
+                Text(suggestionText, style: TextStyle(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
                 if (provider.searchQuery.isNotEmpty || provider.selectedCategory != null) ...[
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
@@ -648,25 +325,37 @@ class _PostPageState extends State<PostPage>
           );
         }
 
-    return RefreshIndicator(
-      onRefresh: _loadPosts,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (scrollInfo) {
-          if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
-            _loadMorePosts();
-          }
-          return true;
-        },
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          itemCount: filteredPosts.length,
-          itemBuilder:
-              (context, index) => _buildPostItem(
-                filteredPosts[index],
-                isMobile: MediaQuery.of(context).size.width < 600,
-              ),
-        ),
-      ),
+        return RefreshIndicator(
+          onRefresh: () async {
+            provider.loadPosts(isLostItems: isLostItems, isRefresh: true);
+          },
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (scrollInfo) {
+              if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+                provider.loadPosts(isLostItems: isLostItems, isRefresh: false);
+              }
+              return false;
+            },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: filteredPosts.length + (currentIsLoadingMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == filteredPosts.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                return _buildPostItem(
+                  filteredPosts[index],
+                  isMobile: MediaQuery.of(context).size.width < 600,
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -723,7 +412,9 @@ class _PostPageState extends State<PostPage>
                               child:
                                   post.userName.trim().isEmpty
                                       ? FutureBuilder<String>(
-                                        future: context.read<PostProvider>().getUserName(post.userId),
+                                        future: context
+                                            .read<PostProvider>()
+                                            .getUserName(post.userId),
                                         builder: (context, snapshot) {
                                           if (snapshot.connectionState ==
                                               ConnectionState.waiting) {

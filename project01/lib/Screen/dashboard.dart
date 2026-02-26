@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/map/map_page.dart';
 import 'package:project01/Screen/page/post/post_page.dart';
 import 'package:project01/Screen/page/profile/profile_page.dart';
-// Ensure this file contains the ActionPage class
+import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -14,6 +14,15 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
   DateTime? lastPressed;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🚀 Start listening for smart match notifications in the background
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RealtimeNotificationService.startListening(context);
+    });
+  }
 
   // กำหนดให้ MapPage เป็นหน้าแรก
   final List<Widget> _pages = [

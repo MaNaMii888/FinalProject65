@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'dart:typed_data';
 
+import 'package:project01/utils/image_compressor.dart';
+
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
 
@@ -258,6 +260,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String? photoURL = user?.photoURL;
 
       if (_imageFile != null) {
+        // บีบอัดรูปก่อนอัพโหลด (จำกัด 512x512 สำหรับก้อนภาพโปรไฟล์)
+        _imageFile = await ImageCompressor.compressImage(
+          _imageFile!,
+          minWidth: 512,
+          minHeight: 512,
+          quality: 75,
+        );
+
         final ref = FirebaseStorage.instance
             .ref()
             .child('profile_images')
