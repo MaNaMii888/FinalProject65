@@ -10,6 +10,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:project01/services/log_service.dart';
+import 'package:project01/services/archive_service.dart';
 import 'package:project01/utils/time_formatter.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -28,6 +29,12 @@ class _ProfilePageState extends State<ProfilePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // เรียกทำงานระบบย้ายของเก่าลงโกดังแบบทำงานเบื้องหลัง
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      ArchiveService.autoArchiveOldPosts(user.uid);
+    }
   }
 
   @override

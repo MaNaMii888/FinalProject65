@@ -65,7 +65,7 @@ class _DashboardPageState extends State<DashboardPage> {
         }
       },
       child: Scaffold(
-        body: _pages[_selectedIndex],
+        body: IndexedStack(index: _selectedIndex, children: _pages),
         bottomNavigationBar: _buildResponsiveNavigation(),
       ),
     );

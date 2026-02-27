@@ -127,16 +127,10 @@ class SmartMatchingService {
       // กรองข้อมูลใน client side
       final oppositePosts =
           snapshot.docs
-              .map(
-                (doc) => Post.fromJson({
-                  ...doc.data() as Map<String, dynamic>,
-                  'id': doc.id,
-                }),
-              )
+              .map((doc) => Post.fromJson({...doc.data(), 'id': doc.id}))
               .where(
                 (post) =>
-                    post.userId != excludeUserId &&
-                    (post.status == 'active' || post.status == null),
+                    post.userId != excludeUserId && (post.status == 'active'),
               )
               .toList();
 

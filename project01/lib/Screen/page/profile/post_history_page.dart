@@ -28,7 +28,8 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
   bool isLoading = true;
   bool isLoadingMore = false;
   bool hasMore = true;
-  DocumentSnapshot? lastDocument;
+  List<Post> _allPostsInMemory = [];
+  int _currentOffset = 0;
   static const int pageSize = 15;
   final ScrollController _scrollController = ScrollController();
 
@@ -37,7 +38,8 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
     super.initState();
     _loadData();
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      if (_scrollController.position.pixels ==
+          _scrollController.position.maxScrollExtent) {
         _loadData(isLoadMore: true);
       }
     });
@@ -59,33 +61,55 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
       setState(() {
         isLoading = true;
         hasMore = true;
-        lastDocument = null;
         posts.clear();
       });
     }
 
     try {
-      var query = FirebaseFirestore.instance
-          .collection('lost_found_items')
-          .where('userId', isEqualTo: widget.userId)
-          .where('isLostItem', isEqualTo: widget.isLostItems)
-          .orderBy('createdAt', descending: true)
-          .limit(pageSize);
+      if (!isLoadMore) {
+        // โหลดข้อมูลทั้งหมดของ User คนนี้มาจากทั้ง 2 โกดัง (Active & Archived)
+        final activeQuery =
+            FirebaseFirestore.instance
+                .collection('lost_found_items')
+                .where('userId', isEqualTo: widget.userId)
+                .where('isLostItem', isEqualTo: widget.isLostItems)
+                .get();
 
-      if (lastDocument != null && isLoadMore) {
-        query = query.startAfterDocument(lastDocument!);
+        final archiveQuery =
+            FirebaseFirestore.instance
+                .collection('archived_items')
+                .where('userId', isEqualTo: widget.userId)
+                .where('isLostItem', isEqualTo: widget.isLostItems)
+                .get();
+
+        final results = await Future.wait([activeQuery, archiveQuery]);
+
+        final List<Post> tempAllPosts = [];
+        for (var snapshot in results) {
+          for (var doc in snapshot.docs) {
+            try {
+              final data = doc.data();
+              tempAllPosts.add(Post.fromJson({...data, 'id': doc.id}));
+            } catch (e) {
+              print("Error parsing post: $e");
+            }
+          }
+        }
+
+        // เรียงลำดับจากใหม่สุดไปเก่าสุด
+        tempAllPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _allPostsInMemory = tempAllPosts;
+        _currentOffset = 0;
       }
 
-      final snapshot = await query.get();
-      
       final List<Post> loaded = [];
-      for (var doc in snapshot.docs) {
-        try {
-          final data = doc.data() as Map<String, dynamic>;
-          loaded.add(Post.fromJson({...data, 'id': doc.id}));
-        } catch (e) {
-          print("Error parsing post: $e");
-        }
+      if (_currentOffset < _allPostsInMemory.length) {
+        final end =
+            (_currentOffset + pageSize < _allPostsInMemory.length)
+                ? _currentOffset + pageSize
+                : _allPostsInMemory.length;
+        loaded.addAll(_allPostsInMemory.sublist(_currentOffset, end));
+        _currentOffset = end;
       }
 
       setState(() {
@@ -96,10 +120,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
           posts = loaded;
           isLoading = false;
         }
-        hasMore = snapshot.docs.length == pageSize;
-        if (snapshot.docs.isNotEmpty) {
-          lastDocument = snapshot.docs.last;
-        }
+        hasMore = _currentOffset < _allPostsInMemory.length;
       });
     } catch (e) {
       setState(() {
@@ -169,7 +190,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                   );
                 }
                 final post = posts[index];
-return Card(
+                return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   elevation: 2,
                   shape: RoundedRectangleBorder(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:project01/Screen/page/map/campus_map_polygon.dart'
-    show CampusMapPolygon;
+import 'package:project01/Screen/page/map/campus_navigation_clean.dart'
+    show CampusNavigation;
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -10,7 +10,7 @@ class MapPage extends StatelessWidget {
     return Stack(
       children: [
         // แสดงแผนที่
-        const CampusMapPolygon(),
+        const CampusNavigation(),
         // ทับด้วย TopBar
       ],
     );

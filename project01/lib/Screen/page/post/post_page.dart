@@ -7,7 +7,6 @@ import 'package:project01/Screen/page/post/action/post_actions_buttons.dart';
 import 'package:project01/utils/time_formatter.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class PostPage extends StatefulWidget {
@@ -63,18 +62,25 @@ class _PostPageState extends State<PostPage>
       activeFilters.add('คำค้นหา "${provider.searchQuery}"');
     }
     if (provider.selectedCategory != null) {
-      activeFilters.add('ประเภท "${_getCategoryName(provider.selectedCategory!)}"');
+      activeFilters.add(
+        'ประเภท "${_getCategoryName(provider.selectedCategory!)}"',
+      );
     }
     return activeFilters.isEmpty ? 'ไม่มีตัวกรอง' : activeFilters.join(' • ');
   }
 
   String _getCategoryName(String categoryId) {
     switch (categoryId) {
-      case '1': return 'ของใช้ส่วนตัว';
-      case '2': return 'เอกสาร/บัตร';
-      case '3': return 'อุปกรณ์การเรียน';
-      case '4': return 'ของมีค่าอื่นๆ';
-      default: return 'ไม่ระบุ';
+      case '1':
+        return 'ของใช้ส่วนตัว';
+      case '2':
+        return 'เอกสาร/บัตร';
+      case '3':
+        return 'อุปกรณ์การเรียน';
+      case '4':
+        return 'ของมีค่าอื่นๆ';
+      default:
+        return 'ไม่ระบุ';
     }
   }
 
@@ -96,7 +102,9 @@ class _PostPageState extends State<PostPage>
             bottom: TabBar(
               controller: _tabController,
               labelColor: Theme.of(context).colorScheme.onPrimary,
-              unselectedLabelColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+              unselectedLabelColor: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withOpacity(0.7),
               tabs: [
                 Tab(
                   child: Row(
@@ -105,16 +113,24 @@ class _PostPageState extends State<PostPage>
                       const Text('ของหาย'),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red[100],
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Consumer<PostProvider>(
-                          builder: (context, provider, child) => Text(
-                            '${_getFilteredPostsCount(provider, true)}',
-                            style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.bold),
-                          ),
+                          builder:
+                              (context, provider, child) => Text(
+                                '${_getFilteredPostsCount(provider, true)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red[700],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                         ),
                       ),
                     ],
@@ -127,16 +143,24 @@ class _PostPageState extends State<PostPage>
                       const Text('เจอของ'),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.green[100],
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Consumer<PostProvider>(
-                          builder: (context, provider, child) => Text(
-                            '${_getFilteredPostsCount(provider, false)}',
-                            style: TextStyle(fontSize: 12, color: Colors.green[700], fontWeight: FontWeight.bold),
-                          ),
+                          builder:
+                              (context, provider, child) => Text(
+                                '${_getFilteredPostsCount(provider, false)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                         ),
                       ),
                     ],
@@ -164,7 +188,10 @@ class _PostPageState extends State<PostPage>
         Positioned(
           child: PostActionButton(
             onLostPress: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const LostItemForm())).then((_) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LostItemForm()),
+              ).then((_) {
                 if (mounted) {
                   _tabController.animateTo(0);
                   context.read<PostProvider>().refreshAll();
@@ -172,7 +199,10 @@ class _PostPageState extends State<PostPage>
               });
             },
             onFoundPress: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const FindItemForm())).then((_) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FindItemForm()),
+              ).then((_) {
                 if (mounted) {
                   _tabController.animateTo(1);
                   context.read<PostProvider>().refreshAll();
@@ -199,59 +229,135 @@ class _PostPageState extends State<PostPage>
                     color: Theme.of(context).colorScheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(25.0),
                     boxShadow: [
-                      BoxShadow(color: Colors.grey.withOpacity(0.3), spreadRadius: 2, blurRadius: 5, offset: const Offset(0, 3)),
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.3),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
                     ],
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
                     cursorColor: Theme.of(context).colorScheme.surface,
                     decoration: InputDecoration(
                       hintText: 'ค้นหา...',
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
                     ),
-                    onChanged: (value) => context.read<PostProvider>().setSearchQuery(value),
+                    onChanged:
+                        (value) =>
+                            context.read<PostProvider>().setSearchQuery(value),
                   ),
                 ),
               ),
               const SizedBox(width: 8.0),
               PopupMenuButton<String?>(
-                icon: Icon(Icons.filter_list, color: Theme.of(context).colorScheme.secondary),
+                icon: Icon(
+                  Icons.filter_list,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
                 color: Theme.of(context).colorScheme.primary,
                 elevation: 3,
                 shadowColor: Colors.white,
                 offset: const Offset(0, 60),
-                onSelected: (value) => context.read<PostProvider>().setCategory(value),
-                itemBuilder: (context) => [
-                  PopupMenuItem<String?>(value: null, child: Text('ทั้งหมด', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
-                  PopupMenuItem<String?>(value: '1', child: Text('ของใช้ส่วนตัว', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
-                  PopupMenuItem<String?>(value: '2', child: Text('เอกสาร/บัตร', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
-                  PopupMenuItem<String?>(value: '3', child: Text('อุปกรณ์การเรียน', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
-                  PopupMenuItem<String?>(value: '4', child: Text('ของมีค่าอื่นๆ', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary))),
-                ],
+                onSelected:
+                    (value) => context.read<PostProvider>().setCategory(value),
+                itemBuilder:
+                    (context) => [
+                      PopupMenuItem<String?>(
+                        value: null,
+                        child: Text(
+                          'ทั้งหมด',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '1',
+                        child: Text(
+                          'ของใช้ส่วนตัว',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '2',
+                        child: Text(
+                          'เอกสาร/บัตร',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '3',
+                        child: Text(
+                          'อุปกรณ์การเรียน',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                      PopupMenuItem<String?>(
+                        value: '4',
+                        child: Text(
+                          'ของมีค่าอื่นๆ',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
               ),
             ],
           ),
-          if (provider.searchQuery.isNotEmpty || provider.selectedCategory != null)
+          if (provider.searchQuery.isNotEmpty ||
+              provider.selectedCategory != null)
             Container(
               margin: const EdgeInsets.only(top: 16.0),
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.secondary,
                 borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(color: Theme.of(context).colorScheme.surface),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.surface,
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.filter_alt, size: 16, color: Theme.of(context).colorScheme.surface),
+                  Icon(
+                    Icons.filter_alt,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.surface,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'กรองโดย: ${_getActiveFiltersText(provider)}',
-                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onPrimaryContainer, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -259,7 +365,10 @@ class _PostPageState extends State<PostPage>
                     icon: Icon(Icons.clear, size: 18, color: Colors.red[600]),
                     tooltip: 'เคลียร์ตัวกรองทั้งหมด',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                   ),
                 ],
               ),
@@ -272,25 +381,35 @@ class _PostPageState extends State<PostPage>
   Widget _buildPostsList(bool isLostItems) {
     return Consumer<PostProvider>(
       builder: (context, provider, child) {
-        final currentIsLoading = isLostItems ? provider.isLoadingLost : provider.isLoadingFound;
-        final currentIsLoadingMore = isLostItems ? provider.isLoadingMoreLost : provider.isLoadingMoreFound;
+        final currentIsLoading =
+            isLostItems ? provider.isLoadingLost : provider.isLoadingFound;
+        final currentIsLoadingMore =
+            isLostItems
+                ? provider.isLoadingMoreLost
+                : provider.isLoadingMoreFound;
 
         if (currentIsLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final filteredPosts = isLostItems ? provider.lostPosts : provider.foundPosts;
+        final filteredPosts =
+            isLostItems ? provider.lostPosts : provider.foundPosts;
 
         if (filteredPosts.isEmpty) {
           String noResultsText = '';
           String suggestionText = '';
 
-          if (provider.searchQuery.isNotEmpty || provider.selectedCategory != null) {
+          if (provider.searchQuery.isNotEmpty ||
+              provider.selectedCategory != null) {
             noResultsText = 'ไม่พบผลลัพธ์ที่ค้นหา';
             suggestionText = 'ลองเปลี่ยนคำค้นหาหรือเคลียร์ตัวกรอง';
           } else {
-            noResultsText = isLostItems ? 'ยังไม่มีโพสต์ของหาย' : 'ยังไม่มีโพสต์เจอของ';
-            suggestionText = isLostItems ? 'เป็นคนแรกที่แจ้งของหาย' : 'เป็นคนแรกที่แจ้งเจอของ';
+            noResultsText =
+                isLostItems ? 'ยังไม่มีโพสต์ของหาย' : 'ยังไม่มีโพสต์เจอของ';
+            suggestionText =
+                isLostItems
+                    ? 'เป็นคนแรกที่แจ้งของหาย'
+                    : 'เป็นคนแรกที่แจ้งเจอของ';
           }
 
           return Center(
@@ -298,17 +417,28 @@ class _PostPageState extends State<PostPage>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  (provider.searchQuery.isNotEmpty || provider.selectedCategory != null)
+                  (provider.searchQuery.isNotEmpty ||
+                          provider.selectedCategory != null)
                       ? Icons.search_off
-                      : (isLostItems ? Icons.help_outline : Icons.check_circle_outline),
+                      : (isLostItems
+                          ? Icons.help_outline
+                          : Icons.check_circle_outline),
                   size: 80,
                   color: Colors.grey[400],
                 ),
                 const SizedBox(height: 16),
-                Text(noResultsText, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                Text(
+                  noResultsText,
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                ),
                 const SizedBox(height: 8),
-                Text(suggestionText, style: TextStyle(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
-                if (provider.searchQuery.isNotEmpty || provider.selectedCategory != null) ...[
+                Text(
+                  suggestionText,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  textAlign: TextAlign.center,
+                ),
+                if (provider.searchQuery.isNotEmpty ||
+                    provider.selectedCategory != null) ...[
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: _clearAllFilters,
@@ -331,7 +461,8 @@ class _PostPageState extends State<PostPage>
           },
           child: NotificationListener<ScrollNotification>(
             onNotification: (scrollInfo) {
-              if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+              if (scrollInfo.metrics.pixels ==
+                  scrollInfo.metrics.maxScrollExtent) {
                 provider.loadPosts(isLostItems: isLostItems, isRefresh: false);
               }
               return false;

@@ -5,8 +5,8 @@ import 'package:project01/models/post.dart';
 class PostProvider with ChangeNotifier {
   static const int _pageSize = 15;
 
-  List<Post> _lostPosts = [];
-  List<Post> _foundPosts = [];
+  final List<Post> _lostPosts = [];
+  final List<Post> _foundPosts = [];
 
   bool _isLoadingLost = true;
   bool _isLoadingFound = true;

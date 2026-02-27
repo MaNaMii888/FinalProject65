@@ -139,12 +139,14 @@ class _LoginScreenState extends State<LoginPage> {
                               border: const UnderlineInputBorder(),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return "กรุณากรอกอีเมล";
+                              }
                               if (!RegExp(
                                 r'^[^@]+@[^@]+\.[^@]+',
-                              ).hasMatch(value))
+                              ).hasMatch(value)) {
                                 return "รูปแบบอีเมลไม่ถูกต้อง";
+                              }
                               return null;
                             },
                           ),
@@ -168,10 +170,12 @@ class _LoginScreenState extends State<LoginPage> {
                               border: const UnderlineInputBorder(),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return "กรุณากรอกรหัสผ่าน";
-                              if (value.length < 6)
+                              }
+                              if (value.length < 6) {
                                 return "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+                              }
                               return null;
                             },
                           ),
@@ -276,9 +280,9 @@ class _LoginScreenState extends State<LoginPage> {
                                               });
                                               String msg =
                                                   "เข้าสู่ระบบไม่สำเร็จ";
-                                              if (e.code == 'user-not-found')
+                                              if (e.code == 'user-not-found') {
                                                 msg = "ไม่พบผู้ใช้งานนี้";
-                                              else if (e.code ==
+                                              } else if (e.code ==
                                                   'wrong-password')
                                                 msg = "รหัสผ่านไม่ถูกต้อง";
                                               else if (e.code ==

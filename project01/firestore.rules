@@ -39,7 +39,24 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // 3. notifications collection
+    // 3. archived_items collection
+    // ==========================================
+    match /archived_items/{itemId} {
+      // Anyone authenticated can read archived items (for reference in history)
+      allow read: if isAuthenticated();
+      
+      // Creating an archived item: the userId must match the creator's UID
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Updating archived items is not allowed (it's permanent history)
+      allow update: if false;
+
+      // Deleting archived items (only owner can delete permanently)
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // ==========================================
+    // 4. notifications collection
     // ==========================================
     match /notifications/{notificationId} {
       // Users can only read their own notifications (where userId matches their UID)
@@ -53,7 +70,7 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // 4. device_tokens collection (Push Notifications)
+    // 5. device_tokens collection (Push Notifications)
     // ==========================================
     match /device_tokens/{tokenId} {
       // Users can only read, create, update, delete their own token records
