@@ -296,27 +296,47 @@ class SmartMatchingService {
   static double _calculatePostSimilarity(Post userPost, Post newPost) {
     double score = 0.0;
 
-    // 1. ประเภทตรงข้าม (Lost vs Found) - 40%
+    // 1. ประเภทตรงข้าม (Lost vs Found) - 30%
     if (userPost.isLostItem != newPost.isLostItem) {
-      score += 0.4;
+      score += 0.3;
     }
 
-    // 2. หมวดหมู่เดียวกัน - 10%
-    if (userPost.category == newPost.category) {
+    // 2. อาคารเดียวกัน - 10%
+    if (userPost.building == newPost.building && userPost.building.isNotEmpty) {
       score += 0.1;
     }
 
-    // 3. อาคารเดียวกัน - 10%
-    if (userPost.building == newPost.building) {
-      score += 0.1;
-    }
+    // ตรวจสอบว่ามี AI Tags หรือไม่
+    bool hasAiTags =
+        userPost.aiTags != null &&
+        userPost.aiTags!.isNotEmpty &&
+        newPost.aiTags != null &&
+        newPost.aiTags!.isNotEmpty;
 
-    // 4. ความคล้ายคลึงของคำ - 20%
-    double textSimilarity = _calculateTextSimilarity(
-      '${userPost.title} ${userPost.description}',
-      '${newPost.title} ${newPost.description}',
-    );
-    score += textSimilarity * 0.2;
+    if (hasAiTags) {
+      // 3. AI Semantic Tag Matching - 60%
+      int commonTags =
+          userPost.aiTags!.where((tag) => newPost.aiTags!.contains(tag)).length;
+
+      // เทียบจากจำนวน Tags ของอันที่น้อยกว่า จะได้คะแนนสะท้อนบริบทที่ตรงกันมากที่สุด (ไม่หักคะแนนคนอธิบายยาว)
+      int minTags =
+          userPost.aiTags!.length < newPost.aiTags!.length
+              ? userPost.aiTags!.length
+              : newPost.aiTags!.length;
+
+      double tagSimilarity = minTags > 0 ? commonTags / minTags : 0.0;
+      score += tagSimilarity * 0.6; // ให้พลัง AI ถึง 60%
+    } else {
+      // --- Fallback สำหรับโพสต์เก่าที่ยังไม่มี AI Tags ---
+      if (userPost.category == newPost.category) {
+        score += 0.1;
+      }
+      double textSimilarity = _calculateTextSimilarity(
+        '${userPost.title} ${userPost.description}',
+        '${newPost.title} ${newPost.description}',
+      );
+      score += textSimilarity * 0.2;
+    }
 
     return score;
   }
@@ -394,30 +414,51 @@ class SmartMatchingService {
   static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
     final List<String> reasons = [];
 
-    // ประเภทตรงข้าม - 40%
     if (userPost.isLostItem != otherPost.isLostItem) {
-      reasons.add('✓ ประเภทตรงข้าม (หาของ/เจอของ) (+40%)');
+      reasons.add('✓ ประเภทตรงข้าม (หาของ/เจอของ) (+30%)');
     }
 
-    // หมวดหมู่เดียวกัน - 10%
-    if (userPost.category == otherPost.category) {
-      reasons.add('✓ หมวดหมู่เดียวกัน (+10%)');
-    }
-
-    // อาคารเดียวกัน - 10%
     if (userPost.building == otherPost.building &&
         userPost.building.isNotEmpty) {
       reasons.add('✓ อาคารเดียวกัน: อาคาร ${otherPost.building} (+10%)');
     }
 
-    // ความคล้ายคลึงของข้อความ - สูงสุด 20%
-    final textSim = _calculateTextSimilarity(
-      '${userPost.title} ${userPost.description}',
-      '${otherPost.title} ${otherPost.description}',
-    );
-    if (textSim >= 0.3) {
-      int percent = (textSim * 20).round();
-      reasons.add('✓ ข้อความคล้ายกัน (+$percent%)');
+    bool hasAiTags =
+        userPost.aiTags != null &&
+        userPost.aiTags!.isNotEmpty &&
+        otherPost.aiTags != null &&
+        otherPost.aiTags!.isNotEmpty;
+
+    if (hasAiTags) {
+      int commonTags =
+          userPost.aiTags!
+              .where((tag) => otherPost.aiTags!.contains(tag))
+              .length;
+
+      int minTags =
+          userPost.aiTags!.length < otherPost.aiTags!.length
+              ? userPost.aiTags!.length
+              : otherPost.aiTags!.length;
+
+      double tagSim = minTags > 0 ? commonTags / minTags : 0.0;
+
+      if (tagSim > 0.0) {
+        int percent = (tagSim * 60).round();
+        reasons.add('🧠 AI บริบทตรงกัน (+$percent%)');
+      }
+    } else {
+      if (userPost.category == otherPost.category) {
+        reasons.add('✓ หมวดหมู่เดียวกัน (+10%)');
+      }
+
+      final textSim = _calculateTextSimilarity(
+        '${userPost.title} ${userPost.description}',
+        '${otherPost.title} ${otherPost.description}',
+      );
+      if (textSim >= 0.2) {
+        int percent = (textSim * 20).round();
+        reasons.add('✓ ข้อความคล้ายกัน (+$percent%)');
+      }
     }
 
     return reasons;

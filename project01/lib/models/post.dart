@@ -15,6 +15,7 @@ class Post {
   final String status;
   final String category;
   final String contact;
+  final List<String>? aiTags;
 
   Post({
     required this.id,
@@ -30,6 +31,7 @@ class Post {
     this.status = 'open',
     required this.category,
     required this.contact,
+    this.aiTags,
   });
 
   // เพิ่ม factory constructor สำหรับแปลง JSON
@@ -73,6 +75,7 @@ class Post {
               ? (json['createdAt'] as Timestamp).toDate()
               : DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
                   DateTime.now(),
+      aiTags: json['aiTags'] != null ? List<String>.from(json['aiTags']) : null,
     );
   }
 
@@ -90,6 +93,7 @@ class Post {
     'status': status,
     'category': category,
     'contact': contact,
+    if (aiTags != null) 'aiTags': aiTags,
   };
 
   String getTimeAgo() {

@@ -66,6 +66,7 @@ dependencies:
   path_provider: ^2.1.5
   geolocator: ^14.0.2
   flutter_image_compress: ^2.4.0
+  google_generative_ai: ^0.4.7
 
 
   

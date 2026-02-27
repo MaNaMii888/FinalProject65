@@ -13,6 +13,7 @@ import 'package:project01/Screen/page/notification/realtime_notification_service
 import 'package:project01/services/post_count_service.dart';
 import 'package:project01/utils/image_compressor.dart';
 import 'package:project01/services/log_service.dart';
+import 'package:project01/services/ai_tagging_service.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -479,6 +480,16 @@ class _LostItemFormState extends State<LostItemForm> {
         setState(() => uploadProgress = 0.85);
       }
 
+      // 🧠 เรียก Gemini AI เพื่อสร้าง Tags
+      setState(() => uploadProgress = 0.90);
+      debugPrint('🧠 Generating AI Tags...');
+      final List<String> aiTags = await AiTaggingService.generateTags(
+        title: titleController.text.trim(),
+        description: detailController.text.trim(),
+        category: categories[selectedCategory!] ?? '',
+      );
+      debugPrint('🧠 AI Tags generated: $aiTags');
+
       final post = {
         'userId': AuthService.currentUser!.uid,
         'userEmail': AuthService.currentUser!.email,
@@ -497,6 +508,7 @@ class _LostItemFormState extends State<LostItemForm> {
         'updatedAt': FieldValue.serverTimestamp(),
         'imageUrl': imageUrl ?? '',
         'searchKeywords': _generateSearchKeywords(),
+        'aiTags': aiTags, // บันทึก AI Tags ลง Firestore
       };
 
       final docRef = await FirebaseFirestore.instance
