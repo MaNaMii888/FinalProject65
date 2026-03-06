@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/notifications_service.dart';
 import 'package:project01/utils/time_formatter.dart';
+import 'package:project01/services/chat_service.dart';
+import 'package:project01/Screen/page/chat/chat_room_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SmartNotificationPopup extends StatefulWidget {
   const SmartNotificationPopup({super.key});
@@ -125,9 +128,14 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
           );
         }
 
+        final threeMonthsAgo = DateTime.now().subtract(
+          const Duration(days: 90),
+        );
+
         final notifications =
             snapshot.data
                 ?.where((item) => item.type == 'smart_match')
+                .where((item) => !item.createdAt.isBefore(threeMonthsAgo))
                 .toList() ??
             [];
 
@@ -335,11 +343,19 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   // ปุ่ม ใช่ (ติดต่อ)
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _handleMatchConfirmed(notification),
+                      onPressed: () {
+                        if (!notification.isRead) {
+                          NotificationService.markAsRead(notification.id);
+                        }
+                        _contactOwner(notification);
+                      },
                       icon: const Icon(Icons.chat_bubble_outline, size: 16),
                       label: const Text(
-                        'ยืนยัน',
-                        style: TextStyle(fontSize: 12),
+                        'ของฉัน / แชทเลย',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
@@ -475,126 +491,218 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     }
   }
 
-  void _handleMatchConfirmed(NotificationModel notification) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('ยืนยันการติดต่อ'),
-            content: const Text(
-              'ท่านได้ทำการติดต่อกับผู้พบ/ผู้ทำของหายแล้วใช่หรือไม่?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ยกเลิก'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // ในอนาคตอาจจะมีการอัพเดทสถานะโพสต์หรือลบการแจ้งเตือน
-                  NotificationService.deleteNotification(notification.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ยืนยันการติดต่อเรียบร้อย')),
-                  );
-                },
-                child: const Text(
-                  'ยืนยัน',
-                  style: TextStyle(color: Colors.green),
-                ),
-              ),
-            ],
-          ),
-    );
-  }
-
   void _contactOwner(NotificationModel notification) {
+    bool isLoadingChat = false;
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('ข้อมูลติดต่อ'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notification.postTitle ?? 'ไม่ระบุสิ่งของ',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+          (context) => StatefulBuilder(
+            builder:
+                (context, setStateDialog) => AlertDialog(
+                  title: const Text('ข้อมูลติดต่อ'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        notification.postTitle ?? 'ไม่ระบุสิ่งของ',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            notification.postType == 'lost'
+                                ? Icons.search
+                                : Icons.check_box,
+                            color: Colors.green,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            notification.postType == 'lost'
+                                ? 'ของหาย'
+                                : 'ของเจอ',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.phone, color: Colors.green),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                notification.data['contact'] ?? '-',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.copy,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(
+                                    text: notification.data['contact'] ?? '',
+                                  ),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('คัดลอกเบอร์ติดต่อแล้ว'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        subtitle: const Text('เบอร์โทร / Line ID'),
+                      ),
+                      if ((notification.data['location'] ?? '').isNotEmpty)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(
+                            Icons.location_on,
+                            color: Colors.orange,
+                          ),
+                          title: Text(notification.data['location']),
+                          subtitle: const Text('สถานที่'),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      notification.postType == 'lost'
-                          ? Icons.search
-                          : Icons.check_box,
-                      color: Colors.green,
-                      size: 16,
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('ปิด'),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      notification.postType == 'lost' ? 'ของหาย' : 'ของเจอ',
-                      style: const TextStyle(color: Colors.green, fontSize: 14),
+                    ElevatedButton.icon(
+                      onPressed:
+                          isLoadingChat
+                              ? null
+                              : () async {
+                                setStateDialog(() {
+                                  isLoadingChat = true;
+                                });
+                                try {
+                                  String? targetPostId =
+                                      notification.postId ??
+                                      notification.data['matchedPostId'] ??
+                                      notification.data['newItemId'] ??
+                                      notification.data['existingItemId'];
+                                  if (targetPostId == null)
+                                    throw Exception('ไม่พบรหัสโพสต์');
+
+                                  final postDoc =
+                                      await FirebaseFirestore.instance
+                                          .collection('lost_found_items')
+                                          .doc(targetPostId)
+                                          .get();
+                                  if (!postDoc.exists)
+                                    throw Exception('ไม่พบข้อมูลโพสต์ในระบบ');
+
+                                  final postUserId = postDoc.data()?['userId'];
+                                  final postTitle =
+                                      postDoc.data()?['title'] ?? 'Item';
+                                  final postUserName =
+                                      postDoc.data()?['userName'] ?? 'User';
+                                  final currentUid =
+                                      FirebaseAuth.instance.currentUser!.uid;
+
+                                  if (postUserId == currentUid)
+                                    throw Exception(
+                                      'คุณไม่สามารถแชทกับตัวเองได้',
+                                    );
+
+                                  final chatId = await ChatService()
+                                      .createOrGetChatRoom(
+                                        currentUid,
+                                        postUserId,
+                                        targetPostId,
+                                      );
+
+                                  // ส่งข้อความระบบอัตโนมัติ
+                                  final chatDoc =
+                                      await FirebaseFirestore.instance
+                                          .collection('chats')
+                                          .doc(chatId)
+                                          .get();
+                                  final lastMessage =
+                                      chatDoc.data()?['lastMessage'] as String?;
+                                  if (lastMessage == null ||
+                                      !lastMessage.contains(
+                                        '[AI Smart Match]',
+                                      )) {
+                                    double notifyMatchScore =
+                                        notification.matchScore ?? 0;
+                                    final matchMessage =
+                                        '🤖 [AI Smart Match]\nดูเหมือนว่าเราอาจจะพบของของคุณ!\n- ของในโพสต์: $postTitle\n(ความแม่นยำ: ${(notifyMatchScore * 100).toStringAsFixed(0)}%)\nลองตรวจสอบรายละเอียดและพูดคุยกันดูนะครับ!';
+                                    await ChatService().sendMessage(
+                                      chatId,
+                                      'system',
+                                      matchMessage,
+                                      type: 'system',
+                                    );
+                                  }
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context); // ปิด popup
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => ChatRoomPage(
+                                              chatId: chatId,
+                                              otherUserId: postUserId,
+                                              postId: targetPostId,
+                                              initialUserName: postUserName,
+                                            ),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('เกิดข้อผิดพลาด: $e'),
+                                      ),
+                                    );
+                                  }
+                                  setStateDialog(() {
+                                    isLoadingChat = false;
+                                  });
+                                }
+                              },
+                      icon:
+                          isLoadingChat
+                              ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Icon(Icons.chat, size: 18),
+                      label: Text(isLoadingChat ? 'กำลังโหลด...' : 'แชทเลย'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimaryFixed,
+                      ),
                     ),
                   ],
                 ),
-                const Divider(height: 24),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.phone, color: Colors.green),
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          notification.data['contact'] ?? '-',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.copy,
-                          size: 20,
-                          color: Colors.grey,
-                        ),
-                        onPressed: () {
-                          Clipboard.setData(
-                            ClipboardData(
-                              text: notification.data['contact'] ?? '',
-                            ),
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('คัดลอกเบอร์ติดต่อแล้ว'),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  subtitle: const Text('เบอร์โทร / Line ID'),
-                ),
-                if ((notification.data['location'] ?? '').isNotEmpty)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
-                      Icons.location_on,
-                      color: Colors.orange,
-                    ),
-                    title: Text(notification.data['location']),
-                    subtitle: const Text('สถานที่'),
-                  ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
           ),
     );
   }

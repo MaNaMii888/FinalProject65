@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/utils/time_formatter.dart';
+import 'package:project01/services/chat_service.dart';
+import 'package:project01/Screen/page/chat/chat_room_page.dart';
 
 class SmartNotificationPopup extends StatefulWidget {
   const SmartNotificationPopup({super.key});
@@ -45,10 +47,18 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
       debugPrint('📊 Found ${snapshot.docs.length} notification documents');
 
       List<SmartNotificationItem> notifications = [];
+      final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
 
       for (var doc in snapshot.docs) {
         debugPrint('📝 Processing notification: ${doc.id}');
         final data = doc.data();
+
+        // เช็คว่าเก่าเกิน 90 วันไหม
+        final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+        if (createdAt != null && createdAt.isBefore(threeMonthsAgo)) {
+          continue; // ข้ามการแสดงผล
+        }
+
         final dataMap = Map<String, dynamic>.from(data['data'] ?? {});
 
         // รองรับทั้ง field ใหม่และเก่า
@@ -275,7 +285,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
             }
           });
         }
-        _contactOwner(post);
+        _contactOwner(post, notification);
       },
       child: Container(
         // ✅ พื้นหลังสี Primary + เส้นคั่นด้านล่าง (ถ้ายังไม่อ่านให้ไฮไลท์)
@@ -474,11 +484,21 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _handleMatchConfirmed(notification),
+                      onPressed: () {
+                        // บันทึกว่าอ่านแล้วเมื่อกด
+                        if (notification.notificationId != null &&
+                            !notification.isRead) {
+                          _markNotificationAsRead(notification.notificationId!);
+                        }
+                        _contactOwner(post, notification);
+                      },
                       icon: const Icon(Icons.chat_bubble_outline, size: 16),
                       label: const Text(
-                        'ยืนยัน',
-                        style: TextStyle(fontSize: 12),
+                        'ของฉัน / แชทเลย',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
@@ -549,127 +569,188 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
     }
   }
 
-  void _handleMatchConfirmed(SmartNotificationItem notification) {
+  void _contactOwner(Post post, SmartNotificationItem notification) {
+    bool isLoadingChat = false;
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            title: const Text('ยืนยันการติดต่อ'),
-            content: const Text(
-              'ท่านได้ทำการติดต่อกับผู้พบ/ผู้ทำของหายแล้วใช่หรือไม่?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ยกเลิก'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  if (notification.notificationId != null) {
-                    await FirebaseFirestore.instance
-                        .collection('notifications')
-                        .doc(notification.notificationId)
-                        .delete();
-                    setState(() {
-                      smartNotifications.remove(notification);
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('ยืนยันการติดต่อเรียบร้อย')),
-                    );
-                  }
-                },
-                child: const Text(
-                  'ยืนยัน',
-                  style: TextStyle(color: Colors.green),
-                ),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _contactOwner(Post post) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('ติดต่อเจ้าของของที่โพสต์'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  post.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  post.isLostItem ? '📍 ของหาย' : '✅ ของเจอ',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: post.isLostItem ? Colors.red : Colors.green,
-                  ),
-                ),
-                const Divider(height: 24),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.phone, color: Colors.green),
-                  title: Row(
+          (context) => StatefulBuilder(
+            builder:
+                (context, setStateDialog) => AlertDialog(
+                  title: const Text('ติดต่อเจ้าของของที่โพสต์'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          post.contact,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
+                      const SizedBox(height: 8),
+                      Text(
+                        post.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.copy,
-                          size: 20,
-                          color: Colors.grey,
+                      const SizedBox(height: 4),
+                      Text(
+                        post.isLostItem ? '📍 ของหาย' : '✅ ของเจอ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: post.isLostItem ? Colors.red : Colors.green,
                         ),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: post.contact));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('คัดลอกเบอร์ติดต่อแล้ว'),
+                      ),
+                      const Divider(height: 24),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.phone, color: Colors.green),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                post.contact,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
                             ),
-                          );
-                        },
+                            IconButton(
+                              icon: const Icon(
+                                Icons.copy,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: post.contact),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('คัดลอกเบอร์ติดต่อแล้ว'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        subtitle: const Text('เบอร์โทร / Line ID'),
                       ),
+                      if (post.building.isNotEmpty)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(
+                            Icons.location_on,
+                            color: Colors.orange,
+                          ),
+                          title: Text(
+                            '${post.building}${post.location.isNotEmpty ? ' - ${post.location}' : ''}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          subtitle: const Text('สถานที่'),
+                        ),
                     ],
                   ),
-                  subtitle: const Text('เบอร์โทร / Line ID'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('ปิด'),
+                    ),
+                    if (currentUserId != null && currentUserId != post.userId)
+                      ElevatedButton.icon(
+                        onPressed:
+                            isLoadingChat
+                                ? null
+                                : () async {
+                                  setStateDialog(() {
+                                    isLoadingChat = true;
+                                  });
+                                  try {
+                                    final chatId = await ChatService()
+                                        .createOrGetChatRoom(
+                                          currentUserId!,
+                                          post.userId,
+                                          post.id,
+                                        );
+
+                                    // หากมีการ Match ให้ส่งข้อความระบบอัตโนมัติ
+                                    if (notification.relatedUserPost != null) {
+                                      final otherPost =
+                                          notification.relatedUserPost!;
+                                      final matchMessage =
+                                          '🤖 [AI Smart Match]\nดูเหมือนว่าเราอาจจะพบของของคุณ!\n- ของในโพสต์: ${post.title}\n- เชื่อมโยงกับโพสต์: ${otherPost.title}\n(ความแม่นยำ: ${(notification.matchScore * 100).toStringAsFixed(0)}%)\nลองตรวจสอบรายละเอียดและพูดคุยกันดูนะครับ!';
+
+                                      // ดึงข้อความล่าสุดมาเช็คว่าเราเคยส่ง AI Match ไปแล้วหรือยัง (เบื้องต้นก็คือเพื่อไม่ให้สแปมรัวๆ)
+                                      final chatDoc =
+                                          await FirebaseFirestore.instance
+                                              .collection('chats')
+                                              .doc(chatId)
+                                              .get();
+                                      final lastMessage =
+                                          chatDoc.data()?['lastMessage']
+                                              as String?;
+
+                                      if (lastMessage == null ||
+                                          !lastMessage.contains(
+                                            '[AI Smart Match]',
+                                          )) {
+                                        await ChatService().sendMessage(
+                                          chatId,
+                                          'system',
+                                          matchMessage,
+                                          type: 'system',
+                                        );
+                                      }
+                                    }
+
+                                    if (context.mounted) {
+                                      Navigator.pop(context); // ปิด Dialog ก่อน
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => ChatRoomPage(
+                                                chatId: chatId,
+                                                otherUserId: post.userId,
+                                                postId: post.id,
+                                                initialUserName: post.userName,
+                                              ),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('เกิดข้อผิดพลาด: $e'),
+                                        ),
+                                      );
+                                    }
+                                    setStateDialog(() {
+                                      isLoadingChat = false;
+                                    });
+                                  }
+                                },
+                        icon:
+                            isLoadingChat
+                                ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Icon(Icons.chat, size: 18),
+                        label: Text(isLoadingChat ? 'กำลังโหลด...' : 'แชทเลย'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimaryFixed,
+                        ),
+                      ),
+                  ],
                 ),
-                if (post.building.isNotEmpty)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
-                      Icons.location_on,
-                      color: Colors.orange,
-                    ),
-                    title: Text(
-                      '${post.building}${post.location.isNotEmpty ? ' - ${post.location}' : ''}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    subtitle: const Text('สถานที่'),
-                  ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('ปิด'),
-              ),
-            ],
           ),
     );
   }

@@ -3,6 +3,9 @@ import 'package:project01/Screen/page/map/map_page.dart';
 import 'package:project01/Screen/page/post/post_page.dart';
 import 'package:project01/Screen/page/profile/profile_page.dart';
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:project01/Screen/page/chat/chat_list_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -24,15 +27,17 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  // กำหนดให้ MapPage เป็นหน้าแรก
   final List<Widget> _pages = [
     const MapPage(), // index 0 - หน้าหลัก (แผนที่)
-    const PostPage(), // index 1 - หน้าแจ้งของ
-    const ProfilePage(), // index 2 - หน้าโปรไฟล์
+    const PostPage(), // index 1 - หน้าแจ้งของ/ฟีด
+    const ChatListPage(), // index 2 - หน้ารายการแชท
   ];
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final photoUrl = user?.photoURL;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
@@ -65,7 +70,77 @@ class _DashboardPageState extends State<DashboardPage> {
         }
       },
       child: Scaffold(
-        body: IndexedStack(index: _selectedIndex, children: _pages),
+        body: Stack(
+          children: [
+            IndexedStack(index: _selectedIndex, children: _pages),
+            // ไอคอน Profile ที่มุมขวาบน (ลอยทับทุกหน้า)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 16,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder:
+                          (context, animation, secondaryAnimation) =>
+                              const ProfilePage(),
+                      transitionsBuilder: (
+                        context,
+                        animation,
+                        secondaryAnimation,
+                        child,
+                      ) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: ScaleTransition(
+                            scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutQuint,
+                              ),
+                            ),
+                            child: child,
+                          ),
+                        );
+                      },
+                      transitionDuration: const Duration(milliseconds: 300),
+                    ),
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.transparent,
+                    backgroundImage:
+                        (photoUrl != null && photoUrl.isNotEmpty)
+                            ? CachedNetworkImageProvider(photoUrl)
+                            : null,
+                    child:
+                        (photoUrl == null || photoUrl.isEmpty)
+                            ? const Icon(
+                              Icons.person_rounded,
+                              color: Colors.blueAccent,
+                              size: 28,
+                            )
+                            : null,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         bottomNavigationBar: _buildResponsiveNavigation(),
       ),
     );
@@ -91,14 +166,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 label: 'แผนที่',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.add_circle_outline),
-                activeIcon: Icon(Icons.add_circle),
-                label: 'แจ้งของ',
+                icon: Icon(Icons.list_alt_rounded),
+                activeIcon: Icon(Icons.list_alt),
+                label: 'รายการ',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline),
-                activeIcon: Icon(Icons.person),
-                label: 'โปรไฟล์',
+                icon: Icon(Icons.chat_bubble_outline_rounded),
+                activeIcon: Icon(Icons.chat_bubble_rounded),
+                label: 'แชท',
               ),
             ],
             onTap: (index) {
@@ -137,16 +212,16 @@ class _DashboardPageState extends State<DashboardPage> {
                       onTap: () => setState(() => _selectedIndex = 0),
                     ),
                     _buildNavigationButton(
-                      icon: Icons.add_circle_outline,
-                      activeIcon: Icons.add_circle,
-                      label: 'แจ้งของ',
+                      icon: Icons.list_alt_rounded,
+                      activeIcon: Icons.list_alt,
+                      label: 'รายการ',
                       isSelected: _selectedIndex == 1,
                       onTap: () => setState(() => _selectedIndex = 1),
                     ),
                     _buildNavigationButton(
-                      icon: Icons.person_outline,
-                      activeIcon: Icons.person,
-                      label: 'โปรไฟล์',
+                      icon: Icons.chat_bubble_outline_rounded,
+                      activeIcon: Icons.chat_bubble_rounded,
+                      label: 'แชท',
                       isSelected: _selectedIndex == 2,
                       onTap: () => setState(() => _selectedIndex = 2),
                     ),

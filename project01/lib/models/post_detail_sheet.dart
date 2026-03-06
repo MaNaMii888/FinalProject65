@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // ✅ 1. เพิ่ม import นี้
 import 'package:project01/models/post.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:project01/services/chat_service.dart';
+import 'package:project01/Screen/page/chat/chat_room_page.dart';
 
-class PostDetailSheet extends StatelessWidget {
+class PostDetailSheet extends StatefulWidget {
   final Post post;
 
   const PostDetailSheet({super.key, required this.post});
 
   @override
+  State<PostDetailSheet> createState() => _PostDetailSheetState();
+}
+
+class _PostDetailSheetState extends State<PostDetailSheet> {
+  bool _isLoadingChat = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final post = widget.post;
 
     // สร้างตัวแปรสีตามสถานะ (ของหาย=แดง / เจอของ=เขียว)
     final Color statusColor =
@@ -243,14 +254,11 @@ class PostDetailSheet extends StatelessWidget {
                               ),
                             ),
                             // ✅✅✅ ปุ่ม Copy
-                            ElevatedButton.icon(
+                            IconButton(
                               onPressed: () async {
-                                // 1. สั่งคัดลอก
                                 await Clipboard.setData(
                                   ClipboardData(text: post.contact),
                                 );
-
-                                // 2. แสดงแจ้งเตือน
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -264,21 +272,100 @@ class PostDetailSheet extends StatelessWidget {
                                   );
                                 }
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: contentColor,
-                                foregroundColor: backgroundColor,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                              icon: Icon(
+                                Icons.copy,
+                                color: contentColor.withOpacity(0.7),
+                              ),
+                              tooltip: 'คัดลอก',
+                            ),
+
+                            // ปุ่มแชท (แสดงเฉพาะเมื่อไม่ใช่ของตัวเอง)
+                            if (FirebaseAuth.instance.currentUser != null &&
+                                FirebaseAuth.instance.currentUser!.uid !=
+                                    post.userId)
+                              ElevatedButton.icon(
+                                onPressed:
+                                    _isLoadingChat
+                                        ? null
+                                        : () async {
+                                          setState(() {
+                                            _isLoadingChat = true;
+                                          });
+                                          final currentUserId =
+                                              FirebaseAuth
+                                                  .instance
+                                                  .currentUser!
+                                                  .uid;
+                                          try {
+                                            final chatId = await ChatService()
+                                                .createOrGetChatRoom(
+                                                  currentUserId,
+                                                  post.userId, // เจ้าของโพสต์
+                                                  post.id,
+                                                );
+
+                                            if (context.mounted) {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (_) => ChatRoomPage(
+                                                        chatId: chatId,
+                                                        otherUserId:
+                                                            post.userId,
+                                                        postId: post.id,
+                                                        initialUserName:
+                                                            post.userName,
+                                                      ),
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'ไม่สามารถเริ่มแชทได้: $e',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          } finally {
+                                            if (mounted) {
+                                              setState(() {
+                                                _isLoadingChat = false;
+                                              });
+                                            }
+                                          }
+                                        },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorScheme.primary,
+                                  foregroundColor:
+                                      colorScheme
+                                          .onPrimaryFixed, // สีขาวหรือสีตัดกัน
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                icon:
+                                    _isLoadingChat
+                                        ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                        : const Icon(
+                                          Icons.chat_bubble,
+                                          size: 18,
+                                        ),
+                                label: Text(
+                                  _isLoadingChat ? 'กำลังโหลด...' : 'แชทเลย',
                                 ),
                               ),
-                              icon: const Icon(
-                                Icons.copy,
-                                size: 18,
-                              ), // เพิ่มไอคอนให้สื่อความหมาย
-                              label: const Text(
-                                'คัดลอก',
-                              ), // เปลี่ยนข้อความให้ชัดเจน
-                            ),
                           ],
                         ),
                       ),

@@ -88,64 +88,48 @@ class _ProfilePageState extends State<ProfilePage>
       );
     }
 
-    return WillPopScope(
-      onWillPop: () async {
-        final now = DateTime.now();
-        if (lastBackPressed == null ||
-            now.difference(lastBackPressed!) > const Duration(seconds: 2)) {
-          lastBackPressed = now;
-          final messenger = ScaffoldMessenger.maybeOf(context);
-          if (messenger != null) {
-            messenger.showSnackBar(
-              const SnackBar(
-                content: Text('กดย้อนกลับอีกครั้งเพื่อออกจากแอป'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-          return false;
-        }
-        return true;
-      },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            'โปรไฟล์',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onPrimary, // สีตัวอักษร
-              fontSize: 20, // สามารถกำหนดขนาดและ font
-              fontWeight: FontWeight.bold,
-            ),
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          color: Theme.of(context).colorScheme.onPrimary,
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'โปรไฟล์',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-          centerTitle: true,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          elevation: 1,
-          actions: [
-            // Menu button styled as circular button (instead of square with border)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: InkWell(
-                onTap:
-                    () =>
-                        _showMenuBottomSheet(context), // เรียก Bottom Sheet เลย
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(
-                    Icons.menu,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
+        ),
+        centerTitle: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        elevation: 1,
+        actions: [
+          // Menu button styled as circular button (instead of square with border)
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: InkWell(
+              onTap:
+                  () => _showMenuBottomSheet(context), // เรียก Bottom Sheet เลย
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: Icon(
+                  Icons.menu,
+                  color: Theme.of(context).colorScheme.onPrimary,
                 ),
               ),
             ),
-          ],
-        ),
-        body: SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: _buildUserContent(user),
           ),
+        ],
+      ),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: _buildUserContent(user),
         ),
       ),
     );

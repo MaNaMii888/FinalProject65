@@ -608,7 +608,7 @@ class _CampusNavigationState extends State<CampusNavigation>
             ),
           ),
 
-          // Floating notification FAB
+          // Floating notification FAB (ดีไซน์ใหม่เป็นสี่เหลี่ยมขอบมนสีดำ กระดิ่งสีฟ้า)
           Positioned(
             right: 20,
             bottom: 24,
@@ -629,16 +629,31 @@ class _CampusNavigationState extends State<CampusNavigation>
                 if (snapshot.hasData) {
                   unreadCount = snapshot.data!.docs.length;
                 }
-                return FloatingActionButton.small(
-                  heroTag: "notification_bell",
-                  onPressed: _showNotifications,
-                  backgroundColor: Theme.of(context).colorScheme.surface,
+                return GestureDetector(
+                  onTap: _showNotifications,
                   child: Badge(
                     isLabelVisible: unreadCount > 0,
                     label: Text('$unreadCount'),
-                    child: Icon(
-                      Icons.notifications,
-                      color: Theme.of(context).primaryColorDark,
+                    offset: const Offset(-4, 4),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A), // สีดำเข้ม
+                        borderRadius: BorderRadius.circular(16), // ขอบมน
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.notifications,
+                        color: Color(0xFF2196F3), // สีฟ้าสดใส
+                        size: 26,
+                      ),
                     ),
                   ),
                 );

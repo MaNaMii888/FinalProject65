@@ -190,6 +190,34 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                   );
                 }
                 final post = posts[index];
+
+                final isExpired =
+                    DateTime.now().difference(post.createdAt).inDays >= 90;
+                final isActuallyExpiredAndNotFound =
+                    post.status == 'active' && isExpired;
+
+                Color statusColor;
+                String statusText;
+
+                if (isActuallyExpiredAndNotFound) {
+                  statusColor = Colors.grey[600]!;
+                  statusText = 'ไม่พบของ';
+                } else if (post.status == 'resolved' ||
+                    post.status == 'closed') {
+                  statusColor = Colors.green[700]!;
+                  statusText = 'เสร็จสิ้น';
+                } else {
+                  statusColor = Colors.orange[700]!;
+                  statusText = 'กำลังดำเนินการ';
+                }
+
+                Color statusBgColor =
+                    isActuallyExpiredAndNotFound
+                        ? Colors.grey[200]!
+                        : (post.status == 'resolved' || post.status == 'closed'
+                            ? Colors.green[100]!
+                            : Colors.orange[100]!);
+
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   elevation: 2,
@@ -231,25 +259,14 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color:
-                                      post.status == 'resolved' ||
-                                              post.status == 'closed'
-                                          ? Colors.green[100]
-                                          : Colors.orange[100],
+                                  color: statusBgColor,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  post.status == 'resolved' ||
-                                          post.status == 'closed'
-                                      ? 'เสร็จสิ้น'
-                                      : 'กำลังดำเนินการ',
+                                  statusText,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color:
-                                        post.status == 'resolved' ||
-                                                post.status == 'closed'
-                                            ? Colors.green[700]
-                                            : Colors.orange[700],
+                                    color: statusColor,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),

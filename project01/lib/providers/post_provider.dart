@@ -93,12 +93,22 @@ class PostProvider with ChangeNotifier {
           await FirebaseFirestore.instance
               .collection('lost_found_items')
               .where('isLostItem', isEqualTo: true)
+              .where('status', isEqualTo: 'active')
+              .orderBy(
+                'createdAt',
+                descending: true,
+              ) // เพิ่ม orderBy เพื่อให้ตรงกับโครงสร้าง Index เดิม
               .count()
               .get();
       final foundCountQuery =
           await FirebaseFirestore.instance
               .collection('lost_found_items')
               .where('isLostItem', isEqualTo: false)
+              .where('status', isEqualTo: 'active')
+              .orderBy(
+                'createdAt',
+                descending: true,
+              ) // เพิ่ม orderBy เพื่อให้ตรงกับโครงสร้าง Index เดิม
               .count()
               .get();
 
@@ -142,7 +152,8 @@ class PostProvider with ChangeNotifier {
     try {
       var query = FirebaseFirestore.instance
           .collection('lost_found_items')
-          .where('isLostItem', isEqualTo: isLostItems);
+          .where('isLostItem', isEqualTo: isLostItems)
+          .where('status', isEqualTo: 'active');
 
       // Apply category filter at the database level if selected
       if (_selectedCategory != null && _selectedCategory != 'all') {
@@ -161,9 +172,21 @@ class PostProvider with ChangeNotifier {
       final snapshot = await query.get();
 
       final List<Post> loadedPosts = [];
+      final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
+
       for (var doc in snapshot.docs) {
         try {
-          loadedPosts.add(Post.fromJson({...doc.data(), 'id': doc.id}));
+          final data = doc.data();
+
+          // กรองอันที่เก่ากว่า 90 วันทิ้ง (รอระบบ Archive ทยอยเก็บ)
+          final createdAtRaw = data['createdAt'];
+          if (createdAtRaw != null && createdAtRaw is Timestamp) {
+            if (createdAtRaw.toDate().isBefore(threeMonthsAgo)) {
+              continue; // ข้ามโพสต์นี้ไปเลย
+            }
+          }
+
+          loadedPosts.add(Post.fromJson({...data, 'id': doc.id}));
         } catch (e) {
           debugPrint("Parse Error ID ${doc.id}: $e");
         }
