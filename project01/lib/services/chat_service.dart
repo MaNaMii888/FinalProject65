@@ -11,8 +11,9 @@ class ChatService {
   Future<String> createOrGetChatRoom(
     String uid1,
     String uid2,
-    String postId,
-  ) async {
+    String postId, {
+    String? relatedPostId,
+  }) async {
     try {
       // ค้นหาว่ามีห้องแชทของ 2 คนนี้และ post นี้หรือยัง
       final querySnapshot =
@@ -27,13 +28,19 @@ class ChatService {
         final data = doc.data();
         final participants = List<String>.from(data['participants'] ?? []);
         if (participants.contains(uid2)) {
+          // หากมาจาก AI Smart Match และมี relatedPostId ให้ทำการอัปเดตห้องแชทเดิมด้วย
+          if (relatedPostId != null && relatedPostId.isNotEmpty) {
+            await _firestore.collection('chats').doc(doc.id).update({
+              'relatedPostId': relatedPostId,
+            });
+          }
           return doc.id; // เจอห้องเดิม คืนค่า ID ห้องกลับไป
         }
       }
 
       // ถ้าไม่มี ให้สร้างห้องใหม่
       final newChatRef = _firestore.collection('chats').doc();
-      await newChatRef.set({
+      final Map<String, dynamic> chatData = {
         'postId': postId,
         'participants': [uid1, uid2],
         'lastMessage': '',
@@ -41,7 +48,13 @@ class ChatService {
         'lastMessageSenderId': '',
         'unreadCount': {uid1: 0, uid2: 0},
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (relatedPostId != null && relatedPostId.isNotEmpty) {
+        chatData['relatedPostId'] = relatedPostId;
+      }
+
+      await newChatRef.set(chatData);
 
       return newChatRef.id;
     } catch (e) {

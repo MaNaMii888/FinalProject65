@@ -77,6 +77,20 @@ class QRHandoverService {
       final postRef = _firestore.collection('lost_found_items').doc(postId);
       batch.update(postRef, {'status': 'resolved'});
 
+      // อัปเดตสถานะโพสต์ที่เกี่ยวข้อง (ถ้าเป็น Smart Match chat)
+      final chatRef = _firestore.collection('chats').doc(chatId);
+      final chatDoc = await chatRef.get();
+      if (chatDoc.exists) {
+        final chatData = chatDoc.data()!;
+        final relatedPostId = chatData['relatedPostId'];
+        if (relatedPostId != null && relatedPostId.toString().isNotEmpty) {
+          final relatedPostRef = _firestore
+              .collection('lost_found_items')
+              .doc(relatedPostId);
+          batch.update(relatedPostRef, {'status': 'resolved'});
+        }
+      }
+
       // ทำรายการสำเร็จ
       batch.update(doc.reference, {
         'status': 'completed',
@@ -99,7 +113,6 @@ class QRHandoverService {
       });
 
       // อัปเดตข้อความล่าสุดในแอพ
-      final chatRef = _firestore.collection('chats').doc(chatId);
       batch.update(chatRef, {
         'lastMessage': '🎉 การส่งมอบสิ่งของเสร็จสิ้นแล้ว!',
         'lastMessageTime': FieldValue.serverTimestamp(),

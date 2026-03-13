@@ -128,11 +128,14 @@ class NotificationService {
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
+      
+      // Request iOS permissions
       await _notifications
           .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin
           >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
+          
       debugPrint('Notification service initialized');
     } catch (e) {
       debugPrint('Error initializing notification service: $e');
@@ -144,7 +147,7 @@ class NotificationService {
     debugPrint('Notification tapped: ${response.payload}');
   }
 
-  // แสดง local notification
+  // แสดง local notification (ทั่วไป)
   static Future<void> showLocalNotification({
     required int id,
     required String title,
@@ -174,6 +177,56 @@ class NotificationService {
       await _notifications.show(id, title, body, details, payload: payload);
     } catch (e) {
       debugPrint('Error showing local notification: $e');
+    }
+  }
+
+  // ขอ Permission สำหรับ Android 13+
+  static Future<void> requestAndroidPermission() async {
+    try {
+      final androidImplementation =
+          _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (androidImplementation != null) {
+        final bool? granted =
+            await androidImplementation.requestNotificationsPermission();
+        debugPrint('Notification permission granted: $granted');
+      }
+    } catch (e) {
+      debugPrint('Error requesting Android notification permission: $e');
+    }
+  }
+
+  // แสดง local notification สำหรับแชท
+  static Future<void> showChatNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'chat_channel',
+        'Chat Notifications',
+        channelDescription: 'Notifications for new chat messages',
+        importance: Importance.max, // Max เพื่อให้เด้งเป็น pop-up ด้านบน
+        priority: Priority.max,
+        showWhen: true,
+        enableVibration: true,
+        playSound: true,
+      );
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      await _notifications.show(id, title, body, details, payload: payload);
+    } catch (e) {
+      debugPrint('Error showing chat notification: $e');
     }
   }
 

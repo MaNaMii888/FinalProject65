@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:project01/Screen/register.dart';
 import 'package:project01/Screen/forgot_password.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/auth_service.dart';
 import 'package:project01/utils/debug_helper.dart';
@@ -21,6 +22,15 @@ class _LoginScreenState extends State<LoginPage> {
   final AuthService _authService = AuthService();
   final LogService _logService = LogService();
   bool _isLoading = false;
+
+  Future<bool> _hasInternet() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
 
   // --- Logic ส่วนเดิม ---
   Future<UserCredential?> signInWithGoogle() async {
@@ -236,6 +246,17 @@ class _LoginScreenState extends State<LoginPage> {
                                       ? null
                                       : () async {
                                         if (_formKey.currentState!.validate()) {
+                                          bool hasNet = await _hasInternet();
+                                          if (!hasNet) {
+                                            await _showAlertDialog(
+                                              title: 'ไม่มีอินเตอร์เน็ต',
+                                              content: const Text(
+                                                'กรุณาเชื่อมต่ออินเตอร์เน็ตเพื่อเข้าสู่ระบบ',
+                                              ),
+                                              isError: true,
+                                            );
+                                            return;
+                                          }
                                           setState(() {
                                             _isLoading = true;
                                           });
@@ -347,6 +368,17 @@ class _LoginScreenState extends State<LoginPage> {
                                   _isLoading
                                       ? null
                                       : () async {
+                                        bool hasNet = await _hasInternet();
+                                        if (!hasNet) {
+                                          await _showAlertDialog(
+                                            title: 'ไม่มีอินเตอร์เน็ต',
+                                            content: const Text(
+                                              'กรุณาเชื่อมต่ออินเตอร์เน็ตเพื่อเข้าสู่ระบบ',
+                                            ),
+                                            isError: true,
+                                          );
+                                          return;
+                                        }
                                         setState(() {
                                           _isLoading = true;
                                         });

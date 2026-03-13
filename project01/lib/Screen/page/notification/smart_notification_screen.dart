@@ -669,6 +669,8 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                                           currentUserId!,
                                           post.userId,
                                           post.id,
+                                          relatedPostId:
+                                              notification.relatedUserPost?.id,
                                         );
 
                                     // หากมีการ Match ให้ส่งข้อความระบบอัตโนมัติ

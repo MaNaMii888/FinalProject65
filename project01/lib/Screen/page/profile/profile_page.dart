@@ -770,19 +770,27 @@ class _ProfilePageState extends State<ProfilePage>
                               ),
                               decoration: BoxDecoration(
                                 color:
-                                    post.status == 'found_owner'
+                                    (post.status == 'found_owner' ||
+                                            post.status == 'resolved' ||
+                                            post.status == 'closed')
                                         ? Colors.green[100]
                                         : Colors.orange[100],
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                post.status == 'found_owner'
-                                    ? 'เจอเจ้าของแล้ว'
+                                (post.status == 'found_owner' ||
+                                        post.status == 'resolved' ||
+                                        post.status == 'closed')
+                                    ? (post.status == 'found_owner'
+                                        ? 'เจอเจ้าของแล้ว'
+                                        : 'ส่งมอบสำเร็จ')
                                     : 'กำลังดำเนินการ',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color:
-                                      post.status == 'found_owner'
+                                      (post.status == 'found_owner' ||
+                                              post.status == 'resolved' ||
+                                              post.status == 'closed')
                                           ? Colors.green[700]
                                           : Colors.orange[700],
                                   fontWeight: FontWeight.w500,

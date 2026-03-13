@@ -4,13 +4,16 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/Screen/dashboard.dart'; // หน้าหลักหลังล็อกอิน
 import 'package:project01/Screen/login.dart'; // เพิ่ม import
+import 'package:project01/Screen/splash_screen.dart';
 import 'package:project01/Screen/page/profile/profile_page.dart';
 import 'package:project01/providers/theme_provider.dart';
 import 'package:project01/providers/post_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:project01/firebase_options.dart';
 import 'package:project01/services/notifications_service.dart';
+import 'package:project01/services/chat_notification_service.dart';
 import 'dart:async';
+import 'dart:io';
 // ignore: unused_import
 import 'package:project01/services/auth_service.dart';
 
@@ -29,6 +32,8 @@ Future<void> main() async {
         );
         // Initialize notifications service
         await NotificationService.initialize();
+        // Request Android 13+ Notification Permissions (if applicable)
+        await NotificationService.requestAndroidPermission();
         firebaseInitialized = true;
       } catch (e, st) {
         firebaseInitialized = false;
@@ -86,36 +91,34 @@ class MyApp extends StatelessWidget {
           title: 'Your App Name',
           debugShowCheckedModeBanner: false,
           theme: themeProvider.theme,
+          builder: (context, child) {
+            return NetworkAwareWrapper(child: child!);
+          },
           home: Builder(
             builder: (context) {
               if (!firebaseInitialized) {
                 return ErrorInitScreen(error: initError);
               }
 
-              return StreamBuilder<User?>(
-                stream: FirebaseAuth.instance.authStateChanges(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Scaffold(
-                      body: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text('กำลังตรวจสอบสถานะการเข้าสู่ระบบ...'),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
+              return SplashScreen(
+                nextPage: StreamBuilder<User?>(
+                  stream: FirebaseAuth.instance.authStateChanges(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
+                    }
 
-                  if (snapshot.hasData && snapshot.data != null) {
-                    return const DashboardPage();
-                  }
+                    if (snapshot.hasData && snapshot.data != null) {
+                      ChatNotificationService.instance.startListening(snapshot.data!.uid);
+                      return const DashboardPage();
+                    }
 
-                  return const LoginPage();
-                },
+                    ChatNotificationService.instance.stopListening();
+                    return const LoginPage();
+                  },
+                ),
               );
             },
           ),
@@ -174,6 +177,85 @@ class CustomDrawer extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class NetworkAwareWrapper extends StatefulWidget {
+  final Widget child;
+  const NetworkAwareWrapper({super.key, required this.child});
+
+  @override
+  State<NetworkAwareWrapper> createState() => _NetworkAwareWrapperState();
+}
+
+class _NetworkAwareWrapperState extends State<NetworkAwareWrapper> {
+  bool _hasConnection = true;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnection();
+    _timer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _checkConnection(),
+    );
+  }
+
+  Future<void> _checkConnection() async {
+    bool previousConnection = _hasConnection;
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      _hasConnection = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      _hasConnection = false;
+    }
+    if (previousConnection != _hasConnection && mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_hasConnection) {
+      final colorScheme = Theme.of(context).colorScheme;
+      return Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.wifi_off, size: 80, color: colorScheme.primary.withOpacity(0.5)),
+              const SizedBox(height: 16),
+              Text(
+                'ไม่มีการเชื่อมต่ออินเตอร์เน็ต',
+                style: TextStyle(
+                  fontSize: 20, 
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'กรุณาตรวจสอบการเชื่อมต่อของคุณ\nระบบจะกลับมาทำงานอัตโนมัติเมื่อเชื่อมต่อสำเร็จ',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colorScheme.onSurface.withOpacity(0.7), 
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return widget.child;
   }
 }
 

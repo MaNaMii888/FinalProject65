@@ -625,11 +625,21 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                                       'คุณไม่สามารถแชทกับตัวเองได้',
                                     );
 
+                                  String? relatedPostId =
+                                      notification.relatedPostId ??
+                                      notification.data['relatedPostId'] ??
+                                      notification.data['existingItemId'];
+                                  if (relatedPostId == targetPostId) {
+                                    relatedPostId =
+                                        notification.data['newItemId'];
+                                  }
+
                                   final chatId = await ChatService()
                                       .createOrGetChatRoom(
                                         currentUid,
                                         postUserId,
                                         targetPostId,
+                                        relatedPostId: relatedPostId,
                                       );
 
                                   // ส่งข้อความระบบอัตโนมัติ

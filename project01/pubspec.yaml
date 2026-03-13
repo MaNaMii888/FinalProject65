@@ -69,6 +69,7 @@ dependencies:
   google_generative_ai: ^0.4.7
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
+  rename_app: ^1.6.5
 
 
   
@@ -82,6 +83,22 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+# ---- App Icon Generation ----
+# 1. Run: flutter test test/generate_icon_test.dart   (สร้างไฟล์ PNG จากโค้ดโลโก้)
+# 2. Run: dart run flutter_launcher_icons              (generate icons ทุก platform)
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/img/app_icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  background_color_ios: "#1A1A1A"
+  web:
+    generate: false
+  windows:
+    generate: false
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -96,9 +113,8 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
     - assets/img/google.jpg
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

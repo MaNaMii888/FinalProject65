@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:project01/Screen/page/chat/qr_handover_dialog.dart';
 import 'package:project01/Screen/page/chat/qr_scanner_page.dart';
 import 'package:project01/Screen/page/chat/full_screen_image_page.dart';
+import 'package:project01/services/chat_notification_service.dart';
 
 class ChatRoomPage extends StatefulWidget {
   final String chatId;
@@ -40,9 +41,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Map<String, dynamic>? otherUserData;
   Post? relatedPost;
 
+  Future<bool> _hasInternet() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    ChatNotificationService.instance.setActiveChatRoom(widget.chatId);
     _loadHeaderData();
     _scrollController.addListener(_scrollListener);
   }
@@ -59,6 +70,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   @override
   void dispose() {
+    ChatNotificationService.instance.setActiveChatRoom(null);
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     _messageController.dispose();
@@ -119,6 +131,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   void _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty || currentUserId == null) return;
+
+    bool hasNet = await _hasInternet();
+    if (!hasNet) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('ไม่มีอินเตอร์เน็ต ไม่สามารถส่งข้อความได้'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+      return;
+    }
 
     _messageController.clear();
 
@@ -219,6 +244,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   bool _isUploadingImage = false;
 
   void _sendImage() async {
+    bool hasNet = await _hasInternet();
+    if (!hasNet) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('ไม่มีอินเตอร์เน็ต ไม่สามารถส่งรูปภาพได้'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+      return;
+    }
+
     final picker = ImagePicker();
     // ให้เลือกว่าจะถ่ายรูปหรือเลือกจากคลังภาพ
     final choice = await showModalBottomSheet<ImageSource>(
