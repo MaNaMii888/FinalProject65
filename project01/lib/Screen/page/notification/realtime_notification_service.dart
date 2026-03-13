@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/services/notifications_service.dart';
+import 'package:project01/utils/category_utils.dart';
 import 'dart:async';
 
 class RealtimeNotificationService {
@@ -453,18 +454,7 @@ class RealtimeNotificationService {
   }
 
   static String _getCategoryName(String categoryId) {
-    switch (categoryId) {
-      case '1':
-        return 'ของใช้ส่วนตัว';
-      case '2':
-        return 'เอกสาร/บัตร';
-      case '3':
-        return 'อุปกรณ์การเรียน';
-      case '4':
-        return 'ของมีค่าอื่นๆ';
-      default:
-        return categoryId.isEmpty ? 'ไม่ระบุ' : categoryId;
-    }
+    return CategoryUtils.getCategoryName(categoryId);
   }
 
   static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {

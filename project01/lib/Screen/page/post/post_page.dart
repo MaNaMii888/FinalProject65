@@ -8,6 +8,7 @@ import 'package:project01/utils/time_formatter.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:project01/utils/category_utils.dart';
 
 class PostPage extends StatefulWidget {
   const PostPage({super.key});
@@ -50,7 +51,9 @@ class _PostPageState extends State<PostPage>
   }
 
   int _getFilteredPostsCount(PostProvider provider, bool isLostItems) {
-    if (provider.searchQuery.isEmpty && provider.selectedCategory == null) {
+    if (provider.searchQuery.isEmpty &&
+        (provider.selectedCategory == null ||
+            provider.selectedCategory == 'all')) {
       return isLostItems ? provider.totalLostCount : provider.totalFoundCount;
     }
     return isLostItems ? provider.lostPosts.length : provider.foundPosts.length;
@@ -61,7 +64,8 @@ class _PostPageState extends State<PostPage>
     if (provider.searchQuery.isNotEmpty) {
       activeFilters.add('คำค้นหา "${provider.searchQuery}"');
     }
-    if (provider.selectedCategory != null) {
+    if (provider.selectedCategory != null &&
+        provider.selectedCategory != 'all') {
       activeFilters.add(
         'ประเภท "${_getCategoryName(provider.selectedCategory!)}"',
       );
@@ -70,18 +74,7 @@ class _PostPageState extends State<PostPage>
   }
 
   String _getCategoryName(String categoryId) {
-    switch (categoryId) {
-      case '1':
-        return 'ของใช้ส่วนตัว';
-      case '2':
-        return 'เอกสาร/บัตร';
-      case '3':
-        return 'อุปกรณ์การเรียน';
-      case '4':
-        return 'ของมีค่าอื่นๆ';
-      default:
-        return 'ไม่ระบุ';
-    }
+    return CategoryUtils.getCategoryName(categoryId);
   }
 
   void _clearAllFilters() {
@@ -279,7 +272,7 @@ class _PostPageState extends State<PostPage>
                 itemBuilder:
                     (context) => [
                       PopupMenuItem<String?>(
-                        value: null,
+                        value: 'all',
                         child: Text(
                           'ทั้งหมด',
                           style: TextStyle(
@@ -287,39 +280,14 @@ class _PostPageState extends State<PostPage>
                           ),
                         ),
                       ),
-                      PopupMenuItem<String?>(
-                        value: '1',
-                        child: Text(
-                          'ของใช้ส่วนตัว',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem<String?>(
-                        value: '2',
-                        child: Text(
-                          'เอกสาร/บัตร',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem<String?>(
-                        value: '3',
-                        child: Text(
-                          'อุปกรณ์การเรียน',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                        ),
-                      ),
-                      PopupMenuItem<String?>(
-                        value: '4',
-                        child: Text(
-                          'ของมีค่าอื่นๆ',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
+                      ...CategoryUtils.categoryMap.entries.map(
+                        (e) => PopupMenuItem<String?>(
+                          value: e.key,
+                          child: Text(
+                            e.value,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
                           ),
                         ),
                       ),
@@ -328,7 +296,8 @@ class _PostPageState extends State<PostPage>
             ],
           ),
           if (provider.searchQuery.isNotEmpty ||
-              provider.selectedCategory != null)
+              (provider.selectedCategory != null &&
+                  provider.selectedCategory != 'all'))
             Container(
               margin: const EdgeInsets.only(top: 16.0),
               padding: const EdgeInsets.symmetric(

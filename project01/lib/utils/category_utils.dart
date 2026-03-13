@@ -37,4 +37,18 @@ class CategoryUtils {
   static bool isValidCategoryId(String categoryId) {
     return categoryMap.containsKey(categoryId);
   }
+
+  // ดึงค่าที่เป็นไปได้ทั้งหมดของหมวดหมู่ (รหัส String, รหัส int, และชื่อหมวดหมู่)
+  // เพื่อใช้ในการ Query Firestore ที่อาจมีข้อมูลหลายรูปแบบ
+  static List<dynamic> getCategoryVariants(String categoryId) {
+    final name = categoryMap[categoryId];
+    if (name == null) return [categoryId];
+
+    final intId = int.tryParse(categoryId);
+    return [
+      categoryId, // '1'
+      if (intId != null) intId, // 1
+      name, // 'ของใช้ส่วนตัว'
+    ];
+  }
 }

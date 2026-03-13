@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/Screen/login.dart';
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
+import 'package:project01/utils/category_utils.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
@@ -1041,18 +1042,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   String _getCategoryText(String category) {
-    switch (category) {
-      case '1':
-        return 'ของใช้ส่วนตัว';
-      case '2':
-        return 'เอกสาร/บัตร';
-      case '3':
-        return 'อุปกรณ์การเรียน';
-      case '4':
-        return 'ของมีค่าอื่นๆ';
-      default:
-        return 'ไม่ระบุ';
-    }
+    return CategoryUtils.getCategoryName(category);
   }
 
   // ฟังก์ชันแก้ไขโพสต์

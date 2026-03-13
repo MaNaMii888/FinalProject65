@@ -6,6 +6,7 @@ import 'package:project01/models/post_detail_sheet.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
 import 'package:project01/services/log_service.dart';
 import 'package:project01/utils/time_formatter.dart';
+import 'package:project01/utils/category_utils.dart';
 
 class PostHistoryPage extends StatefulWidget {
   final String userId;
@@ -558,17 +559,6 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
   }
 
   String _getCategoryText(String category) {
-    switch (category) {
-      case '1':
-        return 'ของใช้ส่วนตัว';
-      case '2':
-        return 'เอกสาร/บัตร';
-      case '3':
-        return 'อุปกรณ์การเรียน';
-      case '4':
-        return 'ของมีค่าอื่นๆ';
-      default:
-        return 'ไม่ระบุ';
-    }
+    return CategoryUtils.getCategoryName(category);
   }
 }

@@ -14,6 +14,7 @@ import 'package:project01/services/post_count_service.dart';
 import 'package:project01/utils/image_compressor.dart';
 import 'package:project01/services/log_service.dart';
 import 'package:project01/services/ai_tagging_service.dart';
+import 'package:project01/utils/category_utils.dart';
 
 // ----------------- Service Classes -----------------
 class AuthService {
@@ -326,7 +327,7 @@ class LostItemForm extends StatefulWidget {
 class _LostItemFormState extends State<LostItemForm> {
   final _formKey = GlobalKey<FormState>();
   File? _imageFile;
-  int? selectedCategory;
+  String? selectedCategory;
   String? selectedBuilding;
   final TextEditingController dateController = TextEditingController();
   final TextEditingController timeController = TextEditingController();
@@ -371,12 +372,6 @@ class _LostItemFormState extends State<LostItemForm> {
     'สำนักงาน',
     'สนาม',
   ];
-  static const Map<int, String> categories = {
-    1: "ของใช้ส่วนตัว",
-    2: "เอกสาร/บัตร",
-    3: "อุปกรณ์การเรียน",
-    4: "ของมีค่าอื่นๆ",
-  };
 
   @override
   void initState() {
@@ -486,7 +481,7 @@ class _LostItemFormState extends State<LostItemForm> {
       final List<String> aiTags = await AiTaggingService.generateTags(
         title: titleController.text.trim(),
         description: detailController.text.trim(),
-        category: categories[selectedCategory!] ?? '',
+        category: CategoryUtils.getCategoryName(selectedCategory!),
       );
       debugPrint('🧠 AI Tags generated: $aiTags');
 
@@ -494,8 +489,8 @@ class _LostItemFormState extends State<LostItemForm> {
         'userId': AuthService.currentUser!.uid,
         'userEmail': AuthService.currentUser!.email,
         'title': titleController.text.trim(),
-        'category': selectedCategory.toString(),
-        'categoryName': categories[selectedCategory!],
+        'category': selectedCategory,
+        'categoryName': CategoryUtils.getCategoryName(selectedCategory!),
         'building': selectedBuilding,
         'room': roomController.text.trim(),
         'date': dateController.text,
@@ -564,7 +559,7 @@ class _LostItemFormState extends State<LostItemForm> {
   List<String> _generateSearchKeywords() {
     final keywords = <String>[];
     keywords.add(titleController.text.trim().toLowerCase());
-    keywords.add(categories[selectedCategory!]!.toLowerCase());
+    keywords.add(CategoryUtils.getCategoryName(selectedCategory!).toLowerCase());
     keywords.add(selectedBuilding!.toLowerCase());
     keywords.add(roomController.text.trim().toLowerCase());
     final detailWords = detailController.text.trim().toLowerCase().split(' ');
@@ -1089,29 +1084,32 @@ class _LostItemFormState extends State<LostItemForm> {
   }
 
   Widget _buildCategoryRadios() {
-    return Column(
-      children: [
+    final categoryEntries = CategoryUtils.categoryMap.entries.toList();
+    List<Widget> rows = [];
+    for (int i = 0; i < categoryEntries.length; i += 2) {
+      rows.add(
         Row(
           children: [
-            _buildRadioTile("ของใช้ส่วนตัว", 1),
-            _buildRadioTile("เอกสาร/บัตร", 2),
+            _buildRadioTile(categoryEntries[i].value, categoryEntries[i].key),
+            if (i + 1 < categoryEntries.length)
+              _buildRadioTile(
+                categoryEntries[i + 1].value,
+                categoryEntries[i + 1].key,
+              )
+            else
+              const Expanded(child: SizedBox()),
           ],
         ),
-        Row(
-          children: [
-            _buildRadioTile("อุปกรณ์การเรียน", 3),
-            _buildRadioTile("ของมีค่าอื่นๆ", 4),
-          ],
-        ),
-      ],
-    );
+      );
+    }
+    return Column(children: rows);
   }
 
-  Widget _buildRadioTile(String title, int value) {
+  Widget _buildRadioTile(String title, String value) {
     final primaryColor = Theme.of(context).colorScheme.onPrimary;
 
     return Expanded(
-      child: RadioListTile<int>(
+      child: RadioListTile<String>(
         title: Text(
           title,
           style: TextStyle(

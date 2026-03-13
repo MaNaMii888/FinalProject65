@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
+import 'package:project01/utils/category_utils.dart';
 
 class PostProvider with ChangeNotifier {
   static const int _pageSize = 15;
@@ -61,8 +62,8 @@ class PostProvider with ChangeNotifier {
   void setCategory(String? categoryId) {
     _selectedCategory = categoryId;
 
-    // When category changes, we should ideally refresh from firestore to apply the filter
-    // at the database level to get a true paginated list.
+    // When category changes, we update counts and refresh posts
+    _updateTotalCounts();
     loadPosts(isLostItems: true, isRefresh: true);
     loadPosts(isLostItems: false, isRefresh: true);
   }
@@ -70,6 +71,7 @@ class PostProvider with ChangeNotifier {
   void clearFilters() {
     _searchQuery = '';
     _selectedCategory = null;
+    _updateTotalCounts();
     loadPosts(isLostItems: true, isRefresh: true);
     loadPosts(isLostItems: false, isRefresh: true);
   }
@@ -77,40 +79,36 @@ class PostProvider with ChangeNotifier {
   List<Post> _applyLocalFilters(List<Post> sourceList) {
     final normalizedQuery = normalize(_searchQuery);
     return sourceList.where((post) {
+      final categoryName = CategoryUtils.getCategoryName(post.category);
       final matchesSearch =
           normalizedQuery.isEmpty ||
           normalize(post.title).contains(normalizedQuery) ||
           normalize(post.description).contains(normalizedQuery) ||
           normalize(post.building).contains(normalizedQuery) ||
-          normalize(post.location).contains(normalizedQuery);
+          normalize(post.location).contains(normalizedQuery) ||
+          normalize(categoryName).contains(normalizedQuery);
       return matchesSearch;
     }).toList();
   }
 
   Future<void> _updateTotalCounts() async {
     try {
-      final lostCountQuery =
-          await FirebaseFirestore.instance
-              .collection('lost_found_items')
-              .where('isLostItem', isEqualTo: true)
-              .where('status', isEqualTo: 'active')
-              .orderBy(
-                'createdAt',
-                descending: true,
-              ) // เพิ่ม orderBy เพื่อให้ตรงกับโครงสร้าง Index เดิม
-              .count()
-              .get();
-      final foundCountQuery =
-          await FirebaseFirestore.instance
-              .collection('lost_found_items')
-              .where('isLostItem', isEqualTo: false)
-              .where('status', isEqualTo: 'active')
-              .orderBy(
-                'createdAt',
-                descending: true,
-              ) // เพิ่ม orderBy เพื่อให้ตรงกับโครงสร้าง Index เดิม
-              .count()
-              .get();
+      var lostQuery = FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .where('isLostItem', isEqualTo: true);
+
+      var foundQuery = FirebaseFirestore.instance
+          .collection('lost_found_items')
+          .where('isLostItem', isEqualTo: false);
+
+      if (_selectedCategory != null && _selectedCategory != 'all') {
+        final variants = CategoryUtils.getCategoryVariants(_selectedCategory!);
+        lostQuery = lostQuery.where('category', whereIn: variants);
+        foundQuery = foundQuery.where('category', whereIn: variants);
+      }
+
+      final lostCountQuery = await lostQuery.count().get();
+      final foundCountQuery = await foundQuery.count().get();
 
       _totalLostCount = lostCountQuery.count ?? 0;
       _totalFoundCount = foundCountQuery.count ?? 0;
@@ -152,15 +150,13 @@ class PostProvider with ChangeNotifier {
     try {
       var query = FirebaseFirestore.instance
           .collection('lost_found_items')
-          .where('isLostItem', isEqualTo: isLostItems)
-          .where('status', isEqualTo: 'active');
+          .where('isLostItem', isEqualTo: isLostItems);
 
       // Apply category filter at the database level if selected
       if (_selectedCategory != null && _selectedCategory != 'all') {
-        query = query.where('category', isEqualTo: _selectedCategory);
+        final variants = CategoryUtils.getCategoryVariants(_selectedCategory!);
+        query = query.where('category', whereIn: variants);
       }
-
-      query = query.orderBy('createdAt', descending: true).limit(_pageSize);
 
       DocumentSnapshot? currentLastDoc =
           isLostItems ? _lastLostDocument : _lastFoundDocument;
@@ -169,20 +165,21 @@ class PostProvider with ChangeNotifier {
         query = query.startAfterDocument(currentLastDoc);
       }
 
-      final snapshot = await query.get();
+      final snapshot = await _executeWithFallback(query);
 
       final List<Post> loadedPosts = [];
       final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
 
       for (var doc in snapshot.docs) {
         try {
-          final data = doc.data();
+          final data = doc.data() as Map<String, dynamic>?;
+          if (data == null) continue;
 
-          // กรองอันที่เก่ากว่า 90 วันทิ้ง (รอระบบ Archive ทยอยเก็บ)
+          // กรองอันที่เก่ากว่า 90 วันทิ้ง
           final createdAtRaw = data['createdAt'];
           if (createdAtRaw != null && createdAtRaw is Timestamp) {
             if (createdAtRaw.toDate().isBefore(threeMonthsAgo)) {
-              continue; // ข้ามโพสต์นี้ไปเลย
+              continue;
             }
           }
 
@@ -239,6 +236,21 @@ class PostProvider with ChangeNotifier {
       return name;
     } catch (e) {
       return 'ไม่ระบุผู้โพสต์';
+    }
+  }
+
+  // Fallback mechanism for when composite indexes are missing
+  Future<QuerySnapshot> _executeWithFallback(Query query) async {
+    try {
+      // Try with ordering (requires index if combined with whereIn/where)
+      return await query
+          .orderBy('createdAt', descending: true)
+          .limit(_pageSize)
+          .get();
+    } catch (e) {
+      debugPrint("Query failed (likely missing index): $e");
+      // Fallback: Try without ordering if it's a filtered query
+      return await query.limit(_pageSize).get();
     }
   }
 }
