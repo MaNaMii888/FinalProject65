@@ -14,17 +14,36 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   DateTime? lastPressed;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 🚀 Start listening for smart match notifications in the background
     WidgetsBinding.instance.addPostFrameCallback((_) {
       RealtimeNotificationService.startListening(context);
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    RealtimeNotificationService.stopListening();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      // Pause heavy listeners when app is backgrounded
+      RealtimeNotificationService.stopListening();
+    } else if (state == AppLifecycleState.resumed) {
+      // Resume when app back in foreground
+      RealtimeNotificationService.startListening(context);
+    }
   }
 
   final List<Widget> _pages = [

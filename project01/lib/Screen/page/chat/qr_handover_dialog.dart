@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:project01/services/qr_handover_service.dart';
+import 'package:project01/widgets/branded_loading.dart';
 
 class QRHandoverDialog extends StatefulWidget {
   final String postId;
@@ -70,7 +71,7 @@ class _QRHandoverDialogState extends State<QRHandoverDialog> {
             ),
             const SizedBox(height: 16),
             if (_isLoading)
-              const CircularProgressIndicator()
+              const BrandedLoading(size: 40)
             else if (_error != null)
               Text(_error!, style: const TextStyle(color: Colors.red))
             else if (_qrData != null)

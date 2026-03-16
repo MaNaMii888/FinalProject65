@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/page/map/feature/room_posts_dialog.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:project01/models/post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -167,7 +168,7 @@ class FloorPlanA extends StatelessWidget {
             .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: BrandedLoading(size: 40));
           } else if (snapshot.hasError) {
             return AlertDialog(
               title: const Text('เกิดข้อผิดพลาด'),

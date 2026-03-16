@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/utils/time_formatter.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:project01/services/chat_service.dart';
 import 'package:project01/Screen/page/chat/chat_room_page.dart';
 
@@ -208,7 +209,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
             child:
                 isLoading
                     ? Center(
-                      child: CircularProgressIndicator(color: onPrimaryColor),
+                      child: BrandedLoading(size: 40),
                     )
                     : smartNotifications.isEmpty
                     ? _buildEmptyState(onPrimaryColor)
@@ -733,16 +734,10 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                                     });
                                   }
                                 },
-                        icon:
-                            isLoadingChat
-                                ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Icon(Icons.chat, size: 18),
+                         icon:
+                             isLoadingChat
+                                 ? const BrandedLoading(size: 20)
+                                 : const Icon(Icons.chat, size: 18),
                         label: Text(isLoadingChat ? 'กำลังโหลด...' : 'แชทเลย'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:

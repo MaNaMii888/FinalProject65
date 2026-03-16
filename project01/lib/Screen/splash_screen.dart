@@ -69,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AppLogoGradient(size: 140),
+                const AppLogoGradient(size: 140),
                 const SizedBox(height: 24),
                 Text(
                   'Lost & Found',

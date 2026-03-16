@@ -7,6 +7,7 @@ import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dar
 import 'package:project01/services/log_service.dart';
 import 'package:project01/utils/time_formatter.dart';
 import 'package:project01/utils/category_utils.dart';
+import 'package:project01/widgets/branded_loading.dart';
 
 class PostHistoryPage extends StatefulWidget {
   final String userId;
@@ -149,7 +150,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
       body: Builder(
         builder: (context) {
           if (isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const BrandedLoading();
           }
 
           if (posts.isEmpty) {
@@ -187,7 +188,7 @@ class _PostHistoryPageState extends State<PostHistoryPage> {
                 if (index == posts.length) {
                   return const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: BrandedLoading(size: 40),
                   );
                 }
                 final post = posts[index];

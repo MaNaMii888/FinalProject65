@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:project01/services/qr_handover_service.dart';
+import 'package:project01/widgets/branded_loading.dart';
 
 class QRScannerPage extends StatefulWidget {
   final String currentUserId;
@@ -119,7 +120,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: Colors.green),
+                    BrandedLoading(size: 40, color: Colors.green),
                     SizedBox(height: 16),
                     Text(
                       'กำลังตรวจสอบข้อมูล...',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class GoogleMapWrapper extends StatefulWidget {
@@ -62,7 +63,7 @@ class _GoogleMapWrapperState extends State<GoogleMapWrapper> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
+                  BrandedLoading(size: 40),
                   SizedBox(height: 16),
                   Text(
                     'กำลังโหลดแผนที่...',

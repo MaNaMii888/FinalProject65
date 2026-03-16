@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project01/Screen/register.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:project01/Screen/forgot_password.dart';
 import 'dart:async';
 import 'dart:io';
@@ -448,7 +449,7 @@ class _LoginScreenState extends State<LoginPage> {
           if (_isLoading)
             Container(
               color: Colors.black26,
-              child: const Center(child: CircularProgressIndicator()),
+              child: const BrandedLoading(),
             ),
         ],
       ),

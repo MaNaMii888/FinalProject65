@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/chat_service.dart';
 import 'package:project01/Screen/page/chat/chat_room_page.dart';
 import 'package:project01/utils/category_utils.dart';
+import 'package:project01/widgets/branded_loading.dart';
+import 'package:project01/widgets/smart_network_image.dart';
 
 class PostDetailSheet extends StatefulWidget {
   final Post post;
@@ -18,6 +20,72 @@ class PostDetailSheet extends StatefulWidget {
 
 class _PostDetailSheetState extends State<PostDetailSheet> {
   bool _isLoadingChat = false;
+
+  User? _currentUser;
+  bool _isOwner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUser = FirebaseAuth.instance.currentUser;
+    _isOwner = _currentUser?.uid == widget.post.userId;
+  }
+
+  Future<void> _handleChat(BuildContext context) async {
+    if (_currentUser == null) {
+      // Handle case where user is not logged in, e.g., show a login prompt
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาเข้าสู่ระบบเพื่อเริ่มแชท'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoadingChat = true;
+    });
+
+    try {
+      final chatId = await ChatService().createOrGetChatRoom(
+            _currentUser!.uid,
+            widget.post.userId, // เจ้าของโพสต์
+            widget.post.id,
+          );
+
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatRoomPage(
+                  chatId: chatId,
+                  otherUserId: widget.post.userId,
+                  postId: widget.post.id,
+                  initialUserName: widget.post.userName,
+                ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ไม่สามารถเริ่มแชทได้: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingChat = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,20 +137,11 @@ class _PostDetailSheetState extends State<PostDetailSheet> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                post.imageUrl,
+                              child: SmartNetworkImage(
+                                imageUrl: post.imageUrl,
                                 height: 250,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
-                                errorBuilder:
-                                    (context, error, stackTrace) => Container(
-                                      height: 250,
-                                      color: Colors.grey[800],
-                                      child: Icon(
-                                        Icons.error,
-                                        color: contentColor,
-                                      ),
-                                    ),
                               ),
                             ),
                             // ป้ายสถานะ
@@ -281,90 +340,33 @@ class _PostDetailSheetState extends State<PostDetailSheet> {
                             ),
 
                             // ปุ่มแชท (แสดงเฉพาะเมื่อไม่ใช่ของตัวเอง)
-                            if (FirebaseAuth.instance.currentUser != null &&
-                                FirebaseAuth.instance.currentUser!.uid !=
-                                    post.userId)
-                              ElevatedButton.icon(
-                                onPressed:
-                                    _isLoadingChat
-                                        ? null
-                                        : () async {
-                                          setState(() {
-                                            _isLoadingChat = true;
-                                          });
-                                          final currentUserId =
-                                              FirebaseAuth
-                                                  .instance
-                                                  .currentUser!
-                                                  .uid;
-                                          try {
-                                            final chatId = await ChatService()
-                                                .createOrGetChatRoom(
-                                                  currentUserId,
-                                                  post.userId, // เจ้าของโพสต์
-                                                  post.id,
-                                                );
-
-                                            if (context.mounted) {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder:
-                                                      (_) => ChatRoomPage(
-                                                        chatId: chatId,
-                                                        otherUserId:
-                                                            post.userId,
-                                                        postId: post.id,
-                                                        initialUserName:
-                                                            post.userName,
-                                                      ),
-                                                ),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'ไม่สามารถเริ่มแชทได้: $e',
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } finally {
-                                            if (mounted) {
-                                              setState(() {
-                                                _isLoadingChat = false;
-                                              });
-                                            }
-                                          }
-                                        },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: colorScheme.primary,
-                                  foregroundColor:
-                                      colorScheme
-                                          .onPrimaryFixed, // สีขาวหรือสีตัดกัน
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                            if (!_isOwner)
+                              Flexible(
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoadingChat ? null : () => _handleChat(context),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: colorScheme.onPrimaryFixed,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                ),
-                                icon:
-                                    _isLoadingChat
-                                        ? const SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
+                                  icon: _isLoadingChat
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: BrandedLoading(size: 18),
                                         )
-                                        : const Icon(
-                                          Icons.chat_bubble,
-                                          size: 18,
-                                        ),
-                                label: Text(
-                                  _isLoadingChat ? 'กำลังโหลด...' : 'แชทเลย',
+                                      : const Icon(Icons.chat_bubble, size: 18),
+                                  label: Text(
+                                    _isLoadingChat ? 'กำลังโหลด...' : 'แชทเลย',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
                           ],

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/chat_service.dart';
 import 'package:project01/Screen/page/chat/chat_room_page.dart';
 import 'package:intl/intl.dart';
+import 'package:project01/widgets/branded_loading.dart';
 
 class ChatListPage extends StatefulWidget {
   const ChatListPage({super.key});
@@ -18,8 +19,9 @@ class _ChatListPageState extends State<ChatListPage> {
   final Set<String> _fetchingUsers = {};
 
   void _fetchUserData(String userId) async {
-    if (_fetchingUsers.contains(userId) || _userCache.containsKey(userId))
+    if (_fetchingUsers.contains(userId) || _userCache.containsKey(userId)) {
       return;
+    }
     _fetchingUsers.add(userId);
 
     try {
@@ -65,7 +67,7 @@ class _ChatListPageState extends State<ChatListPage> {
         stream: ChatService().getUserChatRoomsStream(user.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const BrandedLoading();
           }
           if (snapshot.hasError) {
             return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'));

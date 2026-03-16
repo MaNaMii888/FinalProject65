@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path/path.dart' as path;
@@ -168,24 +169,13 @@ class ImageService {
       debugPrint('🔧 [UPLOAD] เริ่มบีบอัดรูปภาพ...');
       final compressed = await compressImage(imageFile);
 
-      // สร้าง path ที่เฉพาะเจาะจงสำหรับ user
+      // ใช้ path เดิมที่เคยทำงานได้: images/[userId]/lost_found_...
       final fileName =
           'lost_found_${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final storagePath = 'images/${user.uid}/$fileName'; // จัดกลุ่มตาม user ID
+      final storagePath = 'images/${user.uid}/$fileName';
 
       debugPrint('📁 [UPLOAD] ไฟล์: $storagePath');
       final ref = FirebaseStorage.instance.ref().child(storagePath);
-
-      // กำหนด metadata ที่ชัดเจน
-      final metadata = SettableMetadata(
-        contentType: 'image/jpeg',
-        cacheControl: 'max-age=3600',
-        customMetadata: {
-          'uploadedBy': user.email ?? 'unknown',
-          'uploadedAt': DateTime.now().toIso8601String(),
-          'originalSize': imageFile.lengthSync().toString(),
-        },
-      );
 
       // อัพโหลดด้วย retry logic และ fallback เป็น putData หาก putFile ล้ม
       String? downloadURL;
@@ -200,7 +190,7 @@ class ImageService {
             '🚀 [UPLOAD] ความพยายามที่ $attempt/$maxAttempts (method=putFile)',
           );
 
-          final uploadTask = ref.putFile(compressed, metadata);
+          final uploadTask = ref.putFile(compressed);
 
           // ติดตาม progress การอัพโหลด
           if (onProgress != null) {
@@ -250,7 +240,7 @@ class ImageService {
               );
               fileBytes ??= Uint8List.fromList(await compressed.readAsBytes());
 
-              final uploadTask = ref.putData(fileBytes, metadata);
+              final uploadTask = ref.putData(fileBytes);
 
               if (onProgress != null) {
                 uploadTask.snapshotEvents.listen(
@@ -301,7 +291,7 @@ class ImageService {
       return downloadURL;
     } catch (e) {
       debugPrint('💥 [UPLOAD] ข้อผิดพลาดขั้นสุดท้าย: $e');
-      return null;
+      rethrow; // Rethrow เพื่อให้ _submitForm แจ้งเตือน user ได้ตรงจุด
     }
   }
 
@@ -369,7 +359,6 @@ class _LostItemFormState extends State<LostItemForm> {
     'อาคาร 33',
     'โรงอาหาร',
     'ห้องสมุด',
-    'สำนักงาน',
     'สนาม',
   ];
 
@@ -559,7 +548,9 @@ class _LostItemFormState extends State<LostItemForm> {
   List<String> _generateSearchKeywords() {
     final keywords = <String>[];
     keywords.add(titleController.text.trim().toLowerCase());
-    keywords.add(CategoryUtils.getCategoryName(selectedCategory!).toLowerCase());
+    keywords.add(
+      CategoryUtils.getCategoryName(selectedCategory!).toLowerCase(),
+    );
     keywords.add(selectedBuilding!.toLowerCase());
     keywords.add(roomController.text.trim().toLowerCase());
     final detailWords = detailController.text.trim().toLowerCase().split(' ');
@@ -934,16 +925,7 @@ class _LostItemFormState extends State<LostItemForm> {
                           ),
                           icon:
                               isLoading
-                                  ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white,
-                                      ),
-                                    ),
-                                  )
+                                  ? const BrandedLoading(size: 20)
                                   : const Icon(
                                     Icons.check_circle_outline,
                                     size: 24,

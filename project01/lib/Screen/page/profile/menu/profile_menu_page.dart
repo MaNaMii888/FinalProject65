@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/Screen/login.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
 import 'package:project01/services/auth_service.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'dart:ui';
 
 class ProfileMenuPage extends StatefulWidget {
@@ -359,7 +360,7 @@ class _ProfileMenuPageState extends State<ProfileMenuPage> {
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
+                      BrandedLoading(size: 40),
                       SizedBox(height: 16),
                       Text('กำลังออกจากระบบ...'),
                     ],

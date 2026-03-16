@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/services/chat_service.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:project01/widgets/smart_network_image.dart';
 import 'package:project01/Screen/page/chat/qr_handover_dialog.dart';
 import 'package:project01/Screen/page/chat/qr_scanner_page.dart';
 import 'package:project01/Screen/page/chat/full_screen_image_page.dart';
@@ -177,8 +179,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   void _checkForAntiForgetKeywords(String text) {
-    if (relatedPost?.status == 'resolved' || relatedPost?.status == 'deleted')
+    if (relatedPost?.status == 'resolved' || relatedPost?.status == 'deleted') {
       return;
+    }
 
     final keywords = [
       'เจอกัน',
@@ -401,7 +404,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               ),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const BrandedLoading();
                 }
                 final messages = snapshot.data!.docs;
 
@@ -502,12 +505,15 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                     : null,
           ),
           const SizedBox(width: 12),
-          Text(
-            name,
-            style: TextStyle(
-              color: colorScheme.onPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          Expanded(
+            child: Text(
+              name,
+              style: TextStyle(
+                color: colorScheme.onPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -615,7 +621,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           child: SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: BrandedLoading(size: 20),
           ),
         ),
       );
@@ -651,8 +657,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             if (post.imageUrl.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  post.imageUrl,
+                child: SmartNetworkImage(
+                  imageUrl: post.imageUrl,
                   width: 48,
                   height: 48,
                   fit: BoxFit.cover,
@@ -761,31 +767,16 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16),
+                  topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
                     bottomLeft: Radius.circular(isMe ? 16 : 4),
                     bottomRight: Radius.circular(isMe ? 4 : 16),
                   ),
-                  child: Image.network(
-                    imageUrl,
+                   child: SmartNetworkImage(
+                    imageUrl: imageUrl,
+                    width: 200,
+                    height: 200,
                     fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        width: 200,
-                        height: 200,
-                        color: colorScheme.surfaceVariant,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            value:
-                                loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                          ),
-                        ),
-                      );
-                    },
                   ),
                 ),
               )
@@ -895,13 +886,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 _isUploadingImage
                     ? const Padding(
                       padding: EdgeInsets.all(12.0),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                      child: Center(
+                        child: BrandedLoading(size: 20, color: Colors.white),
                       ),
                     )
                     : IconButton(

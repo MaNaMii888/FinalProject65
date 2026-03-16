@@ -5,6 +5,7 @@ import 'package:project01/services/notifications_service.dart';
 import 'package:project01/utils/time_formatter.dart';
 import 'package:project01/services/chat_service.dart';
 import 'package:project01/Screen/page/chat/chat_room_page.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SmartNotificationPopup extends StatefulWidget {
@@ -124,7 +125,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(color: onPrimaryColor),
+            child: BrandedLoading(size: 40, color: onPrimaryColor),
           );
         }
 
@@ -601,16 +602,18 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                                       notification.data['matchedPostId'] ??
                                       notification.data['newItemId'] ??
                                       notification.data['existingItemId'];
-                                  if (targetPostId == null)
+                                  if (targetPostId == null) {
                                     throw Exception('ไม่พบรหัสโพสต์');
+                                  }
 
                                   final postDoc =
                                       await FirebaseFirestore.instance
                                           .collection('lost_found_items')
                                           .doc(targetPostId)
                                           .get();
-                                  if (!postDoc.exists)
+                                  if (!postDoc.exists) {
                                     throw Exception('ไม่พบข้อมูลโพสต์ในระบบ');
+                                  }
 
                                   final postUserId = postDoc.data()?['userId'];
                                   final postTitle =
@@ -620,10 +623,11 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                                   final currentUid =
                                       FirebaseAuth.instance.currentUser!.uid;
 
-                                  if (postUserId == currentUid)
+                                  if (postUserId == currentUid) {
                                     throw Exception(
                                       'คุณไม่สามารถแชทกับตัวเองได้',
                                     );
+                                  }
 
                                   String? relatedPostId =
                                       notification.relatedPostId ??
@@ -699,9 +703,7 @@ class _SmartNotificationPopupState extends State<SmartNotificationPopup> {
                               ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                                child: BrandedLoading(size: 20),
                               )
                               : const Icon(Icons.chat, size: 18),
                       label: Text(isLoadingChat ? 'กำลังโหลด...' : 'แชทเลย'),

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:form_field_validator/form_field_validator.dart';
@@ -189,7 +190,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 barrierDismissible: false,
                                 builder:
                                     (c) => const Center(
-                                      child: CircularProgressIndicator(),
+                                      child: BrandedLoading(size: 40),
                                     ),
                               );
 
@@ -298,7 +299,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               barrierDismissible: false,
                               builder:
                                   (c) => const Center(
-                                    child: CircularProgressIndicator(),
+                                    child: BrandedLoading(size: 40),
                                   ),
                             );
 

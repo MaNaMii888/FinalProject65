@@ -21,7 +21,7 @@ class BuildingPointData {
   static List<BuildingPoint> getCampusBuildings() {
     return [
       BuildingPoint(
-        id: '1',
+        id: '1, โรงอาหาร',
         name: 'อาคาร 1',
         fullName: 'อาคารสมเด็จเจ้าพระยาบรมมหาศรีสุริยวงศ์',
         center: const LatLng(
@@ -84,7 +84,7 @@ class BuildingPointData {
         ), // พิกัดที่คุณหามา
       ),
       BuildingPoint(
-        id: '8',
+        id: '8, ห้องสมุด',
         name: 'อาคาร 8',
         fullName: 'สำนักวิทยบริการและเทคโนโลยีสารสนเทศ',
         center: const LatLng(

@@ -114,7 +114,7 @@ class _PostActionButtonState extends State<PostActionButton>
                   },
                 ),
 
-                // แจ้งพบของหาย button
+                // แจ้งเจอของ button
                 AnimatedBuilder(
                   animation: _expandAnimation,
                   builder: (context, child) {
@@ -136,7 +136,7 @@ class _PostActionButtonState extends State<PostActionButton>
                             backgroundColor:
                                 Theme.of(context).colorScheme.onSecondary,
                             label: const Text(
-                              'แจ้งพบของหาย',
+                              'แจ้งเจอของ',
                               style: TextStyle(fontWeight: FontWeight.w500),
                             ),
                             icon: const Icon(Icons.search),

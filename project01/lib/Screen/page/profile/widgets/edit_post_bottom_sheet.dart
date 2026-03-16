@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/utils/category_utils.dart';
 import 'package:project01/services/log_service.dart';
@@ -355,15 +356,9 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             child:
-                                _isLoading
-                                    ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                    : const Text('บันทึก'),
+                                 _isLoading
+                                     ? const BrandedLoading(size: 20)
+                                     : const Text('บันทึก'),
                           ),
                         ),
                       ],

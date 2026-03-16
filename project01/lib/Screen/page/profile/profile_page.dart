@@ -6,6 +6,7 @@ import 'package:project01/Screen/login.dart';
 import 'package:project01/Screen/page/notification/realtime_notification_service.dart';
 import 'package:project01/Screen/page/profile/edit_profile_page.dart';
 import 'package:project01/utils/category_utils.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:project01/Screen/page/profile/widgets/edit_post_bottom_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/models/post.dart';
@@ -345,7 +346,7 @@ class _ProfilePageState extends State<ProfilePage>
               .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: BrandedLoading(size: 60));
         }
 
         if (snapshot.hasError) {
@@ -682,7 +683,7 @@ class _ProfilePageState extends State<ProfilePage>
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: BrandedLoading(size: 40));
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -969,7 +970,7 @@ class _ProfilePageState extends State<ProfilePage>
                                     height: 120,
                                     color: Colors.grey[200],
                                     child: const Center(
-                                      child: CircularProgressIndicator(),
+                                      child: BrandedLoading(size: 40),
                                     ),
                                   ),
                               errorWidget:

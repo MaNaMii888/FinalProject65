@@ -12,6 +12,7 @@ import 'dart:ui';
 import 'package:project01/services/smart_matching_service.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_polygon_data.dart';
 import 'package:project01/Screen/page/map/feature/marker_helper.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:project01/Screen/page/map/feature/room_posts_dialog.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/Screen/page/notification/smart_notification_popup.dart';
@@ -33,9 +34,14 @@ class _CampusNavigationState extends State<CampusNavigation>
   StreamSubscription<QuerySnapshot>? _postsSubscription;
   Set<Marker> _markers = {};
   Set<Marker> _buildingMarkers = {};
+  // Cache for marker bitmaps to avoid re-drawing every time
+  final Map<String, BitmapDescriptor> _markerIconCache = {};
+  final Map<String, int> _lastPostCounts = {};
   Set<Circle> _circles = {};
   LatLng? _currentPosition;
+  LatLng? _initialMapTarget; // พิกัดเริ่มต้นที่จะใช้ตอนเปิดแมพ
   bool _isFirstLocationUpdate = true; // เอาไว้เช็คตอนโหลด location ครั้งแรก
+  bool _isLoadingInitialLocation = true; // รอโหลดพิกัดแรกก่อนโชว์แมพ
 
   // State สำหรับเมนูนำทางแบบย่อส่วน (Liquid Glass)
   bool _isNavExpanded = false;
@@ -55,8 +61,71 @@ class _CampusNavigationState extends State<CampusNavigation>
     }
 
     _updateStatusBarColor();
-    _startLocationTracking();
+    _handleMapInitialization(); // เริ่มกระบวนการเตรียมแมพแบบ Robust
     _startBuildingPostsStream();
+  }
+
+  Future<void> _handleMapInitialization() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // 1. เช็ค Location Service
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _finishInitializationWithFallback('กรุณาเปิด Location Service ก่อนใช้งาน');
+      return;
+    }
+
+    // 2. เช็ค/ขอ Permission
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _finishInitializationWithFallback('กรุณาอนุญาตสิทธิ์ตำแหน่งเพื่อใช้งานแอป');
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _finishInitializationWithFallback('กรุณาเปิดสิทธิ์ตำแหน่งในการตั้งค่า');
+      return;
+    }
+
+    // 3. เมื่อผ่านด่าน Permission แล้ว ค่อยหาพิกัด
+    try {
+      Position? position = await Geolocator.getLastKnownPosition();
+
+      if (position == null) {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+        ).timeout(const Duration(seconds: 4), onTimeout: () => throw TimeoutException('Location timeout'));
+      }
+
+      if (mounted) {
+        setState(() {
+          _initialMapTarget = LatLng(position!.latitude, position.longitude);
+          _isLoadingInitialLocation = false;
+        });
+        _startLocationTracking(); // เริ่ม Tracking ต่อเนื่อง
+      }
+    } catch (e) {
+      debugPrint('Error getting initial location: $e');
+      _finishInitializationWithFallback(null);
+    }
+  }
+
+  void _finishInitializationWithFallback(String? message) {
+    if (mounted) {
+      if (message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
+      setState(() {
+        _initialMapTarget = const LatLng(13.733008369761437, 100.48956425829512);
+        _isLoadingInitialLocation = false;
+      });
+      // ถึงหาพิกัดไม่ได้ ก็ต้อง Tracking ทิ้งไว้ เผื่อ User ไปเปิด GPS ทีหลัง
+      _startLocationTracking();
+    }
   }
 
   void _startBuildingPostsStream() {
@@ -94,19 +163,26 @@ class _CampusNavigationState extends State<CampusNavigation>
 
             for (var building in buildings) {
               int postCount = buildingCounts[building.name] ?? 0;
+              final markerId = 'badge_${building.id}';
 
               try {
-                final bitmapIcon =
-                    await MarkerHelper.createCompositeMarkerBitmap(
-                      building.name.replaceAll('อาคาร ', ''),
-                      postCount.toString(),
-                    );
+                // Only re-create visibility if the count has changed or icon isn't cached
+                if (!_markerIconCache.containsKey(markerId) ||
+                    _lastPostCounts[markerId] != postCount) {
+                  final bitmapIcon =
+                      await MarkerHelper.createCompositeMarkerBitmap(
+                        building.name.replaceAll('อาคาร ', ''),
+                        postCount.toString(),
+                      );
+                  _markerIconCache[markerId] = bitmapIcon;
+                  _lastPostCounts[markerId] = postCount;
+                }
 
                 newBuildingMarkers.add(
                   Marker(
-                    markerId: MarkerId('badge_${building.id}'),
+                    markerId: MarkerId(markerId),
                     position: building.center,
-                    icon: bitmapIcon,
+                    icon: _markerIconCache[markerId]!,
                     anchor: const Offset(0.5, 0.5),
                     consumeTapEvents: true,
                     onTap: () {
@@ -237,55 +313,10 @@ class _CampusNavigationState extends State<CampusNavigation>
   }
 
   Future<void> _startLocationTracking() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'กรุณาเปิด Location Service ของเครื่องก่อนใช้งานแผนที่',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('ไม่สามารถใช้งานแผนที่ได้หากไม่เปิดสิทธิ์ตำแหน่ง'),
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'คุณปฏิเสธสิทธิ์ตำแหน่งถาวร กรุณาปลดล็อคในการตั้งค่า',
-            ),
-            action: SnackBarAction(
-              label: 'ตั้งค่า',
-              onPressed: () {
-                Geolocator.openAppSettings();
-              },
-            ),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+    // เช็ค Permission อีกรอบเพื่อความชัวร์ (แม้จะเช็คใน Initialization มาแล้ว)
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       return;
     }
 
@@ -322,18 +353,22 @@ class _CampusNavigationState extends State<CampusNavigation>
             ),
           };
 
-          // เลื่อนกล้องไปหาผู้ใช้เฉพาะครั้งแรกที่จับพิกัดได้
+          // เลื่อนกล้องจากซูมลึก (ที่เริ่มตอนแรก) มาซูมปกติเพื่อให้เห็นภาพรวม
           if (_isFirstLocationUpdate && _mapController != null) {
             _isFirstLocationUpdate = false;
-            _mapController!.animateCamera(
-              CameraUpdate.newCameraPosition(
-                CameraPosition(
-                  target: currentLatLng,
-                  zoom: 18, // ซูมดูผู้ใช้ชัดๆ
-                  bearing: 140.0, // คงทิศทางเฉียงๆ ไว้
-                ),
-              ),
-            );
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                _mapController!.animateCamera(
+                  CameraUpdate.newCameraPosition(
+                    CameraPosition(
+                      target: currentLatLng,
+                      zoom: 18, // ซูมออกมาดูภาพรวม
+                      bearing: 140.0,
+                    ),
+                  ),
+                );
+              }
+            });
           }
         });
       }
@@ -384,6 +419,14 @@ class _CampusNavigationState extends State<CampusNavigation>
   Widget build(BuildContext context) {
     super.build(context); // สำคัญมากสำหรับ AutomaticKeepAliveClientMixin
 
+    if (_isLoadingInitialLocation) {
+      return Scaffold(
+        body: Center(
+          child: BrandedLoading(size: 60),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Stack(
@@ -398,11 +441,9 @@ class _CampusNavigationState extends State<CampusNavigation>
               onMapCreated: (GoogleMapController controller) {
                 _mapController = controller;
               },
-              initialCameraPosition: const CameraPosition(
-                // ขยับศูนย์กลางแผนที่ให้คลุมตึกทุกฝั่งได้ดีเหมือนในรูป
-                target: LatLng(13.733008369761437, 100.48956425829512),
-                zoom: 25,
-                // หมุนทิศทาง(Bearing) เข็มทิศสีแดงจะชี้เฉียงลงมาซ้ายล่างเหมือนหน้าจอตัวอย่างเป๊ะ
+              initialCameraPosition: CameraPosition(
+                target: _initialMapTarget ?? const LatLng(13.733008369761437, 100.48956425829512),
+                zoom: 25, // เริ่มต้นแบบซูมลึกก่อน แล้วค่อยถอยออกมา
                 bearing: 140.0,
               ),
               markers: _markers,

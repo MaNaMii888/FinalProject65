@@ -9,6 +9,7 @@ import 'package:project01/Screen/page/profile/profile_page.dart';
 import 'package:project01/providers/theme_provider.dart';
 import 'package:project01/providers/post_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:project01/widgets/branded_loading.dart';
 import 'package:project01/firebase_options.dart';
 import 'package:project01/services/notifications_service.dart';
 import 'package:project01/services/chat_notification_service.dart';
@@ -106,12 +107,14 @@ class MyApp extends StatelessWidget {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Scaffold(
-                        body: Center(child: CircularProgressIndicator()),
+                        body: BrandedLoading(fullScreen: true),
                       );
                     }
 
                     if (snapshot.hasData && snapshot.data != null) {
-                      ChatNotificationService.instance.startListening(snapshot.data!.uid);
+                      ChatNotificationService.instance.startListening(
+                        snapshot.data!.uid,
+                      );
                       return const DashboardPage();
                     }
 
@@ -188,18 +191,46 @@ class NetworkAwareWrapper extends StatefulWidget {
   State<NetworkAwareWrapper> createState() => _NetworkAwareWrapperState();
 }
 
-class _NetworkAwareWrapperState extends State<NetworkAwareWrapper> {
+class _NetworkAwareWrapperState extends State<NetworkAwareWrapper>
+    with WidgetsBindingObserver {
   bool _hasConnection = true;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
     _checkConnection();
     _timer = Timer.periodic(
-      const Duration(seconds: 3),
+      const Duration(seconds: 15),
       (_) => _checkConnection(),
     );
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _stopTimer();
+    } else if (state == AppLifecycleState.resumed) {
+      _startTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopTimer();
+    super.dispose();
   }
 
   Future<void> _checkConnection() async {
@@ -216,12 +247,6 @@ class _NetworkAwareWrapperState extends State<NetworkAwareWrapper> {
   }
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (!_hasConnection) {
       final colorScheme = Theme.of(context).colorScheme;
@@ -231,12 +256,16 @@ class _NetworkAwareWrapperState extends State<NetworkAwareWrapper> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.wifi_off, size: 80, color: colorScheme.primary.withOpacity(0.5)),
+              Icon(
+                Icons.wifi_off,
+                size: 80,
+                color: colorScheme.primary.withOpacity(0.5),
+              ),
               const SizedBox(height: 16),
               Text(
                 'ไม่มีการเชื่อมต่ออินเตอร์เน็ต',
                 style: TextStyle(
-                  fontSize: 20, 
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onSurface,
                 ),
@@ -246,7 +275,7 @@ class _NetworkAwareWrapperState extends State<NetworkAwareWrapper> {
                 'กรุณาตรวจสอบการเชื่อมต่อของคุณ\nระบบจะกลับมาทำงานอัตโนมัติเมื่อเชื่อมต่อสำเร็จ',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: colorScheme.onSurface.withOpacity(0.7), 
+                  color: colorScheme.onSurface.withOpacity(0.7),
                   fontSize: 14,
                 ),
               ),

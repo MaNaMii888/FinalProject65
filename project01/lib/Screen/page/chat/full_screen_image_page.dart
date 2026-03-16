@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project01/widgets/branded_loading.dart';
 
 class FullScreenImagePage extends StatelessWidget {
   final String imageUrl;
@@ -32,7 +33,7 @@ class FullScreenImagePage extends StatelessWidget {
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
               return const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                child: BrandedLoading(size: 40, color: Colors.white),
               );
             },
             errorBuilder: (context, error, stackTrace) {

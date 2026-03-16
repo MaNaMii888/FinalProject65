@@ -7,8 +7,9 @@ import 'package:project01/Screen/page/post/action/post_actions_buttons.dart';
 import 'package:project01/utils/time_formatter.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/models/post_detail_sheet.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:project01/utils/category_utils.dart';
+import 'package:project01/widgets/branded_loading.dart';
+import 'package:project01/widgets/smart_network_image.dart';
 
 class PostPage extends StatefulWidget {
   const PostPage({super.key});
@@ -358,7 +359,7 @@ class _PostPageState extends State<PostPage>
                 : provider.isLoadingMoreFound;
 
         if (currentIsLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const BrandedLoading();
         }
 
         final filteredPosts =
@@ -444,7 +445,7 @@ class _PostPageState extends State<PostPage>
                 if (index == filteredPosts.length) {
                   return const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: BrandedLoading(size: 40),
                   );
                 }
                 return _buildPostItem(
@@ -693,30 +694,10 @@ class _PostPageState extends State<PostPage>
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: CachedNetworkImage(
+                            child: SmartNetworkImage(
                               imageUrl: post.imageUrl,
                               width: double.infinity,
-                              // height: 200, // ปล่อย auto height หรือกำหนด max
                               fit: BoxFit.cover,
-                              placeholder:
-                                  (context, url) => Container(
-                                    height: 150,
-                                    color: onPrimaryColor.withOpacity(0.05),
-                                    child: const Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  ),
-                              errorWidget:
-                                  (context, url, error) => Container(
-                                    height: 100,
-                                    color: onPrimaryColor.withOpacity(0.05),
-                                    child: Icon(
-                                      Icons.broken_image,
-                                      color: onPrimaryColor.withOpacity(0.3),
-                                    ),
-                                  ),
                             ),
                           ),
                         ),

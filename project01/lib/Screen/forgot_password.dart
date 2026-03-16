@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/utils/debug_helper.dart';
+import 'package:project01/widgets/branded_loading.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -37,7 +38,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(),
+                    BrandedLoading(size: 40),
                     SizedBox(height: 16),
                     Text(
                       'กำลังตรวจสอบ...',
