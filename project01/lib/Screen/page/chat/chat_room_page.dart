@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:project01/widgets/branded_loading.dart';
@@ -300,8 +302,21 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       _isUploadingImage = true;
     });
 
+    File? imageFile;
     try {
-      final File imageFile = File(pickedFile.path);
+      // เพื่อความเสถียร ให้คัดลอกเนื้อหาไฟล์ไปยังโฟลเดอร์ซัพพอร์ตของแอปก่อน
+      final bytes = await pickedFile.readAsBytes();
+      final supportDir = await getApplicationSupportDirectory();
+      final safeName =
+          'chat_${DateTime.now().millisecondsSinceEpoch}_${path.basename(pickedFile.path)}';
+      final safePath = path.join(supportDir.path, safeName);
+      imageFile = File(safePath);
+      await imageFile.writeAsBytes(bytes, flush: true);
+
+      if (!await imageFile.exists()) {
+        throw Exception('ไม่สามารถบันทึกไฟล์รูปภาพชั่วคราวได้');
+      }
+
       final downloadUrl = await ChatService().uploadImageToStorage(
         widget.chatId,
         imageFile,
@@ -338,6 +353,15 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         setState(() {
           _isUploadingImage = false;
         });
+      }
+      // 🧹 ลบไฟล์ชั่วคราวเสมอไม่ว่าจะสำเร็จหรือไม่
+      try {
+        if (imageFile != null && await imageFile.exists()) {
+          debugPrint('🧹 [CHAT_CLEANUP] กำลังลบไฟล์ชั่วคราว: ${imageFile.path}');
+          await imageFile.delete();
+        }
+      } catch (e) {
+        debugPrint('⚠️ [CHAT_CLEANUP] ไม่สามารถลบไฟล์ได้: $e');
       }
     }
   }

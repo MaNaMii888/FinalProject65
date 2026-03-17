@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:project01/services/smart_matching_service.dart';
+import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 import 'package:project01/Screen/page/map/mapmodel/building_polygon_data.dart';
 import 'package:project01/Screen/page/map/feature/marker_helper.dart';
 import 'package:project01/widgets/branded_loading.dart';
@@ -153,8 +154,10 @@ class _CampusNavigationState extends State<CampusNavigation>
               }
               final buildingName = data['building'] as String?;
               if (buildingName != null && buildingName.isNotEmpty) {
-                buildingCounts[buildingName] =
-                    (buildingCounts[buildingName] ?? 0) + 1;
+                // Mapping ชื่ออาคารย่อยเข้ากับอาคารหลัก (เช่น โรงอาหาร -> อาคาร 1)
+                final parentBuilding = getParentBuilding(buildingName);
+                buildingCounts[parentBuilding] =
+                    (buildingCounts[parentBuilding] ?? 0) + 1;
               }
             }
 
@@ -248,12 +251,14 @@ class _CampusNavigationState extends State<CampusNavigation>
       context: context,
       builder:
           (context) => FutureBuilder<QuerySnapshot>(
-            future:
-                FirebaseFirestore.instance
-                    .collection('lost_found_items')
-                    .where('building', isEqualTo: buildingName)
-                    .orderBy('createdAt', descending: true)
-                    .get(),
+            future: () {
+              final searchBuildings = buildingMapping[buildingName] ?? [buildingName];
+              return FirebaseFirestore.instance
+                  .collection('lost_found_items')
+                  .where('building', whereIn: searchBuildings)
+                  .orderBy('createdAt', descending: true)
+                  .get();
+            }(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());

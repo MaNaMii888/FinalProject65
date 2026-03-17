@@ -105,14 +105,19 @@ class ImageService {
       }
 
       // บางระบบ (เช่น Android) จะคืน path แบบ scaled_... ที่ระบบอาจลบได้เร็ว
-      // เพื่อความเสถียร ให้คัดลอกเนื้อหาไฟล์ไปยังโฟลเดอร์ชั่วคราวของแอปก่อน
+      // เพื่อความเสถียร ให้คัดลอกเนื้อหาไฟล์ไปยังโฟลเดอร์ซัพพอร์ตของแอปก่อน
       final bytes = await image.readAsBytes();
-      final tempDir = await getTemporaryDirectory();
+      final supportDir = await getApplicationSupportDirectory();
       final safeName =
           '${DateTime.now().millisecondsSinceEpoch}_${path.basename(image.path)}';
-      final safePath = path.join(tempDir.path, safeName);
+      final safePath = path.join(supportDir.path, safeName);
       final file = File(safePath);
       await file.writeAsBytes(bytes, flush: true);
+
+      // ตรวจสอบว่าไฟล์ถูกเขียนสำเร็จและมีอยู่จริง
+      if (!await file.exists()) {
+        throw Exception('ไม่สามารถบันทึกไฟล์รูปภาพชั่วคราวได้');
+      }
 
       // ตรวจสอบขนาดไฟล์
       final fileSize = await file.length();
@@ -165,8 +170,13 @@ class ImageService {
         throw Exception('โปรดเข้าสู่ระบบใหม่');
       }
 
+      if (!await imageFile.exists()) {
+        debugPrint('❌ [UPLOAD] ไฟล์ต้นฉบับไม่มีอยู่จริง: ${imageFile.path}');
+        throw Exception('ไม่พบไฟล์รูปภาพ กรุณาลองเลือกรูปใหม่อีกครั้ง');
+      }
+
       debugPrint(
-        '🔥 [UPLOAD] ขนาดไฟล์ต้นฉบับ: ${imageFile.lengthSync()} bytes',
+        '🔥 [UPLOAD] ขนาดไฟล์ต้นฉบับ: ${await imageFile.length()} bytes',
       );
 
       // บีบอัดรูปก่อนอัพโหลด
@@ -555,6 +565,16 @@ class _FindItemFormState extends State<FindItemForm> {
           isLoading = false;
           uploadProgress = 0.0;
         });
+      }
+      // 🧹 ลบไฟล์ชั่วคราวเสมอไม่ว่าจะสำเร็จหรือไม่
+      try {
+        if (_imageFile != null && await _imageFile!.exists()) {
+          debugPrint('🧹 [CLEANUP] กำลังลบไฟล์ชั่วคราว: ${_imageFile!.path}');
+          await _imageFile!.delete();
+          _imageFile = null;
+        }
+      } catch (e) {
+        debugPrint('⚠️ [CLEANUP] ไม่สามารถลบไฟล์ได้: $e');
       }
     }
   }

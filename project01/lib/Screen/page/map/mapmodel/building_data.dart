@@ -1,7 +1,23 @@
-// models/building_data.dart
 import 'package:flutter/foundation.dart';
 import 'package:project01/models/post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+// Mapping สำหรับอาคารที่มีสถานที่ย่อยรวมอยู่ด้วย (เช่น โรงอาหารรวมกับอาคาร 1)
+const Map<String, List<String>> buildingMapping = {
+  'อาคาร 1': ['อาคาร 1', 'โรงอาหาร'],
+  'อาคาร 8': ['อาคาร 8', 'ห้องสมุด'],
+};
+
+// ย้อนกลับ: หาว่าสถานที่นี้ควรไปรวมที่อาคารไหน
+String getParentBuilding(String? locationName) {
+  if (locationName == null) return '';
+  for (var entry in buildingMapping.entries) {
+    if (entry.value.contains(locationName)) {
+      return entry.key;
+    }
+  }
+  return locationName;
+}
 
 class RoomData {
   final String roomId;
@@ -76,11 +92,13 @@ class BuildingDataService {
     String buildingName,
   ) async {
     try {
-      // ค้นหาโพสต์ที่ building ตรงกับชื่ออาคาร (เช่น 'อาคาร 1')
+      // ดึงข้อมูลโพสต์สำหรับอาคารหลักและสถานที่ย่อย (ถ้ามี)
+      final List<String> searchBuildings = buildingMapping[buildingName] ?? [buildingName];
+      
       final querySnapshot =
           await _firestore
               .collection('lost_found_items')
-              .where('building', isEqualTo: buildingName) // ใช้ buildingName
+              .where('building', whereIn: searchBuildings)
               .orderBy('createdAt', descending: true)
               .get();
 
@@ -156,10 +174,12 @@ class BuildingDataService {
       String? buildingName = _getBuildingNameFromId(zoneId, buildingId);
       if (buildingName == null) return [];
       
+      final List<String> searchBuildings = buildingMapping[buildingName] ?? [buildingName];
+
       final querySnapshot =
           await _firestore
               .collection('lost_found_items')
-              .where('building', isEqualTo: buildingName)
+              .where('building', whereIn: searchBuildings)
               .orderBy('createdAt', descending: true)
               .get();
 
@@ -202,8 +222,6 @@ Map<String, Building> buildingData = {
       Room(id: 10, name: 'อาคาร 10', type: 'classroom'),
       Room(id: 11, name: 'อาคาร 11', type: 'classroom'),
       Room(id: 12, name: 'อาคาร 12', type: 'classroom'),
-      Room(id: 'food', name: 'โรงอาหาร', type: 'food'),
-      Room(id: 'library', name: 'ห้องสมุด', type: 'library'),
       Room(id: 'office', name: 'สำนักงาน', type: 'office'),
     ],
   ),

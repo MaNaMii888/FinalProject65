@@ -13,6 +13,11 @@ class ImageCompressor {
     int quality = 80,
   }) async {
     try {
+      if (!await file.exists()) {
+        debugPrint('❌ ImageCompressor: Source file does not exist at ${file.path}');
+        return null;
+      }
+
       final String targetPath = await _getTargetPath(file);
 
       final XFile? compressedXFile =
@@ -28,6 +33,7 @@ class ImageCompressor {
       if (compressedXFile == null) return null;
 
       final compressedFile = File(compressedXFile.path);
+      if (!await compressedFile.exists()) return null;
 
       // Calculate sizes for debug purposes
       final originalSize = await file.length();
@@ -39,13 +45,14 @@ class ImageCompressor {
       return compressedFile;
     } catch (e) {
       debugPrint('❌ Error compressing image: $e');
-      // Always fallback to the original file to ensure functionality isn't broken
-      return file;
+      // Fallback to original if it exists
+      if (await file.exists()) return file;
+      return null;
     }
   }
 
   static Future<String> _getTargetPath(File file) async {
-    final tempDir = await getTemporaryDirectory();
+    final supportDir = await getApplicationSupportDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final extension = file.path.split('.').last.toLowerCase();
 
@@ -58,7 +65,7 @@ class ImageCompressor {
       compressExt = 'jpg'; // default to jpeg if unknown
     }
 
-    return '${tempDir.path}/compressed_$timestamp.$compressExt';
+    return '${supportDir.path}/compressed_$timestamp.$compressExt';
   }
 
   static CompressFormat _getFormat(String path) {

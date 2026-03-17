@@ -134,11 +134,19 @@ class ChatService {
   /// 2.5 อัปโหลดรูปภาพลง Firebase Storage
   Future<String?> uploadImageToStorage(String chatId, File imageFile) async {
     try {
+      if (!await imageFile.exists()) {
+        debugPrint('❌ [CHAT_UPLOAD] ไฟล์ไม่มีอยู่จริง: ${imageFile.path}');
+        return null;
+      }
+
       final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final Reference storageRef = FirebaseStorage.instance.ref().child(
         'chat_images/$chatId/$fileName',
       );
 
+      debugPrint(
+        '🔥 [CHAT_UPLOAD] ขนาดไฟล์: ${await imageFile.length()} bytes',
+      );
       final UploadTask uploadTask = storageRef.putFile(imageFile);
       final TaskSnapshot snapshot = await uploadTask;
       final String downloadUrl = await snapshot.ref.getDownloadURL();

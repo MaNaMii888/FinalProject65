@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:project01/widgets/branded_loading.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -49,12 +51,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Future<void> _getImage() async {
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    final pickedFile =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-        _hasImageChanged = true;
-      });
+      try {
+        // เพื่อความเสถียร ให้คัดลอกเนื้อหาไฟล์ไปยังโฟลเดอร์ซัพพอร์ตของแอปก่อน
+        final bytes = await pickedFile.readAsBytes();
+        final supportDir = await getApplicationSupportDirectory();
+        final safeName =
+            'profile_${DateTime.now().millisecondsSinceEpoch}_${path.basename(pickedFile.path)}';
+        final safePath = path.join(supportDir.path, safeName);
+        final file = File(safePath);
+        await file.writeAsBytes(bytes, flush: true);
+
+        if (!await file.exists()) {
+          throw Exception('ไม่สามารถบันทึกไฟล์รูปภาพชั่วคราวได้');
+        }
+
+        setState(() {
+          _image = file;
+          _hasImageChanged = true;
+        });
+      } catch (e) {
+        debugPrint('❌ Error picking/saving image: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('ไม่สามารถเลือกรูปภาพได้: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -322,9 +347,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
       String? profileUrl = currentProfileUrl;
 
       if (_image != null) {
-        final ref = FirebaseStorage.instance.ref().child('profile_images').child('${user.uid}.jpg');
+        if (!await _image!.exists()) {
+          throw Exception('ไม่พบไฟล์รูปภาพ กรุณาลองเลือกรูปใหม่อีกครั้ง');
+        }
+
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('profile_images')
+            .child('${user.uid}.jpg');
+
+        debugPrint('🔥 [UPLOAD] เริ่มอัพโหลดรูปโปรไฟล์...');
         await ref.putFile(_image!);
         profileUrl = await ref.getDownloadURL();
+        debugPrint('✅ [UPLOAD] อัพโหลดสำเร็จ: $profileUrl');
       }
 
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
@@ -337,10 +372,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => isSaving = false);
+      // 🧹 ลบไฟล์ชั่วคราวเสมอไม่ว่าจะสำเร็จหรือไม่
+      try {
+        if (_image != null && await _image!.exists()) {
+          debugPrint('🧹 [CLEANUP] กำลังลบไฟล์ชั่วคราว: ${_image!.path}');
+          await _image!.delete();
+          _image = null;
+        }
+      } catch (e) {
+        debugPrint('⚠️ [CLEANUP] ไม่สามารถลบไฟล์ได้: $e');
+      }
     }
   }
 }

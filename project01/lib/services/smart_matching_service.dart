@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/services/notifications_service.dart';
+import 'package:project01/Screen/page/map/mapmodel/building_data.dart';
 
 class SmartMatchingService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -112,16 +113,14 @@ class SmartMatchingService {
       debugPrint('🔍 Checking existing opposite posts...');
 
       // หาโพสต์ประเภทตรงข้าม
-      // ถ้าโพสต์ใหม่เป็น "หาของ" (lost) → หาใน "พบของ" (found)
-      // ถ้าโพสต์ใหม่เป็น "พบของ" (found) → หาใน "หาของ" (lost)
       final oppositeType = !newPost.isLostItem;
 
-      // ค้นหาโพสต์ที่อาจตรงกัน - แบบง่ายเพื่อหลีกเลี่ยง composite index
+      // ค้นหาโพสต์ที่อาจตรงกัน
       final snapshot =
           await _firestore
               .collection('lost_found_items')
               .where('isLostItem', isEqualTo: oppositeType)
-              .limit(100) // เพิ่มขึ้นเพื่อดึงข้อมูลมากขึ้น
+              .limit(100)
               .get();
 
       // กรองข้อมูลใน client side
@@ -170,7 +169,6 @@ class SmartMatchingService {
           matchingPost: existingPost,
           matchScore: matchScore,
         );
-        debugPrint('   ✓ Notified existing post owner: ${existingPost.userId}');
 
         // แจ้งเตือนไปยังเจ้าของโพสต์ใหม่ด้วย
         await _sendMatchNotification(
@@ -179,7 +177,6 @@ class SmartMatchingService {
           matchingPost: newPost,
           matchScore: matchScore,
         );
-        debugPrint('   ✓ Notified new post owner: ${newPost.userId}');
 
         // บันทึกการแมชลงใน Firebase เพื่อไว้ติดตาม
         await _saveMatchRecord(newPost, existingPost, matchScore);
@@ -209,8 +206,6 @@ class SmartMatchingService {
         'createdAt': FieldValue.serverTimestamp(),
         'status': 'pending', // pending, contacted, resolved
       });
-
-      debugPrint('✅ Saved match record: ${(matchScore * 100).round()}%');
     } catch (e) {
       debugPrint('❌ Error saving match record: $e');
     }
@@ -227,7 +222,7 @@ class SmartMatchingService {
         _userProfileCache[userId] = profile;
       }
 
-      // คำนวณ match score
+      // คำนวณ match score (เทียบกับโพสต์ทั้งหมดของผู้ใช้นี้)
       double bestMatchScore = 0.0;
       Post? bestMatchPost;
 
@@ -239,7 +234,7 @@ class SmartMatchingService {
         }
       }
 
-      // ส่ง notification หากคะแนนสูงกว่า threshold (เกณฑ์ 55%)
+      // ส่ง notification หากคะแนนสูงกว่า threshold
       if (bestMatchScore >= 0.55 && bestMatchPost != null) {
         await _sendMatchNotification(
           userId: userId,
@@ -263,7 +258,7 @@ class SmartMatchingService {
               .collection('lost_found_items')
               .where('userId', isEqualTo: userId)
               .orderBy('createdAt', descending: true)
-              .limit(50) // จำกัดจำนวนเพื่อประสิทธิภาพ
+              .limit(50)
               .get();
 
       final posts =
@@ -286,56 +281,81 @@ class SmartMatchingService {
     }
   }
 
-  /// คำนวณความคล้ายคลึงระหว่างโพสต์
+  /// คำนวณความคล้ายคลึงระหว่างโพสต์ (เวอร์ชันปรับปรุงตามน้ำหนักใหม่)
   static double _calculatePostSimilarity(Post userPost, Post newPost) {
+    // 0. ประเภทตรงข้ามเท่านั้นที่จะ Match กัน - ถ้าประเภทเดียวกันให้คะแนน 0
+    if (userPost.isLostItem == newPost.isLostItem) {
+      return 0.0;
+    }
+
     double score = 0.0;
 
-    // 1. ประเภทตรงข้าม (Lost vs Found) - 30%
-    if (userPost.isLostItem != newPost.isLostItem) {
-      score += 0.3;
+    // 1. ความคล้ายคลึงของชื่อสิ่งของ (Title) - 45%
+    double titleSimilarity = _diceCoefficient(userPost.title, newPost.title);
+    score += titleSimilarity * 0.45;
+
+    // 2. อาคารและสถานที่ (Location) - 25%
+    // - อาคารหลัก (10%)
+    final parent1 = getParentBuilding(userPost.building);
+    final parent2 = getParentBuilding(newPost.building);
+    if (parent1 == parent2 && parent1.isNotEmpty) {
+      score += 0.10;
     }
 
-    // 2. อาคารเดียวกัน - 10%
-    if (userPost.building == newPost.building && userPost.building.isNotEmpty) {
-      score += 0.1;
-    }
+    // - รายละเอียดห้อง/ชั้น (15%)
+    double roomSimilarity = _diceCoefficient(userPost.location, newPost.location);
+    score += roomSimilarity * 0.15;
 
-    // ตรวจสอบว่ามี AI Tags หรือไม่
-    bool hasAiTags =
-        userPost.aiTags != null &&
+    // 3. AI Semantic Context - 20%
+    if (userPost.aiTags != null &&
         userPost.aiTags!.isNotEmpty &&
         newPost.aiTags != null &&
-        newPost.aiTags!.isNotEmpty;
-
-    if (hasAiTags) {
-      // 3. AI Semantic Tag Matching - 60%
+        newPost.aiTags!.isNotEmpty) {
       int commonTags =
           userPost.aiTags!.where((tag) => newPost.aiTags!.contains(tag)).length;
-
-      // เทียบจากจำนวน Tags ของอันที่น้อยกว่า จะได้คะแนนสะท้อนบริบทที่ตรงกันมากที่สุด (ไม่หักคะแนนคนอธิบายยาว)
-      int minTags =
-          userPost.aiTags!.length < newPost.aiTags!.length
-              ? userPost.aiTags!.length
-              : newPost.aiTags!.length;
-
+      int minTags = userPost.aiTags!.length < newPost.aiTags!.length
+          ? userPost.aiTags!.length
+          : newPost.aiTags!.length;
       double tagSimilarity = minTags > 0 ? commonTags / minTags : 0.0;
-      score += tagSimilarity * 0.6; // ให้พลัง AI ถึง 60%
+      score += tagSimilarity * 0.20;
     } else {
-      // --- Fallback สำหรับโพสต์เก่าที่ยังไม่มี AI Tags ---
-      if (userPost.category == newPost.category) {
-        score += 0.1;
-      }
-      double textSimilarity = _calculateTextSimilarity(
-        '${userPost.title} ${userPost.description}',
-        '${newPost.title} ${newPost.description}',
-      );
-      score += textSimilarity * 0.2;
+      // Fallback: description similarity
+      double descSimilarity = _calculateTextSimilarity(userPost.description, newPost.description);
+      score += descSimilarity * 0.20;
+    }
+
+    // 4. หมวดหมู่ (Category) - 10%
+    if (userPost.category == newPost.category) {
+      score += 0.10;
     }
 
     return score;
   }
 
-  /// คำนวณความคล้ายคลึงของข้อความ
+  /// คำนวณ Sorensen-Dice coefficient สำหรับความคล้ายคลึงของข้อความ (ดีสำหรับภาษาไทย)
+  static double _diceCoefficient(String s1, String s2) {
+    String str1 = s1.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+    String str2 = s2.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+
+    if (str1 == str2) return 1.0;
+    if (str1.length < 2 || str2.length < 2) return 0.0;
+
+    Set<String> getBigrams(String s) {
+      Set<String> bigrams = {};
+      for (int i = 0; i < s.length - 1; i++) {
+        bigrams.add(s.substring(i, i + 2));
+      }
+      return bigrams;
+    }
+
+    Set<String> bigrams1 = getBigrams(str1);
+    Set<String> bigrams2 = getBigrams(str2);
+
+    int intersection = bigrams1.where((b) => bigrams2.contains(b)).length;
+    return (2.0 * intersection) / (bigrams1.length + bigrams2.length);
+  }
+
+  /// คำนวณความคล้ายคลึงของข้อความแบบ Keyword base (Fallback)
   static double _calculateTextSimilarity(String text1, String text2) {
     if (text1.isEmpty || text2.isEmpty) return 0.0;
 
@@ -375,18 +395,6 @@ class SmartMatchingService {
     required double matchScore,
   }) async {
     try {
-      (matchScore * 100).round();
-
-      // กำหนดข้อความตามประเภทของการแมช
-
-      if (newPost.isLostItem && !matchingPost.isLostItem) {
-        // โพสต์ใหม่ = หาของ, โพสต์เดิม = พบของ
-      } else if (!newPost.isLostItem && matchingPost.isLostItem) {
-        // โพสต์ใหม่ = พบของ, โพสต์เดิม = หาของ
-      } else {
-        // กรณีอื่นๆ (ไม่น่าจะเกิดขึ้น)
-      }
-
       // สร้างเหตุผลการจับคู่เพื่อช่วยผู้ใช้เข้าใจ
       final reasons = _getPostMatchReasons(matchingPost, newPost);
 
@@ -408,51 +416,46 @@ class SmartMatchingService {
   static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
     final List<String> reasons = [];
 
-    if (userPost.isLostItem != otherPost.isLostItem) {
-      reasons.add('✓ ประเภทตรงข้าม (หาของ/เจอของ) (+30%)');
+    // 1. ชื่อสิ่งของ (Title) - 45%
+    double titleSim = _diceCoefficient(userPost.title, otherPost.title);
+    if (titleSim > 0.3) {
+      int percent = (titleSim * 45).round();
+      reasons.add('✓ ชื่อสิ่งของใกล้เคียงกัน: ${otherPost.title} (+$percent%)');
     }
 
-    if (userPost.building == otherPost.building &&
-        userPost.building.isNotEmpty) {
-      reasons.add('✓ อาคารเดียวกัน: อาคาร ${otherPost.building} (+10%)');
+    // 2. อาคารและสถานที่ (Location) - 25%
+    final parentUser = getParentBuilding(userPost.building);
+    final parentOther = getParentBuilding(otherPost.building);
+    if (parentUser == parentOther && parentUser.isNotEmpty) {
+      reasons.add('✓ อาคารเดียวกัน: $parentUser (+10%)');
     }
 
-    bool hasAiTags =
-        userPost.aiTags != null &&
+    double roomSim = _diceCoefficient(userPost.location, otherPost.location);
+    if (roomSim > 0.3) {
+      int percent = (roomSim * 15).round();
+      reasons.add('✓ ระบุสถานที่ใกล้เคียงกัน (+$percent%)');
+    }
+
+    // 3. AI Semantic Tags - 20%
+    if (userPost.aiTags != null &&
         userPost.aiTags!.isNotEmpty &&
         otherPost.aiTags != null &&
-        otherPost.aiTags!.isNotEmpty;
-
-    if (hasAiTags) {
+        otherPost.aiTags!.isNotEmpty) {
       int commonTags =
-          userPost.aiTags!
-              .where((tag) => otherPost.aiTags!.contains(tag))
-              .length;
-
-      int minTags =
-          userPost.aiTags!.length < otherPost.aiTags!.length
-              ? userPost.aiTags!.length
-              : otherPost.aiTags!.length;
-
+          userPost.aiTags!.where((tag) => otherPost.aiTags!.contains(tag)).length;
+      int minTags = userPost.aiTags!.length < otherPost.aiTags!.length
+          ? userPost.aiTags!.length
+          : otherPost.aiTags!.length;
       double tagSim = minTags > 0 ? commonTags / minTags : 0.0;
-
       if (tagSim > 0.0) {
-        int percent = (tagSim * 60).round();
-        reasons.add('🧠 AI บริบทตรงกัน (+$percent%)');
+        int percent = (tagSim * 20).round();
+        reasons.add('🧠 AI ตรวจพบคุณสมบัติที่ตรงกัน (+$percent%)');
       }
-    } else {
-      if (userPost.category == otherPost.category) {
-        reasons.add('✓ หมวดหมู่เดียวกัน (+10%)');
-      }
+    }
 
-      final textSim = _calculateTextSimilarity(
-        '${userPost.title} ${userPost.description}',
-        '${otherPost.title} ${otherPost.description}',
-      );
-      if (textSim >= 0.2) {
-        int percent = (textSim * 20).round();
-        reasons.add('✓ ข้อความคล้ายกัน (+$percent%)');
-      }
+    // 4. หมวดหมู่ (Category) - 10%
+    if (userPost.category == otherPost.category) {
+      reasons.add('✓ หมวดหมู่เดียวกัน (+10%)');
     }
 
     return reasons;
@@ -461,15 +464,12 @@ class SmartMatchingService {
   /// อัพเดท user activity (เรียกเมื่อเปิดแอพ)
   static Future<void> updateUserActivity(String userId) async {
     if (userId.isEmpty) return;
-
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'lastActive': FieldValue.serverTimestamp(),
       });
-      // debugPrint('✅ User activity updated for $userId');
     } catch (e) {
-      // debugPrint('❌ Error updating user activity: $e');
-      // Quietly fail if the user document doesn't exist or permission denied
+      // Quiet fail
     }
   }
 }
