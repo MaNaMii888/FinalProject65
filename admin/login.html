@@ -35,35 +35,6 @@
     </div>
   </div>
 
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-    const form = document.getElementById("loginForm");
-    const msg = document.getElementById("msg");
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-
-      try {
-        const userCred = await signInWithEmailAndPassword(auth, email, password);
-        const uid = userCred.user.uid;
-
-        // อ่าน role จาก Firestore
-        const userDoc = await getDoc(doc(db, "users", uid));
-        if (userDoc.exists() && userDoc.data().role === "admin") {
-          // ✅ ถ้าเป็นแอดมิน → ไปหน้า index.html
-          window.location.href = "index.html";
-        } else {
-          msg.textContent = "❌ ไม่ใช่แอดมิน";
-        }
-      } catch (err) {
-        msg.textContent = "⚠️ Error: " + err.message;
-      }
-    });
-  </script>
+  <script type="module" src="login.js"></script>
 </body>
 </html>

@@ -111,7 +111,9 @@ class MyApp extends StatelessWidget {
                     }
 
                     if (snapshot.hasData && snapshot.data != null) {
-                      ChatNotificationService.instance.startListening(snapshot.data!.uid);
+                      ChatNotificationService.instance.startListening(
+                        snapshot.data!.uid,
+                      );
                       return const DashboardPage();
                     }
 
@@ -231,12 +233,16 @@ class _NetworkAwareWrapperState extends State<NetworkAwareWrapper> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.wifi_off, size: 80, color: colorScheme.primary.withOpacity(0.5)),
+              Icon(
+                Icons.wifi_off,
+                size: 80,
+                color: colorScheme.primary.withOpacity(0.5),
+              ),
               const SizedBox(height: 16),
               Text(
                 'ไม่มีการเชื่อมต่ออินเตอร์เน็ต',
                 style: TextStyle(
-                  fontSize: 20, 
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onSurface,
                 ),
@@ -246,7 +252,7 @@ class _NetworkAwareWrapperState extends State<NetworkAwareWrapper> {
                 'กรุณาตรวจสอบการเชื่อมต่อของคุณ\nระบบจะกลับมาทำงานอัตโนมัติเมื่อเชื่อมต่อสำเร็จ',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: colorScheme.onSurface.withOpacity(0.7), 
+                  color: colorScheme.onSurface.withOpacity(0.7),
                   fontSize: 14,
                 ),
               ),

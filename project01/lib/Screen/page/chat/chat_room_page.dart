@@ -656,6 +656,32 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   width: 48,
                   height: 48,
                   fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return Container(
+                      width: 48,
+                      height: 48,
+                      color: colorScheme.surfaceVariant,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder:
+                      (context, error, stackTrace) => Container(
+                        width: 48,
+                        height: 48,
+                        color: colorScheme.onPrimary.withOpacity(0.12),
+                        child: Icon(
+                          Icons.broken_image,
+                          color: colorScheme.onPrimary.withOpacity(0.5),
+                          size: 20,
+                        ),
+                      ),
                 ),
               )
             else
@@ -783,6 +809,18 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                                         loadingProgress.expectedTotalBytes!
                                     : null,
                           ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 200,
+                        height: 200,
+                        color: colorScheme.onPrimary.withOpacity(0.1),
+                        child: Icon(
+                          Icons.broken_image,
+                          color: colorScheme.onPrimary.withOpacity(0.5),
+                          size: 32,
                         ),
                       );
                     },

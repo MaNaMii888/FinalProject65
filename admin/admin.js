@@ -1,7 +1,7 @@
 import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, limit, getDoc, addDoc, Timestamp } 
   from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { db, auth } from "./firebase.js";
-import { signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
 // DOM Elements
 const logoutBtn = document.getElementById("logoutBtn");
@@ -821,5 +821,25 @@ async function createLog(type, userId, userName, action, details) {
 // Export function for use in other parts
 window.createLog = createLog;
 
-// ---------- Initialize ----------
-loadDashboard();
+// ---------- Initialize (Auth Guard) ----------
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  try {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (!userDoc.exists() || userDoc.data().role !== "admin") {
+      alert("คุณไม่มีสิทธิ์เข้าใช้งานระบบแอดมิน");
+      await signOut(auth);
+      window.location.href = "login.html";
+      return;
+    }
+    // ✅ เป็น admin → โหลดข้อมูล
+    loadDashboard();
+  } catch (error) {
+    console.error("Auth check error:", error);
+    window.location.href = "login.html";
+  }
+});

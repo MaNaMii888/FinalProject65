@@ -226,7 +226,7 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
 
                     // Category
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedCategory,
+                      value: _selectedCategory,
                       decoration: _inputStyle(
                         'ประเภทสิ่งของ *',
                         Icons.category,
@@ -248,7 +248,7 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
 
                     // Building
                     DropdownButtonFormField<String>(
-                      initialValue:
+                      value:
                           buildings.contains(_buildingController.text)
                               ? _buildingController.text
                               : null,
@@ -297,7 +297,7 @@ class _EditPostBottomSheetState extends State<EditPostBottomSheet> {
 
                     // Status
                     DropdownButtonFormField<String>(
-                      initialValue: _selectedStatus,
+                      value: _selectedStatus,
                       decoration: _inputStyle('สถานะ *', Icons.info_outline),
                       items: const [
                         DropdownMenuItem(

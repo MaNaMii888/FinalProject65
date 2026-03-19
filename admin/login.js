@@ -3,12 +3,15 @@ import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/1
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const form = document.getElementById("loginForm");
-const errorMsg = document.getElementById("errorMsg");
+const msg = document.getElementById("msg");
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const email = document.getElementById("email").value;
+  const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
+
+  msg.textContent = "กำลังเข้าสู่ระบบ...";
+  msg.style.color = "#667eea";
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -17,12 +20,13 @@ form.addEventListener("submit", async (e) => {
     // ตรวจ role จาก Firestore
     const userDoc = await getDoc(doc(db, "users", uid));
     if (userDoc.exists() && userDoc.data().role === "admin") {
-      localStorage.setItem("isAdmin", "true");
-      window.location.href = "dashboard.html";
+      window.location.href = "index.html";
     } else {
-      errorMsg.textContent = "คุณไม่มีสิทธิ์เข้าใช้งาน Admin Panel";
+      msg.textContent = "❌ คุณไม่มีสิทธิ์เข้าใช้งาน Admin Panel";
+      msg.style.color = "#e74c3c";
     }
   } catch (err) {
-    errorMsg.textContent = "เข้าสู่ระบบไม่สำเร็จ: " + err.message;
+    msg.textContent = "⚠️ เข้าสู่ระบบไม่สำเร็จ: " + err.message;
+    msg.style.color = "#e74c3c";
   }
 });

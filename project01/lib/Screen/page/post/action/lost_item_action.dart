@@ -830,7 +830,7 @@ class _LostItemFormState extends State<LostItemForm> {
                                     ),
                                   )
                                   .toList(),
-                          initialValue: selectedBuilding,
+                          value: selectedBuilding,
                           validator:
                               (value) =>
                                   value == null ? 'กรุณาเลือกอาคาร' : null,

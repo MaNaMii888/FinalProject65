@@ -905,7 +905,7 @@ class _FindItemFormState extends State<FindItemForm> {
                                     ),
                                   )
                                   .toList(),
-                          initialValue: selectedBuilding,
+                          value: selectedBuilding,
                           validator:
                               (value) =>
                                   value == null ? 'กรุณาเลือกอาคาร' : null,
