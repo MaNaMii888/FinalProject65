@@ -152,7 +152,7 @@ class SmartMatchingService {
   ) async {
     try {
       // คำนวณคะแนนความคล้ายคลึง
-      final matchScore = _calculatePostSimilarity(existingPost, newPost);
+      final matchScore = calculatePostSimilarity(existingPost, newPost);
 
       debugPrint(
         '🎯 Match score between "${newPost.title}" and "${existingPost.title}": ${(matchScore * 100).round()}%',
@@ -227,7 +227,7 @@ class SmartMatchingService {
       Post? bestMatchPost;
 
       for (var userPost in profile.userPosts) {
-        double score = _calculatePostSimilarity(userPost, newPost);
+        double score = calculatePostSimilarity(userPost, newPost);
         if (score > bestMatchScore) {
           bestMatchScore = score;
           bestMatchPost = userPost;
@@ -282,31 +282,33 @@ class SmartMatchingService {
   }
 
   /// คำนวณความคล้ายคลึงระหว่างโพสต์ (เวอร์ชันปรับปรุงตามน้ำหนักใหม่)
-  static double _calculatePostSimilarity(Post userPost, Post newPost) {
+  static double calculatePostSimilarity(Post userPost, Post newPost) {
     // 0. ประเภทตรงข้ามเท่านั้นที่จะ Match กัน - ถ้าประเภทเดียวกันให้คะแนน 0
     if (userPost.isLostItem == newPost.isLostItem) {
       return 0.0;
     }
 
     double score = 0.0;
+    String t1 = userPost.title.toLowerCase().trim();
+    String t2 = newPost.title.toLowerCase().trim();
 
-    // 1. ความคล้ายคลึงของชื่อสิ่งของ (Title) - 45%
-    double titleSimilarity = _diceCoefficient(userPost.title, newPost.title);
-    score += titleSimilarity * 0.45;
+    // 1. Token Overlap Score (40%) - ใกล้เคียง Jaccard แต่ใช้ Overlap Coefficient (เน้นคำสั้นในคำยาว)
+    double overlapSim = _overlapCoefficient(t1, t2);
+    double titleOverlapScore = overlapSim * 0.40;
+    score += titleOverlapScore;
 
-    // 2. อาคารและสถานที่ (Location) - 25%
-    // - อาคารหลัก (10%)
-    final parent1 = getParentBuilding(userPost.building);
-    final parent2 = getParentBuilding(newPost.building);
-    if (parent1 == parent2 && parent1.isNotEmpty) {
-      score += 0.10;
-    }
+    // 2. Substring Bonus (20%) - คำสั้นเป็นซับสตริงของคำยาว
+    double substringBonus = (t1.contains(t2) || t2.contains(t1)) ? 0.20 : 0.0;
+    score += substringBonus;
 
-    // - รายละเอียดห้อง/ชั้น (15%)
-    double roomSimilarity = _diceCoefficient(userPost.location, newPost.location);
-    score += roomSimilarity * 0.15;
+    // 3. Dice Coefficient (15%) - ป้องกันคำที่พิมพ์คล้ายกันแต่ไม่ใช่แบบ substring
+    double diceSim = _diceCoefficient(t1, t2);
+    double titleDiceScore = diceSim * 0.15;
+    score += titleDiceScore;
 
-    // 3. AI Semantic Context - 20%
+    double titleScore = titleOverlapScore + substringBonus + titleDiceScore;
+
+    // 4. AI Semantic Context (25%)
     if (userPost.aiTags != null &&
         userPost.aiTags!.isNotEmpty &&
         newPost.aiTags != null &&
@@ -316,23 +318,68 @@ class SmartMatchingService {
       int minTags = userPost.aiTags!.length < newPost.aiTags!.length
           ? userPost.aiTags!.length
           : newPost.aiTags!.length;
-      double tagSimilarity = minTags > 0 ? commonTags / minTags : 0.0;
-      score += tagSimilarity * 0.20;
+      double tagSim = minTags > 0 ? commonTags / minTags : 0.0;
+      score += tagSim * 0.25;
     } else {
       // Fallback: description similarity
-      double descSimilarity = _calculateTextSimilarity(userPost.description, newPost.description);
-      score += descSimilarity * 0.20;
+      double descSim = _calculateTextSimilarity(userPost.description, newPost.description);
+      score += descSim * 0.25;
     }
 
-    // 4. หมวดหมู่ (Category) - 10%
-    if (userPost.category == newPost.category) {
+    // ถ้าคะแนน Item Match (Title + Data) ต่ำกว่าเกณฑ์ แปลว่าของคนละชนิดกันแน่นอน (ตัด False Positive)
+    // แต่ถ้าคะแนนของ Title ค่อนข้างคล้ายกันมากๆ (>= 35%) ก็ยังเก็บไว้บวกคะแนน context เพิ่มได้
+    if (score < 0.45 && titleScore < 0.35) {
+      return 0.0;
+    }
+
+    // --- Bonus Context Score --- (สามารถช่วยดันให้คะแนนดีขึ้นถ้าของชนิดเดียวกัน)
+    // อาคารและสถานที่หลัก (10%)
+    final parent1 = getParentBuilding(userPost.building);
+    final parent2 = getParentBuilding(newPost.building);
+    if (parent1 == parent2 && parent1.isNotEmpty) {
       score += 0.10;
     }
 
-    return score;
+    // ห้อง/ชั้นใกล้เคียง (5%)
+    double roomSim = _diceCoefficient(userPost.location, newPost.location);
+    if (roomSim > 0.3) {
+      score += 0.05;
+    }
+
+    // หมวดหมู่เดียวกัน (10%)
+    if (userPost.category == newPost.category && userPost.category.isNotEmpty) {
+      score += 0.10;
+    }
+
+    return score > 1.0 ? 1.0 : score;
+  }
+
+  /// คำนวณ Overlap Coefficient (ดีสำหรับหาคำที่ซ่อนอยู่ในอีกคำ)
+  static double _overlapCoefficient(String s1, String s2) {
+    String str1 = s1.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+    String str2 = s2.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+
+    if (str1 == str2) return 1.0;
+    if (str1.length < 2 || str2.length < 2) return 0.0;
+
+    Set<String> getBigrams(String s) {
+      Set<String> bigrams = {};
+      for (int i = 0; i < s.length - 1; i++) {
+        bigrams.add(s.substring(i, i + 2));
+      }
+      return bigrams;
+    }
+
+    Set<String> bigrams1 = getBigrams(str1);
+    Set<String> bigrams2 = getBigrams(str2);
+
+    int intersection = bigrams1.where((b) => bigrams2.contains(b)).length;
+    int minLen = bigrams1.length < bigrams2.length ? bigrams1.length : bigrams2.length;
+    return minLen > 0 ? intersection / minLen : 0.0;
   }
 
   /// คำนวณ Sorensen-Dice coefficient สำหรับความคล้ายคลึงของข้อความ (ดีสำหรับภาษาไทย)
+
   static double _diceCoefficient(String s1, String s2) {
     String str1 = s1.replaceAll(RegExp(r'\s+'), '').toLowerCase();
     String str2 = s2.replaceAll(RegExp(r'\s+'), '').toLowerCase();
@@ -396,7 +443,7 @@ class SmartMatchingService {
   }) async {
     try {
       // สร้างเหตุผลการจับคู่เพื่อช่วยผู้ใช้เข้าใจ
-      final reasons = _getPostMatchReasons(matchingPost, newPost);
+      final reasons = getPostMatchReasons(matchingPost, newPost);
 
       await NotificationService.createSmartMatchNotification(
         targetUserId: userId,
@@ -413,17 +460,23 @@ class SmartMatchingService {
   }
 
   /// อธิบายเหตุผลการจับคู่แบบย่อเพื่อแสดงใน UI
-  static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
+  static List<String> getPostMatchReasons(Post userPost, Post otherPost) {
     final List<String> reasons = [];
+    String t1 = userPost.title.toLowerCase().trim();
+    String t2 = otherPost.title.toLowerCase().trim();
 
-    // 1. ชื่อสิ่งของ (Title) - 45%
-    double titleSim = _diceCoefficient(userPost.title, otherPost.title);
-    if (titleSim > 0.3) {
-      int percent = (titleSim * 45).round();
-      reasons.add('✓ ชื่อสิ่งของใกล้เคียงกัน: ${otherPost.title} (+$percent%)');
+    // 1. Token/Substring (Name)
+    double overlapSim = _overlapCoefficient(t1, t2);
+    if (overlapSim > 0.4) {
+      int percent = (overlapSim * 40).round();
+      reasons.add('✓ ชื่อสิ่งของตรงกัน: ${otherPost.title} (+$percent%)');
     }
 
-    // 2. อาคารและสถานที่ (Location) - 25%
+    if (t1.contains(t2) || t2.contains(t1)) {
+      reasons.add('✓ สิ่งของชนิดเดียวกันเป๊ะ (+20%)');
+    }
+
+    // 2. อาคารและสถานที่
     final parentUser = getParentBuilding(userPost.building);
     final parentOther = getParentBuilding(otherPost.building);
     if (parentUser == parentOther && parentUser.isNotEmpty) {
@@ -432,11 +485,10 @@ class SmartMatchingService {
 
     double roomSim = _diceCoefficient(userPost.location, otherPost.location);
     if (roomSim > 0.3) {
-      int percent = (roomSim * 15).round();
-      reasons.add('✓ ระบุสถานที่ใกล้เคียงกัน (+$percent%)');
+      reasons.add('✓ ระบุสถานที่ใกล้เคียงกัน (+5%)');
     }
 
-    // 3. AI Semantic Tags - 20%
+    // 3. AI Semantic Tags
     if (userPost.aiTags != null &&
         userPost.aiTags!.isNotEmpty &&
         otherPost.aiTags != null &&
@@ -448,13 +500,13 @@ class SmartMatchingService {
           : otherPost.aiTags!.length;
       double tagSim = minTags > 0 ? commonTags / minTags : 0.0;
       if (tagSim > 0.0) {
-        int percent = (tagSim * 20).round();
+        int percent = (tagSim * 25).round();
         reasons.add('🧠 AI ตรวจพบคุณสมบัติที่ตรงกัน (+$percent%)');
       }
     }
 
-    // 4. หมวดหมู่ (Category) - 10%
-    if (userPost.category == otherPost.category) {
+    // 4. หมวดหมู่ (Category)
+    if (userPost.category == otherPost.category && userPost.category.isNotEmpty) {
       reasons.add('✓ หมวดหมู่เดียวกัน (+10%)');
     }
 

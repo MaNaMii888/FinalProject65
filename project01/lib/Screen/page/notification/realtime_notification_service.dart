@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project01/models/post.dart';
 import 'package:project01/services/notifications_service.dart';
-import 'package:project01/utils/category_utils.dart';
+import 'package:project01/services/smart_matching_service.dart';
 import 'dart:async';
 
 class RealtimeNotificationService {
@@ -132,12 +132,12 @@ class RealtimeNotificationService {
             // ข้ามถ้าเป็นโพสต์เดียวกัน
             if (otherPost.id == userPost.id) continue;
 
-            final similarity = _calculatePostSimilarity(userPost, otherPost);
+            final similarity = SmartMatchingService.calculatePostSimilarity(userPost, otherPost);
 
             if (similarity > bestMatch) {
               bestMatch = similarity;
               matchingPost = otherPost;
-              matchReasons = _getPostMatchReasons(userPost, otherPost);
+              matchReasons = SmartMatchingService.getPostMatchReasons(userPost, otherPost);
             }
           } catch (e) {
             debugPrint('❌ Error processing other post: $e');
@@ -238,7 +238,7 @@ class RealtimeNotificationService {
     for (var userPost in userPosts) {
       if (userPost.id == newPost.id) continue;
 
-      double similarity = _calculatePostSimilarity(userPost, newPost);
+      double similarity = SmartMatchingService.calculatePostSimilarity(userPost, newPost);
       debugPrint(
         '📊 Similarity with "${userPost.title}": ${(similarity * 100).toStringAsFixed(1)}%',
       );
@@ -246,7 +246,7 @@ class RealtimeNotificationService {
       if (similarity > bestMatch) {
         bestMatch = similarity;
         matchingUserPost = userPost;
-        matchReasons = _getPostMatchReasons(userPost, newPost);
+        matchReasons = SmartMatchingService.getPostMatchReasons(userPost, newPost);
       }
     }
 
@@ -375,113 +375,9 @@ class RealtimeNotificationService {
     }
   }
 
-  static double _calculatePostSimilarity(Post userPost, Post otherPost) {
-    double score = 0.0;
-
-    // ประเภทตรงข้าม (Lost vs Found) - 35%
-    if (userPost.isLostItem != otherPost.isLostItem) {
-      score += 0.35;
-    }
-
-    // หมวดหมู่เดียวกัน - 20%
-    if (userPost.category == otherPost.category) {
-      score += 0.20;
-    }
-
-    // อาคารเดียวกัน - 15%
-    if (userPost.building == otherPost.building) {
-      score += 0.15;
-    }
-
-    // สถานที่ - 15%
-    if (userPost.location.isNotEmpty && otherPost.location.isNotEmpty) {
-      if (userPost.location.toLowerCase() == otherPost.location.toLowerCase()) {
-        score += 0.15;
-      } else {
-        double locationSimilarity = _calculateTextSimilarity(
-          userPost.location,
-          otherPost.location,
-        );
-        score += locationSimilarity * 0.10;
-      }
-    }
-
-    // ชื่อเรื่อง - 10%
-    double titleSimilarity = _calculateTextSimilarity(
-      userPost.title,
-      otherPost.title,
-    );
-    score += titleSimilarity * 0.10;
-
-    // คำอธิบาย - 5%
-    double descSimilarity = _calculateTextSimilarity(
-      userPost.description,
-      otherPost.description,
-    );
-    score += descSimilarity * 0.05;
-
-    return score;
-  }
-
-  static double _calculateTextSimilarity(String text1, String text2) {
-    if (text1.isEmpty || text2.isEmpty) return 0.0;
-
-    List<String> words1 = _extractKeywords(text1);
-    List<String> words2 = _extractKeywords(text2);
-
-    if (words1.isEmpty || words2.isEmpty) return 0.0;
-
-    int commonWords = 0;
-    for (String word1 in words1) {
-      for (String word2 in words2) {
-        if (word1.toLowerCase() == word2.toLowerCase()) {
-          commonWords++;
-          break;
-        }
-      }
-    }
-
-    int totalUniqueWords = words1.toSet().union(words2.toSet()).length;
-    return totalUniqueWords > 0 ? commonWords / totalUniqueWords : 0.0;
-  }
-
-  static List<String> _extractKeywords(String text) {
-    return text
-        .toLowerCase()
-        .split(RegExp(r'[\s,.-]+'))
-        .where((word) => word.length > 2)
-        .toList();
-  }
-
-  static String _getCategoryName(String categoryId) {
-    return CategoryUtils.getCategoryName(categoryId);
-  }
-
-  static List<String> _getPostMatchReasons(Post userPost, Post otherPost) {
-    List<String> reasons = [];
-
-    if (userPost.isLostItem != otherPost.isLostItem) {
-      String userType = userPost.isLostItem ? 'หาของ' : 'เจอของ';
-      String otherType = otherPost.isLostItem ? 'หาของ' : 'เจอของ';
-      reasons.add('คุณเคย$userType และมีคนอื่น$otherType');
-    }
-
-    if (userPost.category == otherPost.category) {
-      reasons.add('หมวดหมู่เดียวกัน: ${_getCategoryName(otherPost.category)}');
-    }
-
-    if (userPost.building == otherPost.building) {
-      reasons.add('อาคารเดียวกัน: ${otherPost.building}');
-    }
-
-    if (userPost.location.isNotEmpty && otherPost.location.isNotEmpty) {
-      if (userPost.location.toLowerCase() == otherPost.location.toLowerCase()) {
-        reasons.add('สถานที่เดียวกัน: ${otherPost.location}');
-      }
-    }
-
-    return reasons;
-  }
+  // เมธอด _calculatePostSimilarity, _calculateTextSimilarity, 
+  // _extractKeywords, _getCategoryName, และ _getPostMatchReasons 
+  // ถูกลบออกเพื่อให้เรียกใช้จาก SmartMatchingService เป็นแหล่งเดียว
 
   static Future<void> stopListening() async {
     await _subscription?.cancel();
